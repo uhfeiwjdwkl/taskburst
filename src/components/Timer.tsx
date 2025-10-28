@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw } from 'lucide-react';
+import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ProgressRing from './ProgressRing';
-import { TimerPhase } from '@/types/task';
+import { TimerPhase, Task } from '@/types/task';
 import confetti from 'canvas-confetti';
 
 const FOCUS_DURATION = 25 * 60; // 25 minutes in seconds
@@ -11,16 +11,25 @@ const BREAK_DURATION = 5 * 60; // 5 minutes in seconds
 interface TimerProps {
   onTick?: (seconds: number) => void;
   activeTaskId?: string | null;
+  activeTask?: Task | null;
+  onTaskComplete?: (taskId: string) => void;
+  onRunningChange?: (isRunning: boolean) => void;
 }
 
-const Timer = ({ onTick, activeTaskId }: TimerProps) => {
+const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChange }: TimerProps) => {
   const [phase, setPhase] = useState<TimerPhase>('focus');
   const [seconds, setSeconds] = useState(FOCUS_DURATION);
   const [isRunning, setIsRunning] = useState(false);
+  const [breakBonus, setBreakBonus] = useState(0);
   const intervalRef = useRef<number>();
 
-  const totalDuration = phase === 'focus' ? FOCUS_DURATION : BREAK_DURATION;
+  const totalDuration = phase === 'focus' ? FOCUS_DURATION : BREAK_DURATION + breakBonus;
   const progress = ((totalDuration - seconds) / totalDuration) * 100;
+
+  // Calculate task progress
+  const taskProgress = activeTask 
+    ? Math.min((activeTask.spentMinutes / activeTask.estimatedMinutes) * 100, 100)
+    : 0;
 
   const fireConfetti = () => {
     const count = 200;
@@ -73,16 +82,33 @@ const Timer = ({ onTick, activeTaskId }: TimerProps) => {
           if (onTick && phase === 'focus') {
             onTick(1); // Increment spent time by 1 second
           }
+          
+          // Check if task is completed
+          if (activeTask && phase === 'focus') {
+            const taskCompleted = activeTask.spentMinutes >= activeTask.estimatedMinutes;
+            if (taskCompleted && onTaskComplete && newSeconds > 0) {
+              // Task completed mid-session
+              fireConfetti();
+              onTaskComplete(activeTask.id);
+              setBreakBonus(300); // Add 5 minutes (300 seconds) to break
+              setPhase('break');
+              setSeconds(BREAK_DURATION + 300);
+              setIsRunning(false);
+              onRunningChange?.(false);
+            }
+          }
+          
           return newSeconds;
         });
       }, 1000);
     } else if (seconds === 0) {
       // Phase complete
-      fireConfetti();
       const nextPhase = phase === 'focus' ? 'break' : 'focus';
       setPhase(nextPhase);
       setSeconds(nextPhase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);
+      setBreakBonus(0);
       setIsRunning(false);
+      onRunningChange?.(false);
     }
 
     return () => {
@@ -90,18 +116,26 @@ const Timer = ({ onTick, activeTaskId }: TimerProps) => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isRunning, seconds, phase, onTick]);
+  }, [isRunning, seconds, phase, onTick, activeTask, onTaskComplete, onRunningChange]);
 
   const handleStart = () => {
-    if (!isRunning) {
-      fireConfetti();
-    }
-    setIsRunning(!isRunning);
+    const newRunningState = !isRunning;
+    setIsRunning(newRunningState);
+    onRunningChange?.(newRunningState);
   };
 
   const handleReset = () => {
     setIsRunning(false);
-    setSeconds(phase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);
+    onRunningChange?.(false);
+    setSeconds(phase === 'focus' ? FOCUS_DURATION : BREAK_DURATION + breakBonus);
+  };
+
+  const handleSkipToBreak = () => {
+    setPhase('break');
+    setSeconds(BREAK_DURATION);
+    setBreakBonus(0);
+    setIsRunning(false);
+    onRunningChange?.(false);
   };
 
   const formatTime = (secs: number) => {
@@ -116,26 +150,46 @@ const Timer = ({ onTick, activeTaskId }: TimerProps) => {
         <h2 className="text-2xl font-bold mb-2">
           {phase === 'focus' ? '🎯 Focus Time' : '☕ Break Time'}
         </h2>
-        {activeTaskId && phase === 'focus' && (
-          <p className="text-sm text-muted-foreground">Working on task</p>
+        {activeTask && phase === 'focus' && (
+          <p className="text-lg font-medium mt-2">{activeTask.name}</p>
         )}
       </div>
 
-      <div className="relative">
-        <ProgressRing progress={progress} />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              {formatTime(seconds)}
+      <div className="flex items-center gap-8">
+        {/* Task Progress Ring */}
+        {activeTask && phase === 'focus' && (
+          <div className="relative">
+            <ProgressRing progress={taskProgress} size={180} strokeWidth={10} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                  {Math.round(taskProgress)}%
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Task
+                </div>
+              </div>
             </div>
-            <div className="text-sm text-muted-foreground mt-2">
-              {phase === 'focus' ? 'Stay focused!' : 'Take a break!'}
+          </div>
+        )}
+
+        {/* Main Timer Ring */}
+        <div className="relative">
+          <ProgressRing progress={progress} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center">
+              <div className="text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                {formatTime(seconds)}
+              </div>
+              <div className="text-sm text-muted-foreground mt-2">
+                {phase === 'focus' ? 'Stay focused!' : 'Take a break!'}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 flex-wrap justify-center">
         <Button
           size="lg"
           onClick={handleStart}
@@ -161,6 +215,16 @@ const Timer = ({ onTick, activeTaskId }: TimerProps) => {
           <RotateCcw className="mr-2 h-5 w-5" />
           Reset
         </Button>
+        {phase === 'focus' && (
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={handleSkipToBreak}
+          >
+            <SkipForward className="mr-2 h-5 w-5" />
+            Skip to Break
+          </Button>
+        )}
       </div>
     </div>
   );

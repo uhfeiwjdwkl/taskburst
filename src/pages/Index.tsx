@@ -18,6 +18,7 @@ const Index = () => {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [timerRunning, setTimerRunning] = useState(false);
 
   // Load tasks from localStorage
   useEffect(() => {
@@ -49,6 +50,27 @@ const Index = () => {
       localStorage.setItem('tasks', JSON.stringify(tasks));
     }
   }, [tasks]);
+
+  // Auto-select most important task
+  useEffect(() => {
+    if (!activeTaskId && tasks.length > 0) {
+      const sortedByPriority = [...tasks].sort((a, b) => {
+        if (b.importance !== a.importance) {
+          return b.importance - a.importance;
+        }
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
+      setActiveTaskId(sortedByPriority[0].id);
+    }
+  }, [tasks, activeTaskId]);
+
+  // Update task progress every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTasks(prev => [...prev]);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleAddTask = (newTask: Omit<Task, 'id' | 'createdAt'>) => {
     const task: Task = {
@@ -94,7 +116,24 @@ const Index = () => {
       
       // Remove from active tasks
       setTasks(tasks.filter(t => t.id !== taskId));
+      
+      // Fire confetti
+      const confetti = (window as any).confetti;
+      if (confetti) {
+        confetti({
+          particleCount: 200,
+          spread: 70,
+          origin: { y: 0.6 },
+          zIndex: 9999,
+        });
+      }
+      
       toast.success('Task completed and archived! 🎉');
+      
+      // Clear active task if it was this one
+      if (activeTaskId === taskId) {
+        setActiveTaskId(null);
+      }
     }
   };
 
@@ -114,12 +153,24 @@ const Index = () => {
     }
   };
 
-  // Sort tasks by importance (highest first)
-  const sortedTasks = [...tasks].sort((a, b) => b.importance - a.importance);
+  // Sort tasks by importance (highest first), then by due date
+  const sortedTasks = [...tasks].sort((a, b) => {
+    if (b.importance !== a.importance) {
+      return b.importance - a.importance;
+    }
+    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+  });
+
+  const activeTask = tasks.find(t => t.id === activeTaskId) || null;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container max-w-6xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-background relative">
+      {/* Dimming overlay when timer is running */}
+      {timerRunning && (
+        <div className="fixed inset-0 bg-black/60 z-40 pointer-events-none" />
+      )}
+      
+      <div className="container max-w-6xl mx-auto px-4 py-8 relative z-0">
         {/* Header */}
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
@@ -161,8 +212,14 @@ const Index = () => {
         </header>
 
         {/* Timer Section */}
-        <section className="bg-card rounded-2xl shadow-lg p-8 mb-8 border border-border">
-          <Timer onTick={handleTimerTick} activeTaskId={activeTaskId} />
+        <section className="bg-card rounded-2xl shadow-lg p-8 mb-8 border border-border relative z-50">
+          <Timer 
+            onTick={handleTimerTick} 
+            activeTaskId={activeTaskId} 
+            activeTask={activeTask}
+            onTaskComplete={handleCompleteTask}
+            onRunningChange={setTimerRunning}
+          />
         </section>
 
         {/* Tasks Section */}
