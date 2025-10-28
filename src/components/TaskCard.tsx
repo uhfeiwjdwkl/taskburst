@@ -1,17 +1,18 @@
 import { Task } from '@/types/task';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Clock, Info, Play, CheckCircle2 } from 'lucide-react';
+import { Clock, Info, Play, CheckCircle2, Edit } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface TaskCardProps {
   task: Task;
   onStartFocus: (taskId: string) => void;
   onShowDetails: (taskId: string) => void;
+  onEdit: (taskId: string) => void;
   onComplete: (taskId: string) => void;
 }
 
-const TaskCard = ({ task, onStartFocus, onShowDetails, onComplete }: TaskCardProps) => {
+const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete }: TaskCardProps) => {
   const progressPercentage = task.estimatedMinutes > 0 
     ? Math.min((task.spentMinutes / task.estimatedMinutes) * 100, 100)
     : 0;
@@ -44,6 +45,11 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onComplete }: TaskCardPro
           </div>
 
           <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+            {task.category && (
+              <div className="flex items-center gap-1">
+                <Badge variant="outline">{task.category}</Badge>
+              </div>
+            )}
             <div className="flex items-center gap-1">
               <Clock className="h-4 w-4" />
               <span>{remainingMinutes}m left</span>
@@ -68,14 +74,14 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onComplete }: TaskCardPro
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               size="sm"
               onClick={() => onStartFocus(task.id)}
               className="bg-gradient-primary hover:opacity-90"
             >
               <Play className="h-4 w-4 mr-1" />
-              Focus
+              Study
             </Button>
             <Button
               size="sm"
@@ -84,6 +90,14 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onComplete }: TaskCardPro
             >
               <Info className="h-4 w-4 mr-1" />
               Details
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onEdit(task.id)}
+            >
+              <Edit className="h-4 w-4 mr-1" />
+              Edit
             </Button>
             <Button
               size="sm"

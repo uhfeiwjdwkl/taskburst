@@ -12,6 +12,13 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Plus } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface AddTaskDialogProps {
   open: boolean;
@@ -23,6 +30,7 @@ interface AddTaskDialogProps {
 const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogProps) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
   const [importance, setImportance] = useState(2);
   const [estimatedMinutes, setEstimatedMinutes] = useState(25);
   const [dueDate, setDueDate] = useState(prefilledDate || '');
@@ -40,6 +48,7 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
     onAdd({
       name: name.trim(),
       description: description.trim(),
+      category: category.trim(),
       importance,
       estimatedMinutes,
       spentMinutes: 0,
@@ -50,6 +59,7 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
     // Reset form
     setName('');
     setDescription('');
+    setCategory('');
     setImportance(2);
     setEstimatedMinutes(25);
     setDueDate('');
@@ -57,6 +67,7 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
   };
 
   const importanceLabels = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
+  const defaultCategories = ['Work', 'Study', 'Personal', 'Health', 'Projects', 'Other'];
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -76,6 +87,25 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
               placeholder="Enter task name..."
               autoFocus
             />
+          </div>
+
+          <div>
+            <Label htmlFor="add-category">Category</Label>
+            <Select
+              value={category}
+              onValueChange={setCategory}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {defaultCategories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>

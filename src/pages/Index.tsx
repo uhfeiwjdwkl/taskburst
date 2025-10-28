@@ -3,9 +3,10 @@ import { Task } from '@/types/task';
 import Timer from '@/components/Timer';
 import TaskCard from '@/components/TaskCard';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
+import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import AddTaskDialog from '@/components/AddTaskDialog';
 import { Button } from '@/components/ui/button';
-import { Plus, Archive, Calendar } from 'lucide-react';
+import { Plus, Archive, Calendar, FolderOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -13,7 +14,8 @@ const Index = () => {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
 
@@ -27,7 +29,8 @@ const Index = () => {
       const sampleTask: Task = {
         id: '1',
         name: 'Welcome to Focus Timer! 🎯',
-        description: 'Click the Focus button to start a 25-minute work session. Edit this task or add your own!',
+        description: 'Click the Study button to start a 25-minute work session. Edit this task or add your own!',
+        category: 'Study',
         importance: 3,
         estimatedMinutes: 25,
         spentMinutes: 0,
@@ -99,7 +102,15 @@ const Index = () => {
     const task = tasks.find(t => t.id === taskId);
     if (task) {
       setSelectedTask(task);
-      setDetailsOpen(true);
+      setDetailsDialogOpen(true);
+    }
+  };
+
+  const handleEdit = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      setSelectedTask(task);
+      setEditDialogOpen(true);
     }
   };
 
@@ -117,13 +128,20 @@ const Index = () => {
             </h1>
             <p className="text-muted-foreground mt-1">Stay productive with Pomodoro technique</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button
               onClick={() => setAddDialogOpen(true)}
               className="bg-gradient-primary hover:opacity-90 shadow-glow"
             >
               <Plus className="h-4 w-4 mr-2" />
               New Task
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/categories')}
+            >
+              <FolderOpen className="h-4 w-4 mr-2" />
+              Categories
             </Button>
             <Button
               variant="outline"
@@ -171,6 +189,7 @@ const Index = () => {
                   task={task}
                   onStartFocus={handleStartFocus}
                   onShowDetails={handleShowDetails}
+                  onEdit={handleEdit}
                   onComplete={handleCompleteTask}
                 />
               ))}
@@ -181,9 +200,15 @@ const Index = () => {
         {/* Dialogs */}
         <TaskDetailsDialog
           task={selectedTask}
-          open={detailsOpen}
-          onClose={() => setDetailsOpen(false)}
+          open={editDialogOpen}
+          onClose={() => setEditDialogOpen(false)}
           onSave={handleUpdateTask}
+        />
+
+        <TaskDetailsViewDialog
+          task={selectedTask}
+          open={detailsDialogOpen}
+          onClose={() => setDetailsDialogOpen(false)}
         />
 
         <AddTaskDialog

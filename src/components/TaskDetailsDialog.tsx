@@ -11,6 +11,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface TaskDetailsDialogProps {
   task: Task | null;
@@ -36,12 +43,13 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
   };
 
   const importanceLabels = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
+  const defaultCategories = ['Work', 'Study', 'Personal', 'Health', 'Projects', 'Other'];
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Task Details</DialogTitle>
+          <DialogTitle>Edit Task</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -53,6 +61,25 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
               onChange={(e) => setEditedTask({ ...editedTask, name: e.target.value })}
               className="mt-1"
             />
+          </div>
+
+          <div>
+            <Label htmlFor="category">Category</Label>
+            <Select
+              value={editedTask.category || ''}
+              onValueChange={(value) => setEditedTask({ ...editedTask, category: value })}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {defaultCategories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>

@@ -3,12 +3,13 @@ import { Task } from '@/types/task';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Plus, Calendar as CalendarIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import AddTaskDialog from '@/components/AddTaskDialog';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
+import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
+import TaskCard from '@/components/TaskCard';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -18,7 +19,8 @@ const CalendarPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
 
   useEffect(() => {
     const savedTasks = localStorage.getItem('tasks');
@@ -60,6 +62,22 @@ const CalendarPage = () => {
     setAddDialogOpen(true);
   };
 
+  const handleShowDetails = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      setSelectedTask(task);
+      setDetailsDialogOpen(true);
+    }
+  };
+
+  const handleEdit = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      setSelectedTask(task);
+      setEditDialogOpen(true);
+    }
+  };
+
   const getTasksForDate = (date: Date | undefined) => {
     if (!date) return [];
     return tasks.filter(task => {
@@ -90,20 +108,6 @@ const CalendarPage = () => {
 
   const tasksForSelectedDate = getTasksForDate(selectedDate);
   const datesWithTasks = getDatesWithTasks();
-
-  const getPriorityLabel = (importance: number) => {
-    const labels = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
-    return labels[importance] || 'None';
-  };
-
-  const importanceColors = [
-    'bg-muted text-muted-foreground',
-    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-    'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
-    'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -192,33 +196,28 @@ const CalendarPage = () => {
               ) : (
                 <div className="space-y-3 max-h-[500px] overflow-y-auto">
                   {tasksForSelectedDate.map((task) => (
-                    <Card
+                    <TaskCard
                       key={task.id}
-                      className="p-4 hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => {
-                        setSelectedTask(task);
-                        setDetailsOpen(true);
+                      task={task}
+                      onStartFocus={() => {
+                        toast.success(`Starting focus session for: ${task.name}`);
+                        navigate('/');
                       }}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold truncate">{task.name}</h3>
-                          {task.description && (
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                              {task.description}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge className={importanceColors[task.importance]}>
-                              {getPriorityLabel(task.importance)}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">
-                              {task.estimatedMinutes}m estimated
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
+                      onShowDetails={handleShowDetails}
+                      onEdit={handleEdit}
+                      onComplete={(taskId) => {
+                        const taskToComplete = tasks.find(t => t.id === taskId);
+                        if (taskToComplete) {
+                          const completedTask = { ...taskToComplete, completed: true };
+                          const archived = JSON.parse(localStorage.getItem('archivedTasks') || '[]');
+                          localStorage.setItem('archivedTasks', JSON.stringify([...archived, completedTask]));
+                          const updatedTasks = tasks.filter(t => t.id !== taskId);
+                          setTasks(updatedTasks);
+                          localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+                          toast.success('Task completed and archived! 🎉');
+                        }
+                      }}
+                    />
                   ))}
                 </div>
               )}
@@ -249,9 +248,15 @@ const CalendarPage = () => {
 
         <TaskDetailsDialog
           task={selectedTask}
-          open={detailsOpen}
-          onClose={() => setDetailsOpen(false)}
+          open={editDialogOpen}
+          onClose={() => setEditDialogOpen(false)}
           onSave={handleUpdateTask}
+        />
+
+        <TaskDetailsViewDialog
+          task={selectedTask}
+          open={detailsDialogOpen}
+          onClose={() => setDetailsDialogOpen(false)}
         />
       </div>
     </div>

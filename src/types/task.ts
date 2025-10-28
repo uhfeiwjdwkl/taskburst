@@ -2,6 +2,7 @@ export interface Task {
   id: string;
   name: string;
   description: string;
+  category: string;
   importance: number; // 1-5 scale
   estimatedMinutes: number;
   spentMinutes: number;
