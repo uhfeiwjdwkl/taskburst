@@ -18,6 +18,14 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete }: Tas
     : 0;
 
   const remainingMinutes = Math.max(task.estimatedMinutes - task.spentMinutes, 0);
+  const remainingSeconds = Math.round(remainingMinutes * 60);
+  const remainingMins = Math.floor(remainingSeconds / 60);
+  const remainingSecs = remainingSeconds % 60;
+
+  const spentSeconds = Math.round(task.spentMinutes * 60);
+  const spentMins = Math.floor(spentSeconds / 60);
+  const spentSecs = spentSeconds % 60;
+  const formattedSpent = `${spentMins}:${spentSecs.toString().padStart(2, '0')}`;
   
   const importanceColors = [
     'bg-muted text-muted-foreground',
@@ -52,7 +60,7 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete }: Tas
             )}
             <div className="flex items-center gap-1">
               <Clock className="h-4 w-4" />
-              <span>{remainingMinutes}m left</span>
+              <span>{remainingMins}m {remainingSecs}s left</span>
             </div>
             {task.dueDate && (
               <div>
@@ -70,7 +78,7 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete }: Tas
               />
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              {task.spentMinutes} / {task.estimatedMinutes} minutes
+              {formattedSpent} / {Math.round(task.estimatedMinutes)} minutes
             </div>
           </div>
 
