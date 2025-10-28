@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Task } from '@/types/task';
 import {
   Dialog,
@@ -17,14 +17,22 @@ interface AddTaskDialogProps {
   open: boolean;
   onClose: () => void;
   onAdd: (task: Omit<Task, 'id' | 'createdAt'>) => void;
+  prefilledDate?: string;
 }
 
-const AddTaskDialog = ({ open, onClose, onAdd }: AddTaskDialogProps) => {
+const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogProps) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [importance, setImportance] = useState(2);
   const [estimatedMinutes, setEstimatedMinutes] = useState(25);
-  const [dueDate, setDueDate] = useState('');
+  const [dueDate, setDueDate] = useState(prefilledDate || '');
+
+  // Update dueDate when prefilledDate changes
+  useEffect(() => {
+    if (prefilledDate) {
+      setDueDate(prefilledDate);
+    }
+  }, [prefilledDate]);
 
   const handleAdd = () => {
     if (!name.trim()) return;

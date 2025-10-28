@@ -5,7 +5,7 @@ import TaskCard from '@/components/TaskCard';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
 import AddTaskDialog from '@/components/AddTaskDialog';
 import { Button } from '@/components/ui/button';
-import { Plus, Archive } from 'lucide-react';
+import { Plus, Archive, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -124,6 +124,13 @@ const Index = () => {
             >
               <Plus className="h-4 w-4 mr-2" />
               New Task
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/calendar')}
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              Calendar
             </Button>
             <Button
               variant="outline"
