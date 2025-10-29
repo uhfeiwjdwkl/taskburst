@@ -6,7 +6,7 @@ import TaskDetailsDialog from '@/components/TaskDetailsDialog';
 import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import AddTaskDialog from '@/components/AddTaskDialog';
 import { Button } from '@/components/ui/button';
-import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon } from 'lucide-react';
+import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { playTaskCompleteSound } from '@/lib/sounds';
@@ -202,6 +202,13 @@ const Index = () => {
             >
               <Calendar className="h-4 w-4 mr-2" />
               Calendar
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/timetable')}
+            >
+              <Table className="h-4 w-4 mr-2" />
+              Timetable
             </Button>
             <Button
               variant="outline"
