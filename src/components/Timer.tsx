@@ -118,9 +118,9 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       setSeconds(FOCUS_DURATION);
       setBreakBonus(0);
       setShowStartEditor(true);
+      prevActiveTaskIdRef.current = activeTaskId; // Update ref only when dialog opens
     }
-    prevActiveTaskIdRef.current = activeTaskId || null;
-  }, [activeTaskId, activeTask]);
+  }, [activeTaskId, activeTask, FOCUS_DURATION, isRunning, onRunningChange]);
 
   const fireConfetti = () => {
     const count = 200;
