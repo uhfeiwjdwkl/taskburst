@@ -191,11 +191,11 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
         </div>
       </div>
 
-      <div className="flex gap-4 flex-wrap justify-center">
+      <div className="flex gap-4 flex-wrap justify-center relative z-50">
         <Button
           size="lg"
           onClick={handleStart}
-          className="bg-gradient-primary hover:opacity-90 transition-opacity shadow-glow"
+          className="bg-gradient-primary hover:opacity-90 transition-opacity shadow-glow relative z-50"
         >
           {isRunning ? (
             <>
@@ -213,6 +213,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
           size="lg"
           variant="outline"
           onClick={handleReset}
+          className="relative z-50 bg-card"
         >
           <RotateCcw className="mr-2 h-5 w-5" />
           Reset
@@ -222,6 +223,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
             size="lg"
             variant="outline"
             onClick={handleSkipToBreak}
+            className="relative z-50 bg-card"
           >
             <SkipForward className="mr-2 h-5 w-5" />
             Skip to Break
