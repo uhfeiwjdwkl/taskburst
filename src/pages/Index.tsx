@@ -229,6 +229,8 @@ const Index = () => {
             onTaskComplete={handleCompleteTask}
             onRunningChange={setTimerRunning}
             onUpdateTask={handleUpdateTask}
+            tasks={tasks}
+            onSelectTask={setActiveTaskId}
           />
         </section>
 

@@ -17,6 +17,7 @@ import { TimerPhase, Task } from '@/types/task';
 import { Session } from '@/types/session';
 import confetti from 'canvas-confetti';
 import { playTimerEndSound } from '@/lib/sounds';
+import { toast } from 'sonner';
 
 const DEFAULT_FOCUS_DURATION = 25; // minutes
 const DEFAULT_BREAK_DURATION = 5; // minutes
@@ -28,9 +29,11 @@ interface TimerProps {
   onTaskComplete?: (taskId: string) => void;
   onRunningChange?: (isRunning: boolean) => void;
   onUpdateTask?: (task: Task) => void;
+  tasks?: Task[];
+  onSelectTask?: (taskId: string) => void;
 }
 
-const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChange, onUpdateTask }: TimerProps) => {
+const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChange, onUpdateTask, tasks, onSelectTask }: TimerProps) => {
   // Load durations from localStorage
   const [focusDuration, setFocusDuration] = useState(() => {
     const saved = localStorage.getItem('focusDuration');
@@ -248,6 +251,19 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   }, [isRunning, seconds, phase, onTick, activeTask, onTaskComplete, onRunningChange]);
 
   const handleStart = () => {
+    // Auto-select most important task if none is selected and tasks are available
+    if (!activeTaskId && tasks && tasks.length > 0 && onSelectTask) {
+      const sortedByPriority = [...tasks].sort((a, b) => {
+        if (b.importance !== a.importance) {
+          return b.importance - a.importance;
+        }
+        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+      });
+      onSelectTask(sortedByPriority[0].id);
+      toast.success(`Starting focus session for: ${sortedByPriority[0].name}`);
+      return; // Will trigger useEffect to show start editor
+    }
+
     if (!isRunning && phase === 'focus' && activeTask) {
       // Show start editor before starting focus
       setShowStartEditor(true);
