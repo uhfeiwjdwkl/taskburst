@@ -40,10 +40,10 @@ const RecentlyDeletedUnified = () => {
     ));
 
     // Load deleted sessions
-    const sessions = JSON.parse(localStorage.getItem('sessions') || '[]') as Session[];
-    const deleted = sessions.filter(s => s.deletedAt && getDaysRemaining(s.deletedAt) > 0)
-      .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
-    setDeletedSessions(deleted);
+    const sessions = JSON.parse(localStorage.getItem('deletedSessions') || '[]') as Session[];
+    setDeletedSessions(sessions.filter(s => getDaysRemaining(s.deletedAt!) > 0).sort((a, b) => 
+      new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime()
+    ));
 
     // Load deleted archive items
     const archive = JSON.parse(localStorage.getItem('deletedArchive') || '[]') as Task[];
@@ -81,12 +81,14 @@ const RecentlyDeletedUnified = () => {
   };
 
   const handleRestoreSession = (sessionId: string) => {
-    const allSessions = JSON.parse(localStorage.getItem('sessions') || '[]') as Session[];
-    const session = allSessions.find(s => s.id === sessionId);
+    const session = deletedSessions.find(s => s.id === sessionId);
     if (session) {
       const { deletedAt, ...cleanSession } = session;
-      const updated = allSessions.map(s => s.id === sessionId ? cleanSession : s);
-      localStorage.setItem('sessions', JSON.stringify(updated));
+      const activeSessions = JSON.parse(localStorage.getItem('sessions') || '[]');
+      localStorage.setItem('sessions', JSON.stringify([...activeSessions, cleanSession]));
+      
+      const updated = deletedSessions.filter(s => s.id !== sessionId);
+      localStorage.setItem('deletedSessions', JSON.stringify(updated));
       
       // Restore task progress
       const tasks = JSON.parse(localStorage.getItem('tasks') || '[]') as Task[];
@@ -94,7 +96,6 @@ const RecentlyDeletedUnified = () => {
         if (task.id === session.taskId) {
           return {
             ...task,
-            progressGridFilled: session.progressGridEnd,
             spentMinutes: task.spentMinutes + session.duration,
           };
         }
@@ -143,10 +144,9 @@ const RecentlyDeletedUnified = () => {
       localStorage.setItem('deletedTasks', JSON.stringify(updated));
       setDeletedTasks(updated);
     } else if (itemToDelete.type === 'session') {
-      const allSessions = JSON.parse(localStorage.getItem('sessions') || '[]') as Session[];
-      const updated = allSessions.filter(s => s.id !== itemToDelete.id);
-      localStorage.setItem('sessions', JSON.stringify(updated));
-      setDeletedSessions(updated.filter(s => s.deletedAt));
+      const updated = deletedSessions.filter(s => s.id !== itemToDelete.id);
+      localStorage.setItem('deletedSessions', JSON.stringify(updated));
+      setDeletedSessions(updated);
     } else if (itemToDelete.type === 'archive') {
       const updated = deletedArchive.filter(t => t.id !== itemToDelete.id);
       localStorage.setItem('deletedArchive', JSON.stringify(updated));

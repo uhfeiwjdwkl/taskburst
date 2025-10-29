@@ -1,6 +1,10 @@
 import { Timetable } from "@/types/timetable";
+import * as XLSX from 'xlsx';
 
 export const exportToPDF = (timetable: Timetable) => {
+  // Calculate equal cell dimensions
+  const colWidth = `${Math.floor(100 / (timetable.columns.length + 1))}%`;
+  
   // Create a simple HTML representation of the timetable with preserved colors
   const html = `
     <!DOCTYPE html>
@@ -13,11 +17,19 @@ export const exportToPDF = (timetable: Timetable) => {
           }
           body { font-family: Arial, sans-serif; padding: 20px; }
           h1 { text-align: center; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: center; vertical-align: middle; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
+          th, td { 
+            border: 1px solid #ddd; 
+            padding: 12px; 
+            text-align: center; 
+            vertical-align: middle;
+            width: ${colWidth};
+            height: 60px;
+            overflow: hidden;
+          }
           th { background-color: #f2f2f2; font-weight: bold; }
           .time-column { background-color: #f9f9f9; font-weight: bold; }
-          .cell-content { line-height: 1.4; }
+          .cell-content { line-height: 1.4; word-wrap: break-word; }
         </style>
       </head>
       <body>
@@ -28,21 +40,21 @@ export const exportToPDF = (timetable: Timetable) => {
         <table>
           <thead>
             <tr>
-              <th>Time</th>
-              ${timetable.columns.map(day => `<th>${day}</th>`).join('')}
+              <th style="width: ${colWidth};">Time</th>
+              ${timetable.columns.map(day => `<th style="width: ${colWidth};">${day}</th>`).join('')}
             </tr>
           </thead>
           <tbody>
             ${timetable.rows.map((timeSlot, rowIndex) => `
-              <tr>
-                <td class="time-column">${timeSlot.label}<br><small style="color: #888;">${timeSlot.startTime}</small></td>
+              <tr style="height: 60px;">
+                <td class="time-column" style="width: ${colWidth};">${timeSlot.label}<br><small style="color: #888;">${timeSlot.startTime}</small></td>
                 ${timetable.columns.map((_, colIndex) => {
                   const key = `${rowIndex}-${colIndex}`;
                   const cell = timetable.cells[key];
                   if (cell?.hidden) return '';
                   const bgColor = cell?.color || '#ffffff';
                   const textColor = getContrastColor(bgColor);
-                  return `<td style="background-color: ${bgColor}; color: ${textColor};" ${cell?.rowSpan ? `rowspan="${cell.rowSpan}"` : ''} ${cell?.colSpan ? `colspan="${cell.colSpan}"` : ''}>
+                  return `<td style="background-color: ${bgColor}; color: ${textColor}; width: ${colWidth}; height: 60px;" ${cell?.rowSpan ? `rowspan="${cell.rowSpan}"` : ''} ${cell?.colSpan ? `colspan="${cell.colSpan}"` : ''}>
                     <div class="cell-content">${cell?.fields?.filter(f => f).join('<br>') || ''}</div>
                   </td>`;
                 }).join('')}
@@ -82,67 +94,99 @@ function getContrastColor(hexColor: string): string {
 }
 
 export const exportToExcel = (timetable: Timetable) => {
-  // Create HTML table for Excel (Excel can open HTML with colors)
-  let html = `
-    <html xmlns:x="urn:schemas-microsoft-com:office:excel">
-      <head>
-        <meta charset="utf-8">
-        <style>
-          table { border-collapse: collapse; }
-          th, td { border: 1px solid #000; padding: 8px; text-align: center; }
-          th { background-color: #f2f2f2; font-weight: bold; }
-        </style>
-      </head>
-      <body>
-        <h2>${timetable.name}</h2>
-        <p>${timetable.type === 'weekly' ? 'Weekly' : 'Fortnightly'} Timetable</p>
-        <table>
-          <thead>
-            <tr>
-              <th>Time</th>
-              ${timetable.columns.map(day => `<th>${day}</th>`).join('')}
-            </tr>
-          </thead>
-          <tbody>
-  `;
-
-  // Data rows with colors
+  const wb = XLSX.utils.book_new();
+  
+  // Create data array for the timetable
+  const data: any[][] = [];
+  
+  // Title and subtitle rows
+  data.push([timetable.name]);
+  data.push([`${timetable.type === 'weekly' ? 'Weekly' : 'Fortnightly'} Timetable`]);
+  data.push([]); // Empty row
+  
+  // Header row
+  const headerRow = ['Time', ...timetable.columns];
+  data.push(headerRow);
+  
+  // Data rows
   timetable.rows.forEach((timeSlot, rowIndex) => {
-    html += '<tr>';
-    html += `<td style="background-color: #f9f9f9; font-weight: bold;">${timeSlot.label}<br>${timeSlot.startTime}</td>`;
+    const row: any[] = [`${timeSlot.label}\n${timeSlot.startTime}`];
     
     timetable.columns.forEach((_, colIndex) => {
       const key = `${rowIndex}-${colIndex}`;
       const cell = timetable.cells[key];
       
-      if (cell?.hidden) return;
-      
-      const bgColor = cell?.color || '#ffffff';
-      const content = cell?.fields?.filter(f => f).join('<br>') || '';
-      const rowspan = cell?.rowSpan ? ` rowspan="${cell.rowSpan}"` : '';
-      const colspan = cell?.colSpan ? ` colspan="${cell.colSpan}"` : '';
-      
-      html += `<td style="background-color: ${bgColor};"${rowspan}${colspan}>${content}</td>`;
+      if (!cell?.hidden) {
+        const content = cell?.fields?.filter(f => f).join('\n') || '';
+        row.push(content);
+      }
     });
     
-    html += '</tr>';
+    data.push(row);
   });
-
-  html += `
-          </tbody>
-        </table>
-      </body>
-    </html>
-  `;
-
-  // Create and download HTML file (Excel will open it with colors preserved)
-  const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(blob);
-  link.setAttribute('href', url);
-  link.setAttribute('download', `${timetable.name.replace(/\s+/g, '_')}_timetable.xls`);
-  link.style.visibility = 'hidden';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  
+  // Create worksheet
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  
+  // Set column widths (equal width for all columns)
+  const colWidth = 20; // Width in characters
+  ws['!cols'] = Array(timetable.columns.length + 1).fill({ wch: colWidth });
+  
+  // Set row heights (equal height for data rows)
+  const rowHeight = 60; // Height in points
+  ws['!rows'] = data.map((_, idx) => {
+    if (idx < 3) return { hpt: 20 }; // Title rows
+    return { hpt: rowHeight }; // Data rows
+  });
+  
+  // Apply colors to cells
+  const cellStyles: any = {};
+  timetable.rows.forEach((timeSlot, rowIndex) => {
+    timetable.columns.forEach((_, colIndex) => {
+      const key = `${rowIndex}-${colIndex}`;
+      const cell = timetable.cells[key];
+      
+      if (cell?.color && !cell?.hidden) {
+        const excelRow = rowIndex + 4; // +4 for title rows and header
+        const excelCol = colIndex + 1; // +1 for time column
+        const cellRef = XLSX.utils.encode_cell({ r: excelRow, c: excelCol });
+        
+        if (!ws[cellRef]) ws[cellRef] = { v: '' };
+        
+        // Convert hex to RGB for Excel
+        const rgb = hexToRgb(cell.color);
+        if (rgb) {
+          ws[cellRef].s = {
+            fill: {
+              fgColor: { rgb: rgb.replace('#', '') }
+            },
+            alignment: {
+              vertical: 'center',
+              horizontal: 'center',
+              wrapText: true
+            },
+            border: {
+              top: { style: 'thin', color: { rgb: '000000' } },
+              bottom: { style: 'thin', color: { rgb: '000000' } },
+              left: { style: 'thin', color: { rgb: '000000' } },
+              right: { style: 'thin', color: { rgb: '000000' } }
+            }
+          };
+        }
+      }
+    });
+  });
+  
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(wb, ws, 'Timetable');
+  
+  // Generate and download file
+  XLSX.writeFile(wb, `${timetable.name.replace(/\s+/g, '_')}_timetable.xlsx`);
 };
+
+function hexToRgb(hex: string): string | null {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? `${parseInt(result[1], 16).toString(16).padStart(2, '0')}${parseInt(result[2], 16).toString(16).padStart(2, '0')}${parseInt(result[3], 16).toString(16).padStart(2, '0')}`
+    : null;
+}
