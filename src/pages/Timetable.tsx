@@ -152,180 +152,140 @@ const Timetable = () => {
             </Button>
           </div>
         ) : (
-          <div className="grid lg:grid-cols-[250px_1fr] gap-6">
-            {/* Sidebar */}
-            <div className="space-y-2">
-              {timetables.map((timetable) => (
-                <Collapsible
-                  key={timetable.id}
-                  open={!collapsedTimetables.has(timetable.id)}
-                  onOpenChange={(open) => {
-                    setCollapsedTimetables(prev => {
-                      const newSet = new Set(prev);
-                      if (open) {
-                        newSet.delete(timetable.id);
-                      } else {
-                        newSet.add(timetable.id);
-                      }
-                      return newSet;
-                    });
-                  }}
-                >
+          <div className="space-y-2 max-w-4xl mx-auto">
+            {timetables.map((timetable) => (
+              <Collapsible
+                key={timetable.id}
+                open={!collapsedTimetables.has(timetable.id)}
+                onOpenChange={(open) => {
+                  setCollapsedTimetables(prev => {
+                    const newSet = new Set(prev);
+                    if (open) {
+                      newSet.delete(timetable.id);
+                    } else {
+                      newSet.add(timetable.id);
+                    }
+                    return newSet;
+                  });
+                }}
+              >
+                <div className="rounded-lg border transition-colors">
                   <CollapsibleTrigger asChild>
-                    <div
-                      className={`rounded-lg border transition-colors cursor-pointer ${
-                        selectedTimetable?.id === timetable.id
-                          ? 'bg-accent border-primary'
-                          : 'hover:bg-accent/50'
-                      }`}
-                    >
-                      <div className="p-3 flex items-start justify-between gap-2">
-                        <div 
-                          className="flex-1 min-w-0"
+                    <div className="p-3 flex items-start justify-between gap-2 cursor-pointer hover:bg-accent/50">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{timetable.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {timetable.type === 'weekly' ? 'Weekly' : 'Fortnightly'}
+                        </p>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
                           onClick={(e) => {
                             e.stopPropagation();
+                            handleToggleFavorite(timetable.id);
+                          }}
+                        >
+                          <Star
+                            className={`h-3 w-3 ${
+                              timetable.favorite ? 'fill-yellow-400 text-yellow-400' : ''
+                            }`}
+                          />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick(timetable.id);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsEditing(!isEditing);
                             setSelectedTimetable(timetable);
                           }}
                         >
-                          <p className="font-medium truncate">{timetable.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {timetable.type === 'weekly' ? 'Weekly' : 'Fortnightly'}
-                          </p>
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleFavorite(timetable.id);
-                            }}
-                          >
-                            <Star
-                              className={`h-3 w-3 ${
-                                timetable.favorite ? 'fill-yellow-400 text-yellow-400' : ''
-                              }`}
-                            />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteClick(timetable.id);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                          <ChevronDown
-                            className={`h-4 w-4 transition-transform ${
-                              collapsedTimetables.has(timetable.id) ? '-rotate-90' : ''
-                            }`}
-                          />
-                        </div>
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform ${
+                            collapsedTimetables.has(timetable.id) ? '-rotate-90' : ''
+                          }`}
+                        />
                       </div>
                     </div>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="pl-4 pr-2 py-2">
+                    <div className="p-4 space-y-4 border-t">
+                      {timetable.type === 'fortnightly' && (
+                        <div className="flex justify-end">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentWeek(currentWeek === 1 ? 2 : 1)}
+                          >
+                            Switch to Week {currentWeek === 1 ? 2 : 1}
+                          </Button>
+                        </div>
+                      )}
+
+                      {isEditing && selectedTimetable?.id === timetable.id && (
+                        <ColorKeyEditor
+                          colorKey={timetable.colorKey}
+                          onUpdate={handleUpdateColorKey}
+                          customColors={timetable.customColors}
+                        />
+                      )}
+
+                      {Object.keys(timetable.colorKey).length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant={!focusedColor ? "default" : "outline"}
+                            onClick={() => setFocusedColor(undefined)}
+                          >
+                            All
+                          </Button>
+                          {Object.entries(timetable.colorKey).map(([color, label]) => (
+                            <Button
+                              key={color}
+                              size="sm"
+                              variant={focusedColor === color ? "default" : "outline"}
+                              onClick={() => setFocusedColor(color === focusedColor ? undefined : color)}
+                              className="gap-2"
+                            >
+                              <div
+                                className="w-3 h-3 rounded"
+                                style={{ backgroundColor: color }}
+                              />
+                              {label}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+
                       <TimetableGrid
                         timetable={timetable}
-                        currentWeek={1}
+                        currentWeek={currentWeek}
                         onUpdate={handleUpdateTimetable}
-                        isEditing={false}
-                        focusedColor={undefined}
+                        isEditing={isEditing && selectedTimetable?.id === timetable.id}
+                        focusedColor={focusedColor}
                       />
                     </div>
                   </CollapsibleContent>
-                </Collapsible>
-              ))}
-            </div>
-
-            {/* Main Content */}
-            {selectedTimetable && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-semibold">{selectedTimetable.name}</h2>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant={isEditing ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setIsEditing(!isEditing)}
-                    >
-                      {isEditing ? (
-                        <>
-                          <Eye className="h-4 w-4 mr-2" />
-                          View Mode
-                        </>
-                      ) : (
-                        <>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </>
-                      )}
-                    </Button>
-                  </div>
                 </div>
-                
-                {selectedTimetable.type === 'fortnightly' && (
-                  <div className="flex items-center justify-between">
-                    <div />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCurrentWeek(currentWeek === 1 ? 2 : 1)}
-                    >
-                      Switch to Week {currentWeek === 1 ? 2 : 1}
-                    </Button>
-                  </div>
-                )}
-
-                {isEditing && (
-                  <ColorKeyEditor
-                    colorKey={selectedTimetable.colorKey}
-                    onUpdate={handleUpdateColorKey}
-                    customColors={selectedTimetable.customColors}
-                  />
-                )}
-
-                {Object.keys(selectedTimetable.colorKey).length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      variant={!focusedColor ? "default" : "outline"}
-                      onClick={() => setFocusedColor(undefined)}
-                    >
-                      All
-                    </Button>
-                    {Object.entries(selectedTimetable.colorKey).map(([color, label]) => (
-                      <Button
-                        key={color}
-                        size="sm"
-                        variant={focusedColor === color ? "default" : "outline"}
-                        onClick={() => setFocusedColor(color === focusedColor ? undefined : color)}
-                        className="gap-2"
-                      >
-                        <div
-                          className="w-3 h-3 rounded"
-                          style={{ backgroundColor: color }}
-                        />
-                        {label}
-                      </Button>
-                    ))}
-                  </div>
-                )}
-
-                <TimetableGrid
-                  timetable={selectedTimetable}
-                  currentWeek={currentWeek}
-                  onUpdate={handleUpdateTimetable}
-                  isEditing={isEditing}
-                  focusedColor={focusedColor}
-                />
-              </div>
-            )}
+              </Collapsible>
+            ))}
           </div>
         )}
 
