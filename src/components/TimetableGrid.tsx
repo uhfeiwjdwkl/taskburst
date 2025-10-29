@@ -70,6 +70,8 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
     const key = getCellKey(rowIndex, colIndex);
     const existingCell = timetable.cells[key];
     
+    // For fortnightly: if editing and cell exists for different week, create new cell for current week
+    // Otherwise preserve or create with current week
     const updatedCell = {
       rowIndex,
       colIndex,
@@ -77,8 +79,8 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
       color: existingCell?.color,
       rowSpan: existingCell?.rowSpan,
       colSpan: existingCell?.colSpan,
-      // Preserve existing week or set to currentWeek for new cells
-      week: timetable.type === 'fortnightly' ? (existingCell?.week || currentWeek) : undefined,
+      // Always assign to current week for fortnightly when editing
+      week: timetable.type === 'fortnightly' ? currentWeek : undefined,
     };
 
     onUpdate({
@@ -89,19 +91,20 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
 
   const handleCellColorUpdate = (rowIndex: number, colIndex: number, color: string | undefined) => {
     const key = getCellKey(rowIndex, colIndex);
-    const existingCell = timetable.cells[key] || {
+    const existingCell = timetable.cells[key];
+    
+    // Create base cell structure
+    const baseCell = existingCell || {
       rowIndex,
       colIndex,
       fields: Array(timetable.fieldsPerCell).fill(''),
-      // Only set week for new cells
-      week: timetable.type === 'fortnightly' ? currentWeek : undefined,
     };
 
-    // Preserve existing week assignment
     const updatedCell = { 
-      ...existingCell, 
+      ...baseCell, 
       color,
-      week: timetable.type === 'fortnightly' ? (existingCell.week || currentWeek) : undefined 
+      // Always assign to current week for fortnightly when editing
+      week: timetable.type === 'fortnightly' ? currentWeek : undefined 
     };
 
     onUpdate({
@@ -112,25 +115,25 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
 
   const handleFieldCountUpdate = (rowIndex: number, colIndex: number, count: 1 | 2 | 3) => {
     const key = getCellKey(rowIndex, colIndex);
-    const existingCell = timetable.cells[key] || {
-      rowIndex,
-      colIndex,
-      fields: Array(timetable.fieldsPerCell).fill(''),
-      week: timetable.type === 'fortnightly' ? currentWeek : undefined,
-    };
+    const existingCell = timetable.cells[key];
 
     // Resize fields array
+    const baseFields = existingCell?.fields || Array(timetable.fieldsPerCell).fill('');
     const newFields = Array(count).fill('');
-    for (let i = 0; i < Math.min(count, existingCell.fields.length); i++) {
-      newFields[i] = existingCell.fields[i];
+    for (let i = 0; i < Math.min(count, baseFields.length); i++) {
+      newFields[i] = baseFields[i];
     }
 
-    // Preserve existing week assignment
     const updatedCell = { 
-      ...existingCell, 
+      rowIndex,
+      colIndex,
       fields: newFields, 
       fieldsPerCell: count,
-      week: timetable.type === 'fortnightly' ? (existingCell.week || currentWeek) : undefined 
+      color: existingCell?.color,
+      rowSpan: existingCell?.rowSpan,
+      colSpan: existingCell?.colSpan,
+      // Always assign to current week for fortnightly when editing
+      week: timetable.type === 'fortnightly' ? currentWeek : undefined 
     };
 
     onUpdate({
@@ -321,9 +324,21 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
                     return null;
                   }
 
-                  // For fortnightly timetables in view mode only, hide cells from other weeks
-                  if (!isEditing && timetable.type === 'fortnightly' && cell?.week && cell.week !== currentWeek) {
-                    return <td key={key} className="border p-0 min-h-[60px]" />;
+                  // For fortnightly timetables, determine which cell to show
+                  let displayCell = cell;
+                  if (timetable.type === 'fortnightly') {
+                    if (isEditing) {
+                      // In edit mode, only show/edit the cell for the current week
+                      // If the cell exists but is for a different week, treat as empty
+                      if (cell?.week && cell.week !== currentWeek) {
+                        displayCell = undefined;
+                      }
+                    } else {
+                      // In view mode, hide cells from other weeks
+                      if (cell?.week && cell.week !== currentWeek) {
+                        return <td key={key} className="border p-0 min-h-[60px]" />;
+                      }
+                    }
                   }
 
                   const isCurrentTime = currentTimePosition?.row === rowIndex && currentTimePosition?.colIndex === colIndex;
@@ -331,7 +346,7 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
                   return (
                     <TimetableCellComponent
                       key={key}
-                      cell={cell}
+                      cell={displayCell}
                       fieldsPerCell={timetable.fieldsPerCell}
                       rowIndex={rowIndex}
                       colIndex={colIndex}
