@@ -168,20 +168,15 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     });
   };
 
-  const getCurrentSessionDuration = () => {
-    if (!currentSessionStartTime) return 0;
-    const now = Date.now();
-    const start = currentSessionStartTime.getTime();
-    return (now - start) / 1000 / 60; // Convert to minutes
-  };
-
   const saveSession = (endProgress: number, skipRewindCheck: boolean = false): boolean => {
     if (!activeTask || !currentSessionStartTime) {
       console.warn('Cannot save session: missing activeTask or currentSessionStartTime');
       return false;
     }
 
-    const duration = getCurrentSessionDuration();
+    // Calculate duration based on timer seconds, not wall-clock time
+    // This excludes time spent in the progress grid editor
+    const duration = (currentSessionStartSeconds - seconds) / 60; // Convert to minutes
     console.log('Saving session with duration:', duration, 'minutes');
     
     // If session is <2 minutes and we haven't skipped the check, show rewind option
