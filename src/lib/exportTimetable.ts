@@ -1,9 +1,13 @@
 import { Timetable } from "@/types/timetable";
 import * as XLSX from 'xlsx';
 
-export const exportToPDF = (timetable: Timetable) => {
-  // Calculate equal cell dimensions
-  const colWidth = `${Math.floor(100 / (timetable.columns.length + 1))}%`;
+export const exportToPDF = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {
+  const isFortnightly = timetable.type === 'fortnightly';
+  
+  // For fortnightly, we'll show both weeks side by side
+  const numWeeks = isFortnightly ? 2 : 1;
+  const totalColumns = numWeeks * timetable.columns.length + 1; // +1 for time column
+  const colWidth = `${Math.floor(100 / totalColumns)}%`;
   
   // Create a simple HTML representation of the timetable with preserved colors
   const html = `
@@ -39,25 +43,63 @@ export const exportToPDF = (timetable: Timetable) => {
         </p>
         <table>
           <thead>
-            <tr>
-              <th style="width: ${colWidth};">Time</th>
-              ${timetable.columns.map(day => `<th style="width: ${colWidth};">${day}</th>`).join('')}
-            </tr>
+            ${isFortnightly ? `
+              <tr>
+                <th style="width: ${colWidth};" rowspan="2">Time</th>
+                <th colspan="${timetable.columns.length}" style="background-color: #e8e8e8;">Week 1</th>
+                <th colspan="${timetable.columns.length}" style="background-color: #e8e8e8;">Week 2</th>
+              </tr>
+              <tr>
+                ${timetable.columns.map(day => `<th style="width: ${colWidth};">${day}</th>`).join('')}
+                ${timetable.columns.map(day => `<th style="width: ${colWidth};">${day}</th>`).join('')}
+              </tr>
+            ` : `
+              <tr>
+                <th style="width: ${colWidth};">Time</th>
+                ${timetable.columns.map(day => `<th style="width: ${colWidth};">${day}</th>`).join('')}
+              </tr>
+            `}
           </thead>
           <tbody>
             ${timetable.rows.map((timeSlot, rowIndex) => `
               <tr style="height: 60px;">
                 <td class="time-column" style="width: ${colWidth};">${timeSlot.label}<br><small style="color: #888;">${timeSlot.startTime}</small></td>
-                ${timetable.columns.map((_, colIndex) => {
-                  const key = `${rowIndex}-${colIndex}`;
-                  const cell = timetable.cells[key];
-                  if (cell?.hidden) return '';
-                  const bgColor = cell?.color || '#ffffff';
-                  const textColor = getContrastColor(bgColor);
-                  return `<td style="background-color: ${bgColor}; color: ${textColor}; width: ${colWidth}; height: 60px;" ${cell?.rowSpan ? `rowspan="${cell.rowSpan}"` : ''} ${cell?.colSpan ? `colspan="${cell.colSpan}"` : ''}>
-                    <div class="cell-content">${cell?.fields?.filter(f => f).join('<br>') || ''}</div>
-                  </td>`;
-                }).join('')}
+                ${isFortnightly ? 
+                  // Week 1 cells
+                  timetable.columns.map((_, colIndex) => {
+                    const key = `${rowIndex}-${colIndex}`;
+                    const cell = timetable.cells[key];
+                    if (cell?.hidden || (cell?.week && cell.week !== 1)) return '<td style="width: ' + colWidth + '; height: 60px;"></td>';
+                    const bgColor = cell?.color || '#ffffff';
+                    const textColor = getContrastColor(bgColor);
+                    return `<td style="background-color: ${bgColor}; color: ${textColor}; width: ${colWidth}; height: 60px;" ${cell?.rowSpan ? `rowspan="${cell.rowSpan}"` : ''} ${cell?.colSpan ? `colspan="${cell.colSpan}"` : ''}>
+                      <div class="cell-content">${cell?.fields?.filter(f => f).join('<br>') || ''}</div>
+                    </td>`;
+                  }).join('') +
+                  // Week 2 cells
+                  timetable.columns.map((_, colIndex) => {
+                    const key = `${rowIndex}-${colIndex}`;
+                    const cell = timetable.cells[key];
+                    if (cell?.hidden || (cell?.week && cell.week !== 2)) return '<td style="width: ' + colWidth + '; height: 60px;"></td>';
+                    const bgColor = cell?.color || '#ffffff';
+                    const textColor = getContrastColor(bgColor);
+                    return `<td style="background-color: ${bgColor}; color: ${textColor}; width: ${colWidth}; height: 60px;" ${cell?.rowSpan ? `rowspan="${cell.rowSpan}"` : ''} ${cell?.colSpan ? `colspan="${cell.colSpan}"` : ''}>
+                      <div class="cell-content">${cell?.fields?.filter(f => f).join('<br>') || ''}</div>
+                    </td>`;
+                  }).join('')
+                : 
+                  // Weekly timetable
+                  timetable.columns.map((_, colIndex) => {
+                    const key = `${rowIndex}-${colIndex}`;
+                    const cell = timetable.cells[key];
+                    if (cell?.hidden) return '';
+                    const bgColor = cell?.color || '#ffffff';
+                    const textColor = getContrastColor(bgColor);
+                    return `<td style="background-color: ${bgColor}; color: ${textColor}; width: ${colWidth}; height: 60px;" ${cell?.rowSpan ? `rowspan="${cell.rowSpan}"` : ''} ${cell?.colSpan ? `colspan="${cell.colSpan}"` : ''}>
+                      <div class="cell-content">${cell?.fields?.filter(f => f).join('<br>') || ''}</div>
+                    </td>`;
+                  }).join('')
+                }
               </tr>
             `).join('')}
           </tbody>
@@ -93,8 +135,9 @@ function getContrastColor(hexColor: string): string {
   return luminance > 0.5 ? '#000000' : '#ffffff';
 }
 
-export const exportToExcel = (timetable: Timetable) => {
+export const exportToExcel = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {
   const wb = XLSX.utils.book_new();
+  const isFortnightly = timetable.type === 'fortnightly';
   
   // Create data array for the timetable
   const data: any[][] = [];
@@ -104,23 +147,62 @@ export const exportToExcel = (timetable: Timetable) => {
   data.push([`${timetable.type === 'weekly' ? 'Weekly' : 'Fortnightly'} Timetable`]);
   data.push([]); // Empty row
   
-  // Header row
-  const headerRow = ['Time', ...timetable.columns];
-  data.push(headerRow);
+  if (isFortnightly) {
+    // For fortnightly, create header with week labels
+    const weekHeaderRow = ['Time', ...Array(timetable.columns.length).fill('Week 1'), ...Array(timetable.columns.length).fill('Week 2')];
+    data.push(weekHeaderRow);
+    
+    // Day headers
+    const dayHeaderRow = ['', ...timetable.columns, ...timetable.columns];
+    data.push(dayHeaderRow);
+  } else {
+    // For weekly, simple header
+    const headerRow = ['Time', ...timetable.columns];
+    data.push(headerRow);
+  }
   
   // Data rows
   timetable.rows.forEach((timeSlot, rowIndex) => {
     const row: any[] = [`${timeSlot.label}\n${timeSlot.startTime}`];
     
-    timetable.columns.forEach((_, colIndex) => {
-      const key = `${rowIndex}-${colIndex}`;
-      const cell = timetable.cells[key];
+    if (isFortnightly) {
+      // Week 1 cells
+      timetable.columns.forEach((_, colIndex) => {
+        const key = `${rowIndex}-${colIndex}`;
+        const cell = timetable.cells[key];
+        
+        if (!cell?.hidden && (!cell?.week || cell.week === 1)) {
+          const content = cell?.fields?.filter(f => f).join('\n') || '';
+          row.push(content);
+        } else {
+          row.push('');
+        }
+      });
       
-      if (!cell?.hidden) {
-        const content = cell?.fields?.filter(f => f).join('\n') || '';
-        row.push(content);
-      }
-    });
+      // Week 2 cells
+      timetable.columns.forEach((_, colIndex) => {
+        const key = `${rowIndex}-${colIndex}`;
+        const cell = timetable.cells[key];
+        
+        if (!cell?.hidden && (!cell?.week || cell.week === 2)) {
+          const content = cell?.fields?.filter(f => f).join('\n') || '';
+          row.push(content);
+        } else {
+          row.push('');
+        }
+      });
+    } else {
+      // Weekly timetable
+      timetable.columns.forEach((_, colIndex) => {
+        const key = `${rowIndex}-${colIndex}`;
+        const cell = timetable.cells[key];
+        
+        if (!cell?.hidden) {
+          const content = cell?.fields?.filter(f => f).join('\n') || '';
+          row.push(content);
+        }
+      });
+    }
     
     data.push(row);
   });
@@ -130,7 +212,8 @@ export const exportToExcel = (timetable: Timetable) => {
   
   // Set column widths (equal width for all columns)
   const colWidth = 20; // Width in characters
-  ws['!cols'] = Array(timetable.columns.length + 1).fill({ wch: colWidth });
+  const totalCols = isFortnightly ? (timetable.columns.length * 2 + 1) : (timetable.columns.length + 1);
+  ws['!cols'] = Array(totalCols).fill({ wch: colWidth });
   
   // Set row heights (equal height for data rows)
   const rowHeight = 60; // Height in points
@@ -139,42 +222,103 @@ export const exportToExcel = (timetable: Timetable) => {
     return { hpt: rowHeight }; // Data rows
   });
   
+  // Merge cells for week headers if fortnightly
+  if (isFortnightly) {
+    ws['!merges'] = [
+      { s: { r: 3, c: 1 }, e: { r: 3, c: timetable.columns.length } }, // Week 1
+      { s: { r: 3, c: timetable.columns.length + 1 }, e: { r: 3, c: timetable.columns.length * 2 } } // Week 2
+    ];
+  }
+  
   // Apply colors to cells
-  const cellStyles: any = {};
+  const headerRowOffset = isFortnightly ? 5 : 4; // Account for extra header row in fortnightly
+  
   timetable.rows.forEach((timeSlot, rowIndex) => {
-    timetable.columns.forEach((_, colIndex) => {
-      const key = `${rowIndex}-${colIndex}`;
-      const cell = timetable.cells[key];
-      
-      if (cell?.color && !cell?.hidden) {
-        const excelRow = rowIndex + 4; // +4 for title rows and header
-        const excelCol = colIndex + 1; // +1 for time column
-        const cellRef = XLSX.utils.encode_cell({ r: excelRow, c: excelCol });
+    if (isFortnightly) {
+      // Week 1 cells
+      timetable.columns.forEach((_, colIndex) => {
+        const key = `${rowIndex}-${colIndex}`;
+        const cell = timetable.cells[key];
         
-        if (!ws[cellRef]) ws[cellRef] = { v: '' };
-        
-        // Convert hex to RGB for Excel
-        const rgb = hexToRgb(cell.color);
-        if (rgb) {
-          ws[cellRef].s = {
-            fill: {
-              fgColor: { rgb: rgb.replace('#', '') }
-            },
-            alignment: {
-              vertical: 'center',
-              horizontal: 'center',
-              wrapText: true
-            },
-            border: {
-              top: { style: 'thin', color: { rgb: '000000' } },
-              bottom: { style: 'thin', color: { rgb: '000000' } },
-              left: { style: 'thin', color: { rgb: '000000' } },
-              right: { style: 'thin', color: { rgb: '000000' } }
-            }
-          };
+        if (cell?.color && !cell?.hidden && (!cell?.week || cell.week === 1)) {
+          const excelRow = rowIndex + headerRowOffset;
+          const excelCol = colIndex + 1;
+          const cellRef = XLSX.utils.encode_cell({ r: excelRow, c: excelCol });
+          
+          if (!ws[cellRef]) ws[cellRef] = { v: '' };
+          
+          const rgb = hexToRgb(cell.color);
+          if (rgb) {
+            ws[cellRef].s = {
+              fill: { fgColor: { rgb: rgb.replace('#', '') } },
+              alignment: { vertical: 'center', horizontal: 'center', wrapText: true },
+              border: {
+                top: { style: 'thin', color: { rgb: '000000' } },
+                bottom: { style: 'thin', color: { rgb: '000000' } },
+                left: { style: 'thin', color: { rgb: '000000' } },
+                right: { style: 'thin', color: { rgb: '000000' } }
+              }
+            };
+          }
         }
-      }
-    });
+      });
+      
+      // Week 2 cells
+      timetable.columns.forEach((_, colIndex) => {
+        const key = `${rowIndex}-${colIndex}`;
+        const cell = timetable.cells[key];
+        
+        if (cell?.color && !cell?.hidden && (!cell?.week || cell.week === 2)) {
+          const excelRow = rowIndex + headerRowOffset;
+          const excelCol = colIndex + 1 + timetable.columns.length;
+          const cellRef = XLSX.utils.encode_cell({ r: excelRow, c: excelCol });
+          
+          if (!ws[cellRef]) ws[cellRef] = { v: '' };
+          
+          const rgb = hexToRgb(cell.color);
+          if (rgb) {
+            ws[cellRef].s = {
+              fill: { fgColor: { rgb: rgb.replace('#', '') } },
+              alignment: { vertical: 'center', horizontal: 'center', wrapText: true },
+              border: {
+                top: { style: 'thin', color: { rgb: '000000' } },
+                bottom: { style: 'thin', color: { rgb: '000000' } },
+                left: { style: 'thin', color: { rgb: '000000' } },
+                right: { style: 'thin', color: { rgb: '000000' } }
+              }
+            };
+          }
+        }
+      });
+    } else {
+      // Weekly timetable
+      timetable.columns.forEach((_, colIndex) => {
+        const key = `${rowIndex}-${colIndex}`;
+        const cell = timetable.cells[key];
+        
+        if (cell?.color && !cell?.hidden) {
+          const excelRow = rowIndex + headerRowOffset;
+          const excelCol = colIndex + 1;
+          const cellRef = XLSX.utils.encode_cell({ r: excelRow, c: excelCol });
+          
+          if (!ws[cellRef]) ws[cellRef] = { v: '' };
+          
+          const rgb = hexToRgb(cell.color);
+          if (rgb) {
+            ws[cellRef].s = {
+              fill: { fgColor: { rgb: rgb.replace('#', '') } },
+              alignment: { vertical: 'center', horizontal: 'center', wrapText: true },
+              border: {
+                top: { style: 'thin', color: { rgb: '000000' } },
+                bottom: { style: 'thin', color: { rgb: '000000' } },
+                left: { style: 'thin', color: { rgb: '000000' } },
+                right: { style: 'thin', color: { rgb: '000000' } }
+              }
+            };
+          }
+        }
+      });
+    }
   });
   
   // Add worksheet to workbook

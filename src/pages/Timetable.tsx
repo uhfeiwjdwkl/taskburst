@@ -40,8 +40,11 @@ const Timetable = () => {
   const [timetableToDelete, setTimetableToDelete] = useState<string | null>(null);
   const [currentWeek, setCurrentWeek] = useState<1 | 2>(1); // for fortnightly view
   const [isEditing, setIsEditing] = useState(false);
+  const [editingTimetableId, setEditingTimetableId] = useState<string | null>(null);
+  const [editingTimetableSnapshot, setEditingTimetableSnapshot] = useState<TimetableType | null>(null);
   const [focusedColor, setFocusedColor] = useState<string | undefined>(undefined);
   const [collapsedTimetables, setCollapsedTimetables] = useState<Set<string>>(new Set());
+  const [expandedEditSections, setExpandedEditSections] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const saved = localStorage.getItem('timetables');
@@ -132,22 +135,68 @@ const Timetable = () => {
     setTimetableToDelete(null);
   };
 
+  const handleStartEditing = (timetable: TimetableType) => {
+    setIsEditing(true);
+    setEditingTimetableId(timetable.id);
+    setEditingTimetableSnapshot(JSON.parse(JSON.stringify(timetable)));
+    setSelectedTimetable(timetable);
+  };
+
+  const handleSaveChanges = () => {
+    if (editingTimetableId && selectedTimetable) {
+      handleUpdateTimetable(selectedTimetable);
+      setIsEditing(false);
+      setEditingTimetableId(null);
+      setEditingTimetableSnapshot(null);
+      toast.success('Changes saved');
+    }
+  };
+
+  const handleCancelEditing = () => {
+    if (editingTimetableSnapshot) {
+      setSelectedTimetable(editingTimetableSnapshot);
+      const saved = localStorage.getItem('timetables');
+      if (saved) {
+        const allTimetables = JSON.parse(saved) as TimetableType[];
+        const newTimetables = allTimetables.map(t => 
+          t.id === editingTimetableSnapshot.id ? editingTimetableSnapshot : t
+        );
+        saveTimetables(newTimetables.filter(t => !t.deletedAt));
+      }
+    }
+    setIsEditing(false);
+    setEditingTimetableId(null);
+    setEditingTimetableSnapshot(null);
+  };
+
   const handleUpdateColorKey = (colorKey: Record<string, string>) => {
     if (selectedTimetable) {
-      handleUpdateTimetable({ ...selectedTimetable, colorKey });
+      setSelectedTimetable({ ...selectedTimetable, colorKey });
     }
   };
 
   const handleUpdateRows = (rows: TimeSlot[]) => {
     if (selectedTimetable) {
-      handleUpdateTimetable({ ...selectedTimetable, rows });
+      setSelectedTimetable({ ...selectedTimetable, rows });
     }
   };
 
   const handleUpdateColumns = (columns: string[]) => {
     if (selectedTimetable) {
-      handleUpdateTimetable({ ...selectedTimetable, columns });
+      setSelectedTimetable({ ...selectedTimetable, columns });
     }
+  };
+
+  const toggleEditSection = (section: string) => {
+    setExpandedEditSections(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(section)) {
+        newSet.delete(section);
+      } else {
+        newSet.add(section);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -233,8 +282,7 @@ const Timetable = () => {
                           className="h-6 w-6"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setIsEditing(!isEditing);
-                            setSelectedTimetable(timetable);
+                            handleStartEditing(timetable);
                           }}
                         >
                           <Edit className="h-3 w-3" />
@@ -249,54 +297,91 @@ const Timetable = () => {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <div className="p-4 space-y-4 border-t">
-                      {timetable.type === 'fortnightly' && (
-                        <div className="flex justify-end">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentWeek(currentWeek === 1 ? 2 : 1)}
-                          >
-                            Switch to Week {currentWeek === 1 ? 2 : 1}
-                          </Button>
+                      {isEditing && selectedTimetable?.id === timetable.id && (
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Collapsible
+                              open={expandedEditSections.has('rows-cols')}
+                              onOpenChange={() => toggleEditSection('rows-cols')}
+                            >
+                              <CollapsibleTrigger asChild>
+                                <Button variant="outline" size="sm" className="w-full justify-between">
+                                  Edit Time Slots & Days
+                                  <ChevronDown className={`h-4 w-4 transition-transform ${expandedEditSections.has('rows-cols') ? '' : '-rotate-90'}`} />
+                                </Button>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="pt-2">
+                                <TimetableRowColEditor
+                                  rows={selectedTimetable.rows}
+                                  columns={selectedTimetable.columns}
+                                  onUpdateRows={handleUpdateRows}
+                                  onUpdateColumns={handleUpdateColumns}
+                                />
+                              </CollapsibleContent>
+                            </Collapsible>
+
+                            <Collapsible
+                              open={expandedEditSections.has('colors')}
+                              onOpenChange={() => toggleEditSection('colors')}
+                            >
+                              <CollapsibleTrigger asChild>
+                                <Button variant="outline" size="sm" className="w-full justify-between">
+                                  Edit Color Key
+                                  <ChevronDown className={`h-4 w-4 transition-transform ${expandedEditSections.has('colors') ? '' : '-rotate-90'}`} />
+                                </Button>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="pt-2">
+                                <ColorKeyEditor
+                                  colorKey={selectedTimetable.colorKey}
+                                  onUpdate={handleUpdateColorKey}
+                                  customColors={selectedTimetable.customColors}
+                                />
+                              </CollapsibleContent>
+                            </Collapsible>
+                          </div>
+
+                          <div className="flex gap-2 border-t pt-4">
+                            <Button onClick={handleSaveChanges} className="flex-1">
+                              Save Changes
+                            </Button>
+                            <Button onClick={handleCancelEditing} variant="outline" className="flex-1">
+                              Cancel
+                            </Button>
+                          </div>
                         </div>
                       )}
 
-                      {isEditing && selectedTimetable?.id === timetable.id && (
-                        <>
-                          <TimetableRowColEditor
-                            rows={timetable.rows}
-                            columns={timetable.columns}
-                            onUpdateRows={handleUpdateRows}
-                            onUpdateColumns={handleUpdateColumns}
-                          />
-                          <ColorKeyEditor
-                            colorKey={timetable.colorKey}
-                            onUpdate={handleUpdateColorKey}
-                            customColors={timetable.customColors}
-                          />
-                        </>
-                      )}
-
                       {!isEditing && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <FileDown className="h-4 w-4 mr-2" />
-                              Export
+                        <div className="flex items-center justify-between">
+                          {timetable.type === 'fortnightly' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentWeek(currentWeek === 1 ? 2 : 1)}
+                            >
+                              Switch to Week {currentWeek === 1 ? 2 : 1}
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="bg-background">
-                            <DropdownMenuItem onClick={() => exportToPDF(timetable)}>
-                              Export as PDF
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => exportToExcel(timetable)}>
-                              Export as Excel (CSV)
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className={timetable.type !== 'fortnightly' ? 'ml-auto' : ''}>
+                                <FileDown className="h-4 w-4 mr-2" />
+                                Export
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="bg-background z-50">
+                              <DropdownMenuItem onClick={() => exportToPDF(timetable, currentWeek)}>
+                                Export as PDF
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => exportToExcel(timetable, currentWeek)}>
+                                Export as Excel
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       )}
 
-                      {Object.keys(timetable.colorKey).length > 0 && (
+                      {!isEditing && Object.keys(timetable.colorKey).length > 0 && (
                         <div className="flex flex-wrap gap-2">
                           <Button
                             size="sm"
@@ -323,10 +408,22 @@ const Timetable = () => {
                         </div>
                       )}
 
+                      {timetable.type === 'fortnightly' && (
+                        <div className="text-center py-2 bg-muted rounded font-semibold">
+                          Week {currentWeek}
+                        </div>
+                      )}
+
                       <TimetableGrid
-                        timetable={timetable}
+                        timetable={isEditing && selectedTimetable?.id === timetable.id ? selectedTimetable : timetable}
                         currentWeek={currentWeek}
-                        onUpdate={handleUpdateTimetable}
+                        onUpdate={(updated) => {
+                          if (isEditing && selectedTimetable?.id === timetable.id) {
+                            setSelectedTimetable(updated);
+                          } else {
+                            handleUpdateTimetable(updated);
+                          }
+                        }}
                         isEditing={isEditing && selectedTimetable?.id === timetable.id}
                         focusedColor={focusedColor}
                       />
