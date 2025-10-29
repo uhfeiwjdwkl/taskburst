@@ -4,6 +4,7 @@ import { Task } from '@/types/task';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +22,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Clock, Calendar as CalendarIcon, Trash2, Edit2, Trash } from 'lucide-react';
+import { ArrowLeft, Clock, Calendar as CalendarIcon, Trash2, Edit2, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -29,6 +30,7 @@ import { toast } from 'sonner';
 const History = () => {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [deletedSessions, setDeletedSessions] = useState<Session[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
@@ -38,9 +40,16 @@ const History = () => {
     const savedSessions = localStorage.getItem('sessions');
     if (savedSessions) {
       const parsed = JSON.parse(savedSessions);
-      // Sort by date, newest first
       setSessions(parsed.sort((a: Session, b: Session) => 
         new Date(b.dateEnded).getTime() - new Date(a.dateEnded).getTime()
+      ));
+    }
+    
+    const savedDeletedSessions = localStorage.getItem('deletedSessions');
+    if (savedDeletedSessions) {
+      const parsed = JSON.parse(savedDeletedSessions);
+      setDeletedSessions(parsed.sort((a: Session, b: Session) => 
+        new Date(b.deletedAt || b.dateEnded).getTime() - new Date(a.deletedAt || a.dateEnded).getTime()
       ));
     }
   }, []);
@@ -105,6 +114,38 @@ const History = () => {
     }
   };
 
+  const handleRestoreSession = (session: Session) => {
+    const updated = deletedSessions.filter(s => s.id !== session.id);
+    localStorage.setItem('deletedSessions', JSON.stringify(updated));
+    setDeletedSessions(updated);
+    
+    const restoredSession = { ...session };
+    delete restoredSession.deletedAt;
+    const updatedSessions = [...sessions, restoredSession];
+    saveSessions(updatedSessions);
+    
+    const tasks = JSON.parse(localStorage.getItem('tasks') || '[]') as Task[];
+    const updatedTasks = tasks.map(task => {
+      if (task.id === session.taskId) {
+        return {
+          ...task,
+          spentMinutes: task.spentMinutes + session.duration
+        };
+      }
+      return task;
+    });
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    
+    toast.success('Session restored');
+  };
+
+  const handlePermanentDelete = (session: Session) => {
+    const updated = deletedSessions.filter(s => s.id !== session.id);
+    localStorage.setItem('deletedSessions', JSON.stringify(updated));
+    setDeletedSessions(updated);
+    toast.success('Session permanently deleted');
+  };
+
   const formatDuration = (minutes: number) => {
     const mins = Math.floor(minutes);
     const secs = Math.round((minutes - mins) * 60);
@@ -124,6 +165,7 @@ const History = () => {
   };
 
   const groupedSessions = groupByDate(sessions);
+  const groupedDeletedSessions = groupByDate(deletedSessions);
 
   return (
     <div className="min-h-screen bg-background">
@@ -144,24 +186,24 @@ const History = () => {
               View all your past focus sessions
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/recently-deleted')}
-          >
-            <Trash className="h-4 w-4 mr-2" />
-            Recently Deleted
-          </Button>
         </header>
 
-        {sessions.length === 0 ? (
-          <Card className="p-8 text-center">
-            <p className="text-muted-foreground">
-              No sessions recorded yet. Complete a focus session to see it here!
-            </p>
-          </Card>
-        ) : (
-          <div className="space-y-6">
-            {Object.entries(groupedSessions).map(([date, dateSessions]) => (
+        <Tabs defaultValue="active" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="active">Active Sessions</TabsTrigger>
+            <TabsTrigger value="deleted">Recently Deleted</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="active" className="mt-6">
+            {sessions.length === 0 ? (
+              <Card className="p-8 text-center">
+                <p className="text-muted-foreground">
+                  No sessions recorded yet. Complete a focus session to see it here!
+                </p>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {Object.entries(groupedSessions).map(([date, dateSessions]) => (
               <div key={date}>
                 <div className="flex items-center gap-2 mb-3">
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
@@ -282,10 +324,84 @@ const History = () => {
                     );
                   })}
                 </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
+          </TabsContent>
+
+          <TabsContent value="deleted" className="mt-6">
+            {deletedSessions.length === 0 ? (
+              <Card className="p-8 text-center">
+                <p className="text-muted-foreground">
+                  No deleted sessions. Deleted sessions are kept here for 30 days.
+                </p>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {Object.entries(groupedDeletedSessions).map(([date, dateSessions]) => (
+                  <div key={date}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                      <h2 className="text-lg font-semibold">{date}</h2>
+                      <span className="text-sm text-muted-foreground">
+                        ({dateSessions.length} session{dateSessions.length !== 1 ? 's' : ''})
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {dateSessions.map(session => (
+                        <Card key={session.id} className="p-4 opacity-60">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg">
+                                {session.description || 'Untitled Session'}
+                              </h3>
+                              <p className="text-sm text-muted-foreground mb-2">
+                                Task: {session.taskName}
+                              </p>
+                              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-4 w-4" />
+                                  <span>
+                                    {new Date(session.dateEnded).toLocaleTimeString([], { 
+                                      hour: '2-digit', 
+                                      minute: '2-digit' 
+                                    })}
+                                  </span>
+                                </div>
+                                <div>Duration: {formatDuration(session.duration)}</div>
+                              </div>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleRestoreSession(session)}
+                                title="Restore"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive"
+                                onClick={() => handlePermanentDelete(session)}
+                                title="Delete Permanently"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

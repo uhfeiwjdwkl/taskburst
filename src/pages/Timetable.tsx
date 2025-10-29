@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Star, Trash2, ChevronLeft, Home, Edit, Eye, Clock, ChevronDown } from "lucide-react";
+import { Plus, Star, Trash2, Home, Edit, Eye, ChevronDown, FileDown, FileSpreadsheet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CreateTimetableDialog } from "@/components/CreateTimetableDialog";
 import { TimetableGrid } from "@/components/TimetableGrid";
 import { ColorKeyEditor } from "@/components/ColorKeyEditor";
-import { Timetable as TimetableType } from "@/types/timetable";
+import { TimetableRowColEditor } from "@/components/TimetableRowColEditor";
+import { Timetable as TimetableType, TimeSlot } from "@/types/timetable";
 import { toast } from "sonner";
+import { exportToPDF, exportToExcel } from "@/lib/exportTimetable";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -128,6 +130,18 @@ const Timetable = () => {
     }
   };
 
+  const handleUpdateRows = (rows: TimeSlot[]) => {
+    if (selectedTimetable) {
+      handleUpdateTimetable({ ...selectedTimetable, rows });
+    }
+  };
+
+  const handleUpdateColumns = (columns: string[]) => {
+    if (selectedTimetable) {
+      handleUpdateTimetable({ ...selectedTimetable, columns });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto">
@@ -240,11 +254,40 @@ const Timetable = () => {
                       )}
 
                       {isEditing && selectedTimetable?.id === timetable.id && (
-                        <ColorKeyEditor
-                          colorKey={timetable.colorKey}
-                          onUpdate={handleUpdateColorKey}
-                          customColors={timetable.customColors}
-                        />
+                        <>
+                          <TimetableRowColEditor
+                            rows={timetable.rows}
+                            columns={timetable.columns}
+                            onUpdateRows={handleUpdateRows}
+                            onUpdateColumns={handleUpdateColumns}
+                          />
+                          <ColorKeyEditor
+                            colorKey={timetable.colorKey}
+                            onUpdate={handleUpdateColorKey}
+                            customColors={timetable.customColors}
+                          />
+                        </>
+                      )}
+
+                      {!isEditing && (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => exportToPDF(timetable)}
+                          >
+                            <FileDown className="h-4 w-4 mr-2" />
+                            Export PDF
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => exportToExcel(timetable)}
+                          >
+                            <FileSpreadsheet className="h-4 w-4 mr-2" />
+                            Export Excel
+                          </Button>
+                        </div>
                       )}
 
                       {Object.keys(timetable.colorKey).length > 0 && (
