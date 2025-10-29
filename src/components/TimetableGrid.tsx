@@ -239,6 +239,16 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
     toast.success(`Color applied to ${selectedCells.size} cells`);
   };
 
+  const handleCustomColorAdd = (color: string) => {
+    const customColors = timetable.customColors || [];
+    if (!customColors.includes(color)) {
+      onUpdate({
+        ...timetable,
+        customColors: [...customColors, color]
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       {isEditing && selectedCells.size > 0 && (
@@ -322,6 +332,8 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
                       isEditing={isEditing}
                       focusedColor={focusedColor}
                       colorKey={timetable.colorKey}
+                      customColors={timetable.customColors}
+                      onCustomColorAdd={handleCustomColorAdd}
                     />
                   );
                 })}

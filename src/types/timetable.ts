@@ -28,6 +28,7 @@ export interface Timetable {
   fieldsPerCell: 1 | 2 | 3;
   cells: Record<string, TimetableCell>; // key: "row-col"
   colorKey: Record<string, string>; // color hex -> label
+  customColors?: string[]; // custom hex colors saved by user
   createdAt: string;
   deletedAt?: string; // ISO string - when moved to recently deleted
 }

@@ -4,6 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
 
 interface TimetableCellProps {
   cell?: TimetableCellType;
@@ -20,6 +23,8 @@ interface TimetableCellProps {
   isEditing: boolean;
   focusedColor?: string;
   colorKey: Record<string, string>;
+  customColors?: string[];
+  onCustomColorAdd: (color: string) => void;
 }
 
 const PRESET_COLORS = [
@@ -42,8 +47,12 @@ export function TimetableCell({
   currentTimeProgress,
   isEditing,
   focusedColor,
-  colorKey
+  colorKey,
+  customColors = [],
+  onCustomColorAdd
 }: TimetableCellProps) {
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [pickedColor, setPickedColor] = useState("#3b82f6");
   const currentFieldCount = cell?.fieldsPerCell || fieldsPerCell;
   const [fields, setFields] = useState<string[]>(
     cell?.fields || Array(currentFieldCount).fill('')
@@ -79,6 +88,17 @@ export function TimetableCell({
   const handleFieldCountChange = (newCount: string) => {
     const count = parseInt(newCount) as 1 | 2 | 3;
     onFieldCountUpdate(rowIndex, colIndex, count);
+  };
+
+  const handleAddCustomColor = () => {
+    if (!pickedColor) {
+      toast.error("Please select a color");
+      return;
+    }
+    onCustomColorAdd(pickedColor);
+    onColorUpdate(rowIndex, colIndex, pickedColor);
+    setShowColorPicker(false);
+    toast.success("Custom color added");
   };
 
   // Auto font size based on content length
@@ -177,6 +197,27 @@ export function TimetableCell({
                       </div>
                     </>
                   )}
+                  
+                  {customColors.length > 0 && (
+                    <>
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">Custom Colors</p>
+                      <div className="grid grid-cols-6 gap-1 mb-2">
+                        {customColors.map((color) => (
+                          <button
+                            key={color}
+                            className="w-8 h-8 rounded border"
+                            style={{ backgroundColor: color }}
+                            onClick={() => onColorUpdate(rowIndex, colIndex, color)}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                      <div className="border-t pt-2 mt-2">
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">Preset Colors</p>
+                      </div>
+                    </>
+                  )}
+                  
                   <div className="grid grid-cols-6 gap-1">
                     <button
                       className="w-8 h-8 rounded border-2 border-input flex items-center justify-center text-xs"
@@ -184,6 +225,16 @@ export function TimetableCell({
                       title="Clear color"
                     >
                       ✕
+                    </button>
+                    <button
+                      className="w-8 h-8 rounded border-2 border-primary flex items-center justify-center text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowColorPicker(true);
+                      }}
+                      title="Add custom color"
+                    >
+                      <Plus className="h-4 w-4" />
                     </button>
                     {PRESET_COLORS.map((color) => (
                       <button
@@ -213,6 +264,43 @@ export function TimetableCell({
           </div>
         )}
       </div>
+      
+      <Dialog open={showColorPicker} onOpenChange={setShowColorPicker}>
+        <DialogContent onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle>Pick a Custom Color</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            <div className="flex items-center gap-4">
+              <input
+                type="color"
+                value={pickedColor}
+                onChange={(e) => setPickedColor(e.target.value)}
+                className="w-20 h-20 rounded border cursor-pointer"
+              />
+              <div className="flex-1">
+                <Input
+                  value={pickedColor}
+                  onChange={(e) => setPickedColor(e.target.value)}
+                  placeholder="#000000"
+                  className="font-mono"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Click the color box or enter a hex code
+                </p>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowColorPicker(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddCustomColor}>
+              Add Color
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </td>
   );
 }

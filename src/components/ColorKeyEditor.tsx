@@ -8,6 +8,7 @@ import { toast } from "sonner";
 interface ColorKeyEditorProps {
   colorKey: Record<string, string>;
   onUpdate: (colorKey: Record<string, string>) => void;
+  customColors?: string[];
 }
 
 const PRESET_COLORS = [
@@ -16,10 +17,12 @@ const PRESET_COLORS = [
   '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'
 ];
 
-export function ColorKeyEditor({ colorKey, onUpdate }: ColorKeyEditorProps) {
+export function ColorKeyEditor({ colorKey, onUpdate, customColors = [] }: ColorKeyEditorProps) {
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [newLabel, setNewLabel] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+
+  const allColors = [...customColors, ...PRESET_COLORS];
 
   const handleAdd = () => {
     if (!newLabel.trim()) {
@@ -65,11 +68,22 @@ export function ColorKeyEditor({ colorKey, onUpdate }: ColorKeyEditorProps) {
               className="w-24 h-8 rounded border cursor-pointer"
               style={{ backgroundColor: newColor }}
             >
-              {PRESET_COLORS.map((color) => (
-                <option key={color} value={color} style={{ backgroundColor: color }}>
-                  {color}
-                </option>
-              ))}
+              {customColors.length > 0 && (
+                <optgroup label="Custom Colors">
+                  {customColors.map((color) => (
+                    <option key={color} value={color} style={{ backgroundColor: color }}>
+                      {color}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              <optgroup label="Preset Colors">
+                {PRESET_COLORS.map((color) => (
+                  <option key={color} value={color} style={{ backgroundColor: color }}>
+                    {color}
+                  </option>
+                ))}
+              </optgroup>
             </select>
             <Input
               placeholder="Label (e.g., Lecture, Lab)"

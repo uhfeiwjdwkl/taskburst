@@ -286,6 +286,7 @@ const Timetable = () => {
                   <ColorKeyEditor
                     colorKey={selectedTimetable.colorKey}
                     onUpdate={handleUpdateColorKey}
+                    customColors={selectedTimetable.customColors}
                   />
                 )}
 
