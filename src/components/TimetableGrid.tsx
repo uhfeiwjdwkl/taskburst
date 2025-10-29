@@ -77,7 +77,8 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
       color: existingCell?.color,
       rowSpan: existingCell?.rowSpan,
       colSpan: existingCell?.colSpan,
-      week: timetable.type === 'fortnightly' ? currentWeek : undefined,
+      // Preserve existing week or set to currentWeek for new cells
+      week: timetable.type === 'fortnightly' ? (existingCell?.week || currentWeek) : undefined,
     };
 
     onUpdate({
@@ -92,10 +93,16 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
       rowIndex,
       colIndex,
       fields: Array(timetable.fieldsPerCell).fill(''),
+      // Only set week for new cells
       week: timetable.type === 'fortnightly' ? currentWeek : undefined,
     };
 
-    const updatedCell = { ...existingCell, color };
+    // Preserve existing week assignment
+    const updatedCell = { 
+      ...existingCell, 
+      color,
+      week: timetable.type === 'fortnightly' ? (existingCell.week || currentWeek) : undefined 
+    };
 
     onUpdate({
       ...timetable,
@@ -118,7 +125,13 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
       newFields[i] = existingCell.fields[i];
     }
 
-    const updatedCell = { ...existingCell, fields: newFields, fieldsPerCell: count };
+    // Preserve existing week assignment
+    const updatedCell = { 
+      ...existingCell, 
+      fields: newFields, 
+      fieldsPerCell: count,
+      week: timetable.type === 'fortnightly' ? (existingCell.week || currentWeek) : undefined 
+    };
 
     onUpdate({
       ...timetable,

@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Plus } from 'lucide-react';
+import { Plus, Settings } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { CategoryManager } from '@/components/CategoryManager';
 
 interface AddTaskDialogProps {
   open: boolean;
@@ -35,6 +36,24 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
   const [estimatedMinutes, setEstimatedMinutes] = useState(25);
   const [dueDate, setDueDate] = useState(prefilledDate || '');
   const [progressGridSize, setProgressGridSize] = useState(10);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+
+  // Load categories
+  useEffect(() => {
+    loadCategories();
+  }, [open]);
+
+  const loadCategories = () => {
+    const saved = localStorage.getItem('categories');
+    if (saved) {
+      setCategories(JSON.parse(saved));
+    } else {
+      const defaults = ['Work', 'Study', 'Personal', 'Health', 'Other'];
+      setCategories(defaults);
+      localStorage.setItem('categories', JSON.stringify(defaults));
+    }
+  };
 
   // Update dueDate when prefilledDate changes
   useEffect(() => {
@@ -71,7 +90,6 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
   };
 
   const importanceLabels = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
-  const defaultCategories = ['Work', 'Study', 'Personal', 'Health', 'Projects', 'Other'];
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -94,7 +112,19 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
           </div>
 
           <div>
-            <Label htmlFor="add-category">Category</Label>
+            <div className="flex items-center justify-between mb-1">
+              <Label htmlFor="add-category">Category</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCategoryManager(true)}
+                className="h-6 px-2"
+              >
+                <Settings className="h-3 w-3 mr-1" />
+                Manage
+              </Button>
+            </div>
             <Select
               value={category}
               onValueChange={setCategory}
@@ -103,7 +133,7 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                {defaultCategories.map((cat) => (
+                {categories.map((cat) => (
                   <SelectItem key={cat} value={cat}>
                     {cat}
                   </SelectItem>
@@ -188,6 +218,14 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
             </Button>
           </div>
         </div>
+
+        <CategoryManager 
+          open={showCategoryManager} 
+          onClose={() => {
+            setShowCategoryManager(false);
+            loadCategories();
+          }} 
+        />
       </DialogContent>
     </Dialog>
   );

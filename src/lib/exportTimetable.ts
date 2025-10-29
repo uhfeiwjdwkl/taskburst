@@ -64,9 +64,17 @@ export const exportToPDF = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {
             `}
           </thead>
           <tbody>
-            ${timetable.rows.map((timeSlot, rowIndex) => `
+            ${timetable.rows.map((timeSlot, rowIndex) => {
+              // Format time with AM/PM
+              const [hours, minutes] = timeSlot.startTime.split(':');
+              const hour = parseInt(hours);
+              const ampm = hour >= 12 ? 'PM' : 'AM';
+              const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+              const formattedTime = `${displayHour}:${minutes} ${ampm}`;
+              
+              return `
               <tr style="height: 60px;">
-                <td class="time-column">${timeSlot.startTime}</td>
+                <td class="time-column">${formattedTime}</td>
                 ${isFortnightly ?
                   // Week 1 cells
                   timetable.columns.map((_, colIndex) => {
@@ -104,7 +112,8 @@ export const exportToPDF = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {
                   }).join('')
                 }
               </tr>
-            `).join('')}
+            `;
+            }).join('')}
           </tbody>
         </table>
       </body>
@@ -166,7 +175,14 @@ export const exportToExcel = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {
   
   // Data rows
   timetable.rows.forEach((timeSlot, rowIndex) => {
-    const row: any[] = [timeSlot.startTime];
+    // Format time with AM/PM
+    const [hours, minutes] = timeSlot.startTime.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+    const formattedTime = `${displayHour}:${minutes} ${ampm}`;
+    
+    const row: any[] = [formattedTime];
     
     if (isFortnightly) {
       // Week 1 cells
