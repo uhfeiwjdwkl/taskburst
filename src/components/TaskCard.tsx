@@ -101,8 +101,18 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onUpd
                 {progressPercentage}%
               </div>
             </div>
-            <div className="text-xs text-muted-foreground">
-              {formattedSpent} / {Math.round(task.estimatedMinutes)} minutes
+            
+            {/* Timer Progress Bar */}
+            <div className="space-y-1 mb-2">
+              <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-primary transition-all duration-300"
+                  style={{ width: `${Math.min((task.spentMinutes / task.estimatedMinutes) * 100, 100)}%` }}
+                />
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {formattedSpent} / {Math.round(task.estimatedMinutes)} minutes
+              </div>
             </div>
           </div>
 

@@ -218,7 +218,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
           <RotateCcw className="mr-2 h-5 w-5" />
           Reset
         </Button>
-        {phase === 'focus' && (
+        {phase === 'focus' ? (
           <Button
             size="lg"
             variant="outline"
@@ -227,6 +227,22 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
           >
             <SkipForward className="mr-2 h-5 w-5" />
             Skip to Break
+          </Button>
+        ) : (
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={() => {
+              setPhase('focus');
+              setSeconds(FOCUS_DURATION);
+              setBreakBonus(0);
+              setIsRunning(false);
+              onRunningChange?.(false);
+            }}
+            className="relative z-50 bg-card"
+          >
+            <SkipForward className="mr-2 h-5 w-5" />
+            Skip to Focus
           </Button>
         )}
       </div>
