@@ -108,12 +108,19 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   // Auto-start timer when a new task is selected (Study button pressed)
   const prevActiveTaskIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (activeTaskId && activeTaskId !== prevActiveTaskIdRef.current && !isRunning && phase === 'focus' && activeTask) {
-      // New task selected, show start editor
+    if (activeTaskId && activeTaskId !== prevActiveTaskIdRef.current && activeTask) {
+      // New task selected - reset to focus phase and show start editor
+      if (isRunning) {
+        setIsRunning(false);
+        onRunningChange?.(false);
+      }
+      setPhase('focus');
+      setSeconds(FOCUS_DURATION);
+      setBreakBonus(0);
       setShowStartEditor(true);
     }
     prevActiveTaskIdRef.current = activeTaskId || null;
-  }, [activeTaskId, isRunning, phase, activeTask]);
+  }, [activeTaskId, activeTask]);
 
   const fireConfetti = () => {
     const count = 200;
