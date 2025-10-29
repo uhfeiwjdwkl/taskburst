@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Star, Trash2, Home, Edit, Eye, ChevronDown, FileDown, FileSpreadsheet } from "lucide-react";
+import { Plus, Star, Trash2, Home, Edit, Eye, ChevronDown, FileDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CreateTimetableDialog } from "@/components/CreateTimetableDialog";
 import { TimetableGrid } from "@/components/TimetableGrid";
@@ -9,6 +9,12 @@ import { TimetableRowColEditor } from "@/components/TimetableRowColEditor";
 import { Timetable as TimetableType, TimeSlot } from "@/types/timetable";
 import { toast } from "sonner";
 import { exportToPDF, exportToExcel } from "@/lib/exportTimetable";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -270,24 +276,22 @@ const Timetable = () => {
                       )}
 
                       {!isEditing && (
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => exportToPDF(timetable)}
-                          >
-                            <FileDown className="h-4 w-4 mr-2" />
-                            Export PDF
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => exportToExcel(timetable)}
-                          >
-                            <FileSpreadsheet className="h-4 w-4 mr-2" />
-                            Export Excel
-                          </Button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <FileDown className="h-4 w-4 mr-2" />
+                              Export
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="bg-background">
+                            <DropdownMenuItem onClick={() => exportToPDF(timetable)}>
+                              Export as PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => exportToExcel(timetable)}>
+                              Export as Excel (CSV)
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
 
                       {Object.keys(timetable.colorKey).length > 0 && (
