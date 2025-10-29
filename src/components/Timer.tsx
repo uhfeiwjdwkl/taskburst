@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ProgressRing from './ProgressRing';
+import ProgressGridEditor from './ProgressGridEditor';
 import { TimerPhase, Task } from '@/types/task';
+import { Session } from '@/types/session';
 import confetti from 'canvas-confetti';
 import { playTimerEndSound } from '@/lib/sounds';
 
@@ -22,6 +24,10 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const [seconds, setSeconds] = useState(FOCUS_DURATION);
   const [isRunning, setIsRunning] = useState(false);
   const [breakBonus, setBreakBonus] = useState(0);
+  const [showStartEditor, setShowStartEditor] = useState(false);
+  const [showEndEditor, setShowEndEditor] = useState(false);
+  const [sessionStartProgress, setSessionStartProgress] = useState(0);
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const intervalRef = useRef<number>();
 
   const totalDuration = phase === 'focus' ? FOCUS_DURATION : BREAK_DURATION + breakBonus;
@@ -75,6 +81,26 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     });
   };
 
+  const saveSession = (endProgress: number) => {
+    if (!activeTask || !sessionStartTime) return;
+
+    const duration = (FOCUS_DURATION - seconds) / 60; // Convert to minutes
+    const session: Session = {
+      id: Date.now().toString(),
+      taskId: activeTask.id,
+      taskName: activeTask.name,
+      dateEnded: new Date().toISOString(),
+      duration,
+      progressGridStart: sessionStartProgress,
+      progressGridEnd: endProgress,
+      progressGridSize: activeTask.progressGridSize,
+      phase,
+    };
+
+    const savedSessions = JSON.parse(localStorage.getItem('sessions') || '[]');
+    localStorage.setItem('sessions', JSON.stringify([...savedSessions, session]));
+  };
+
   useEffect(() => {
     if (isRunning && seconds > 0) {
       intervalRef.current = window.setInterval(() => {
@@ -96,6 +122,8 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
               setSeconds(BREAK_DURATION + 300);
               setIsRunning(false);
               onRunningChange?.(false);
+              // Show end editor
+              setShowEndEditor(true);
             }
           }
           
@@ -103,12 +131,16 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
         });
       }, 1000);
     } else if (seconds === 0) {
-      // Phase complete - play sound
+      // Phase complete - play sound and show end editor
       playTimerEndSound();
-      const nextPhase = phase === 'focus' ? 'break' : 'focus';
-      setPhase(nextPhase);
-      setSeconds(nextPhase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);
-      setBreakBonus(0);
+      if (activeTask && phase === 'focus') {
+        setShowEndEditor(true);
+      } else {
+        const nextPhase = phase === 'focus' ? 'break' : 'focus';
+        setPhase(nextPhase);
+        setSeconds(nextPhase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);
+        setBreakBonus(0);
+      }
       setIsRunning(false);
       onRunningChange?.(false);
     }
@@ -121,9 +153,30 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   }, [isRunning, seconds, phase, onTick, activeTask, onTaskComplete, onRunningChange]);
 
   const handleStart = () => {
-    const newRunningState = !isRunning;
-    setIsRunning(newRunningState);
-    onRunningChange?.(newRunningState);
+    if (!isRunning && activeTask && phase === 'focus') {
+      // Show start editor before starting
+      setShowStartEditor(true);
+    } else {
+      const newRunningState = !isRunning;
+      setIsRunning(newRunningState);
+      onRunningChange?.(newRunningState);
+    }
+  };
+
+  const handleStartEditorSave = (filled: number) => {
+    setSessionStartProgress(filled);
+    setSessionStartTime(new Date());
+    setIsRunning(true);
+    onRunningChange?.(true);
+  };
+
+  const handleEndEditorSave = (filled: number) => {
+    saveSession(filled);
+    const nextPhase = phase === 'focus' ? 'break' : 'focus';
+    setPhase(nextPhase);
+    setSeconds(nextPhase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);
+    setBreakBonus(0);
+    setSessionStartTime(null);
   };
 
   const handleReset = () => {
@@ -147,7 +200,29 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   };
 
   return (
-    <div className="flex flex-col items-center gap-8">
+    <>
+      {activeTask && (
+        <>
+          <ProgressGridEditor
+            task={activeTask}
+            open={showStartEditor}
+            onClose={() => setShowStartEditor(false)}
+            onSave={handleStartEditorSave}
+            title="Session Starting"
+            description="Mark your current progress before starting the focus session."
+          />
+          <ProgressGridEditor
+            task={activeTask}
+            open={showEndEditor}
+            onClose={() => setShowEndEditor(false)}
+            onSave={handleEndEditorSave}
+            title="Session Complete"
+            description="Update your progress to reflect what you achieved in this session."
+          />
+        </>
+      )}
+      
+      <div className="flex flex-col items-center gap-8">
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-2">
           {phase === 'focus' ? '🎯 Focus Time' : '☕ Break Time'}
@@ -247,6 +322,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
         )}
       </div>
     </div>
+    </>
   );
 };
 
