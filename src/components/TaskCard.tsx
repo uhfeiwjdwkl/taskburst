@@ -74,7 +74,7 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onUpd
             </div>
             {task.dueDate && (
               <div>
-                Due: {new Date(task.dueDate).toLocaleDateString()}
+                Due: {new Date(task.dueDate).toLocaleDateString('en-GB')}
               </div>
             )}
           </div>

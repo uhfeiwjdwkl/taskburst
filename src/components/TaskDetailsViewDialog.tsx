@@ -121,7 +121,7 @@ const TaskDetailsViewDialog = ({ task, open, onClose }: TaskDetailsViewDialogPro
                 <CalendarIcon className="h-3 w-3" />
                 Due Date
               </Label>
-              <p className="mt-1">{new Date(task.dueDate).toLocaleDateString('en-US', { 
+              <p className="mt-1">{new Date(task.dueDate).toLocaleDateString('en-GB', { 
                 weekday: 'long', 
                 year: 'numeric', 
                 month: 'long', 

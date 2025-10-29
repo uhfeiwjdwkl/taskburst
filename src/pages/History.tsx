@@ -30,7 +30,7 @@ const History = () => {
   const groupByDate = (sessions: Session[]) => {
     const grouped: { [key: string]: Session[] } = {};
     sessions.forEach(session => {
-      const date = new Date(session.dateEnded).toLocaleDateString();
+      const date = new Date(session.dateEnded).toLocaleDateString('en-GB'); // DD/MM/YYYY
       if (!grouped[date]) {
         grouped[date] = [];
       }

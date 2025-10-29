@@ -81,10 +81,14 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     });
   };
 
-  const saveSession = (endProgress: number) => {
+  const saveSession = (endProgress: number, sessionDuration?: number) => {
     if (!activeTask || !sessionStartTime) return;
 
-    const duration = (FOCUS_DURATION - seconds) / 60; // Convert to minutes
+    const duration = sessionDuration ?? (FOCUS_DURATION - seconds) / 60; // Convert to minutes
+    
+    // Only save if session was at least 2 minutes
+    if (duration < 2) return;
+
     const session: Session = {
       id: Date.now().toString(),
       taskId: activeTask.id,
@@ -156,10 +160,29 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     if (!isRunning && activeTask && phase === 'focus') {
       // Show start editor before starting
       setShowStartEditor(true);
+    } else if (isRunning && phase === 'focus' && sessionStartTime) {
+      // Pausing focus - show end editor if session >= 2 minutes
+      const duration = (FOCUS_DURATION - seconds) / 60;
+      if (duration >= 2) {
+        setShowEndEditor(true);
+      } else {
+        setIsRunning(false);
+        onRunningChange?.(false);
+      }
     } else {
+      // Pausing break or resuming
       const newRunningState = !isRunning;
       setIsRunning(newRunningState);
       onRunningChange?.(newRunningState);
+      
+      // If ending a break session >= 2 minutes, save it
+      if (isRunning && phase === 'break' && sessionStartTime) {
+        const duration = ((phase === 'break' ? BREAK_DURATION + breakBonus : FOCUS_DURATION) - seconds) / 60;
+        if (duration >= 2 && activeTask) {
+          saveSession(activeTask.progressGridFilled, duration);
+        }
+        setSessionStartTime(null);
+      }
     }
   };
 
@@ -171,6 +194,14 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   };
 
   const handleEndEditorSave = (filled: number) => {
+    const duration = (FOCUS_DURATION - seconds) / 60;
+    saveSession(filled, duration);
+    setIsRunning(false);
+    onRunningChange?.(false);
+    setSessionStartTime(null);
+  };
+
+  const handlePhaseComplete = (filled: number) => {
     saveSession(filled);
     const nextPhase = phase === 'focus' ? 'break' : 'focus';
     setPhase(nextPhase);
@@ -180,17 +211,52 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   };
 
   const handleReset = () => {
+    // If focus session was running and >= 2 minutes, show end editor
+    if (isRunning && phase === 'focus' && sessionStartTime) {
+      const duration = (FOCUS_DURATION - seconds) / 60;
+      if (duration >= 2) {
+        setShowEndEditor(true);
+        return;
+      }
+    }
+    
     setIsRunning(false);
     onRunningChange?.(false);
     setSeconds(phase === 'focus' ? FOCUS_DURATION : BREAK_DURATION + breakBonus);
+    setSessionStartTime(null);
   };
 
-  const handleSkipToBreak = () => {
-    setPhase('break');
-    setSeconds(BREAK_DURATION);
-    setBreakBonus(0);
-    setIsRunning(false);
-    onRunningChange?.(false);
+  const handleSkip = () => {
+    if (phase === 'focus') {
+      // Skipping focus - show end editor if session >= 2 minutes
+      if (sessionStartTime) {
+        const duration = (FOCUS_DURATION - seconds) / 60;
+        if (duration >= 2) {
+          setShowEndEditor(true);
+          return;
+        }
+      }
+      setPhase('break');
+      setSeconds(BREAK_DURATION);
+      setBreakBonus(0);
+      setIsRunning(false);
+      onRunningChange?.(false);
+      setSessionStartTime(null);
+    } else {
+      // Skipping break - save if >= 2 minutes
+      if (sessionStartTime && activeTask) {
+        const duration = (BREAK_DURATION + breakBonus - seconds) / 60;
+        if (duration >= 2) {
+          saveSession(activeTask.progressGridFilled, duration);
+        }
+      }
+      setPhase('focus');
+      setSeconds(FOCUS_DURATION);
+      setBreakBonus(0);
+      setIsRunning(false);
+      onRunningChange?.(false);
+      setSessionStartTime(null);
+    }
   };
 
   const formatTime = (secs: number) => {
@@ -214,8 +280,23 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
           <ProgressGridEditor
             task={activeTask}
             open={showEndEditor}
-            onClose={() => setShowEndEditor(false)}
-            onSave={handleEndEditorSave}
+            onClose={() => {
+              setShowEndEditor(false);
+              // If timer hit 0, move to next phase
+              if (seconds === 0) {
+                const nextPhase = phase === 'focus' ? 'break' : 'focus';
+                setPhase(nextPhase);
+                setSeconds(nextPhase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);
+                setBreakBonus(0);
+              }
+            }}
+            onSave={(filled) => {
+              if (seconds === 0) {
+                handlePhaseComplete(filled);
+              } else {
+                handleEndEditorSave(filled);
+              }
+            }}
             title="Session Complete"
             description="Update your progress to reflect what you achieved in this session."
           />
@@ -293,33 +374,15 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
           <RotateCcw className="mr-2 h-5 w-5" />
           Reset
         </Button>
-        {phase === 'focus' ? (
-          <Button
-            size="lg"
-            variant="outline"
-            onClick={handleSkipToBreak}
-            className="relative z-50 bg-card"
-          >
-            <SkipForward className="mr-2 h-5 w-5" />
-            Skip to Break
-          </Button>
-        ) : (
-          <Button
-            size="lg"
-            variant="outline"
-            onClick={() => {
-              setPhase('focus');
-              setSeconds(FOCUS_DURATION);
-              setBreakBonus(0);
-              setIsRunning(false);
-              onRunningChange?.(false);
-            }}
-            className="relative z-50 bg-card"
-          >
-            <SkipForward className="mr-2 h-5 w-5" />
-            Skip to Focus
-          </Button>
-        )}
+        <Button
+          size="lg"
+          variant="outline"
+          onClick={handleSkip}
+          className="relative z-50 bg-card"
+        >
+          <SkipForward className="mr-2 h-5 w-5" />
+          {phase === 'focus' ? 'Skip to Break' : 'Skip to Focus'}
+        </Button>
       </div>
     </div>
     </>
