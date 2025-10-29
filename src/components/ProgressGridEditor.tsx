@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 
 interface ProgressGridEditorProps {
@@ -41,10 +42,10 @@ const ProgressGridEditor = ({ task, open, onClose, onSave, title, description }:
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         
         <div className="py-4">
-          <p className="text-sm text-muted-foreground mb-4">{description}</p>
           <div className="text-center mb-4">
             <h3 className="font-semibold text-lg mb-2">{task.name}</h3>
           </div>

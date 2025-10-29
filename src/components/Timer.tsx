@@ -126,7 +126,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
               setSeconds(BREAK_DURATION + 300);
               setIsRunning(false);
               onRunningChange?.(false);
-              // Show end editor
+              // Show end editor and then set up break session tracking
               setShowEndEditor(true);
             }
           }
@@ -139,6 +139,17 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       playTimerEndSound();
       if (activeTask && phase === 'focus') {
         setShowEndEditor(true);
+      } else if (phase === 'break' && sessionStartTime && activeTask) {
+        // Break ended naturally - save session if >= 2 minutes
+        const duration = (BREAK_DURATION + breakBonus) / 60;
+        if (duration >= 2) {
+          saveSession(activeTask.progressGridFilled, duration);
+        }
+        const nextPhase = 'focus';
+        setPhase(nextPhase);
+        setSeconds(FOCUS_DURATION);
+        setBreakBonus(0);
+        setSessionStartTime(null);
       } else {
         const nextPhase = phase === 'focus' ? 'break' : 'focus';
         setPhase(nextPhase);
@@ -157,10 +168,15 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   }, [isRunning, seconds, phase, onTick, activeTask, onTaskComplete, onRunningChange]);
 
   const handleStart = () => {
-    if (!isRunning && activeTask && phase === 'focus') {
-      // Show start editor before starting
+    if (!isRunning && phase === 'focus' && activeTask) {
+      // Show start editor before starting focus
       setShowStartEditor(true);
-    } else if (isRunning && phase === 'focus' && sessionStartTime) {
+    } else if (!isRunning && phase === 'break') {
+      // Starting break - record start time
+      setSessionStartTime(new Date());
+      setIsRunning(true);
+      onRunningChange?.(true);
+    } else if (isRunning && phase === 'focus' && sessionStartTime && activeTask) {
       // Pausing focus - show end editor if session >= 2 minutes
       const duration = (FOCUS_DURATION - seconds) / 60;
       if (duration >= 2) {
@@ -168,21 +184,22 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       } else {
         setIsRunning(false);
         onRunningChange?.(false);
+        setSessionStartTime(null);
       }
+    } else if (isRunning && phase === 'break' && sessionStartTime && activeTask) {
+      // Pausing break - save if >= 2 minutes
+      const duration = (BREAK_DURATION + breakBonus - seconds) / 60;
+      if (duration >= 2) {
+        saveSession(activeTask.progressGridFilled, duration);
+      }
+      setIsRunning(false);
+      onRunningChange?.(false);
+      setSessionStartTime(null);
     } else {
-      // Pausing break or resuming
+      // Resume from pause
       const newRunningState = !isRunning;
       setIsRunning(newRunningState);
       onRunningChange?.(newRunningState);
-      
-      // If ending a break session >= 2 minutes, save it
-      if (isRunning && phase === 'break' && sessionStartTime) {
-        const duration = ((phase === 'break' ? BREAK_DURATION + breakBonus : FOCUS_DURATION) - seconds) / 60;
-        if (duration >= 2 && activeTask) {
-          saveSession(activeTask.progressGridFilled, duration);
-        }
-        setSessionStartTime(null);
-      }
     }
   };
 
@@ -207,7 +224,13 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     setPhase(nextPhase);
     setSeconds(nextPhase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);
     setBreakBonus(0);
-    setSessionStartTime(null);
+    
+    // If moving to break, set up session tracking for the break
+    if (nextPhase === 'break') {
+      setSessionStartTime(new Date());
+    } else {
+      setSessionStartTime(null);
+    }
   };
 
   const handleReset = () => {
@@ -241,7 +264,8 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       setBreakBonus(0);
       setIsRunning(false);
       onRunningChange?.(false);
-      setSessionStartTime(null);
+      // Start tracking break session
+      setSessionStartTime(new Date());
     } else {
       // Skipping break - save if >= 2 minutes
       if (sessionStartTime && activeTask) {
@@ -295,6 +319,10 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
                 handlePhaseComplete(filled);
               } else {
                 handleEndEditorSave(filled);
+                // If moving to break after completing task early, track break
+                if (phase === 'break') {
+                  setSessionStartTime(new Date());
+                }
               }
             }}
             title="Session Complete"
