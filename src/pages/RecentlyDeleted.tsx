@@ -27,8 +27,23 @@ const RecentlyDeleted = () => {
   useEffect(() => {
     const savedDeletedSessions = localStorage.getItem('deletedSessions');
     if (savedDeletedSessions) {
-      const parsed = JSON.parse(savedDeletedSessions);
-      setDeletedSessions(parsed.sort((a: Session, b: Session) => 
+      const parsed = JSON.parse(savedDeletedSessions) as Session[];
+      
+      // Filter out sessions older than 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const validSessions = parsed.filter(session => {
+        if (!session.deletedAt) return true; // Keep sessions without deletedAt for backwards compatibility
+        return new Date(session.deletedAt) > thirtyDaysAgo;
+      });
+      
+      // Update storage if any sessions were filtered out
+      if (validSessions.length !== parsed.length) {
+        localStorage.setItem('deletedSessions', JSON.stringify(validSessions));
+      }
+      
+      setDeletedSessions(validSessions.sort((a: Session, b: Session) => 
         new Date(b.dateEnded).getTime() - new Date(a.dateEnded).getTime()
       ));
     }
@@ -79,6 +94,16 @@ const RecentlyDeleted = () => {
       setPermanentDeleteDialogOpen(false);
       setSelectedSession(null);
     }
+  };
+
+  const getDaysRemaining = (deletedAt?: string) => {
+    if (!deletedAt) return 30; // Default for old sessions without deletedAt
+    const deleted = new Date(deletedAt);
+    const now = new Date();
+    const thirtyDaysLater = new Date(deleted);
+    thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
+    const daysLeft = Math.ceil((thirtyDaysLater.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, daysLeft);
   };
 
   const formatDuration = (minutes: number) => {
@@ -145,6 +170,7 @@ const RecentlyDeleted = () => {
                     const progressPercentage = session.progressGridSize > 0
                       ? Math.round((progressChange / session.progressGridSize) * 100)
                       : 0;
+                    const daysRemaining = getDaysRemaining(session.deletedAt);
 
                     return (
                       <Card key={session.id} className="p-4 opacity-70">
@@ -157,6 +183,9 @@ const RecentlyDeleted = () => {
                                 </h3>
                                 <p className="text-sm text-muted-foreground">
                                   Task: {session.taskName}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Deletes in {daysRemaining} day{daysRemaining !== 1 ? 's' : ''}
                                 </p>
                               </div>
                               <div className="flex gap-1">

@@ -61,7 +61,8 @@ const History = () => {
     if (selectedSession) {
       // Move to deleted sessions instead of permanent deletion
       const deletedSessions = JSON.parse(localStorage.getItem('deletedSessions') || '[]');
-      localStorage.setItem('deletedSessions', JSON.stringify([...deletedSessions, selectedSession]));
+      const sessionWithDeletedAt = { ...selectedSession, deletedAt: new Date().toISOString() };
+      localStorage.setItem('deletedSessions', JSON.stringify([...deletedSessions, sessionWithDeletedAt]));
       
       // Subtract time from task
       const tasks = JSON.parse(localStorage.getItem('tasks') || '[]') as Task[];

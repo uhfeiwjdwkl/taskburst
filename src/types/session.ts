@@ -9,4 +9,5 @@ export interface Session {
   progressGridEnd: number; // number of squares filled at end
   progressGridSize: number; // total grid size
   phase: 'focus' | 'break';
+  deletedAt?: string; // ISO string - when moved to recently deleted
 }
