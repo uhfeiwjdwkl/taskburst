@@ -105,6 +105,16 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     localStorage.setItem('timerState', JSON.stringify(state));
   }, [phase, seconds, breakBonus, currentSessionStartTime, currentSessionStartSeconds, sessionStartProgress, sessionStartSpentMinutes]);
 
+  // Auto-start timer when a new task is selected (Study button pressed)
+  const prevActiveTaskIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeTaskId && activeTaskId !== prevActiveTaskIdRef.current && !isRunning && phase === 'focus' && activeTask) {
+      // New task selected, show start editor
+      setShowStartEditor(true);
+    }
+    prevActiveTaskIdRef.current = activeTaskId || null;
+  }, [activeTaskId, isRunning, phase, activeTask]);
+
   const fireConfetti = () => {
     const count = 200;
     const defaults = {
