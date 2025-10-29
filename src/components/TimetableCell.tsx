@@ -3,6 +3,7 @@ import { TimetableCell as TimetableCellType } from "@/types/timetable";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface TimetableCellProps {
   cell?: TimetableCellType;
@@ -11,6 +12,7 @@ interface TimetableCellProps {
   colIndex: number;
   onUpdate: (rowIndex: number, colIndex: number, fields: string[]) => void;
   onColorUpdate: (rowIndex: number, colIndex: number, color: string | undefined) => void;
+  onFieldCountUpdate: (rowIndex: number, colIndex: number, count: 1 | 2 | 3) => void;
   onSelect: (rowIndex: number, colIndex: number) => void;
   isSelected: boolean;
   showCurrentTime?: boolean;
@@ -33,6 +35,7 @@ export function TimetableCell({
   colIndex,
   onUpdate,
   onColorUpdate,
+  onFieldCountUpdate,
   onSelect,
   isSelected,
   showCurrentTime,
@@ -41,12 +44,14 @@ export function TimetableCell({
   focusedColor,
   colorKey
 }: TimetableCellProps) {
+  const currentFieldCount = cell?.fieldsPerCell || fieldsPerCell;
   const [fields, setFields] = useState<string[]>(
-    cell?.fields || Array(fieldsPerCell).fill('')
+    cell?.fields || Array(currentFieldCount).fill('')
   );
 
   useEffect(() => {
-    setFields(cell?.fields || Array(fieldsPerCell).fill(''));
+    const count = cell?.fieldsPerCell || fieldsPerCell;
+    setFields(cell?.fields || Array(count).fill(''));
   }, [cell, fieldsPerCell]);
 
   const handleFieldChange = (index: number, value: string) => {
@@ -71,6 +76,11 @@ export function TimetableCell({
     }
   };
 
+  const handleFieldCountChange = (newCount: string) => {
+    const count = parseInt(newCount) as 1 | 2 | 3;
+    onFieldCountUpdate(rowIndex, colIndex, count);
+  };
+
   return (
     <td
       rowSpan={rowSpan}
@@ -92,81 +102,96 @@ export function TimetableCell({
         </div>
       )}
       
-      <div className="p-1 space-y-1 min-h-[60px]">
-        {Array.from({ length: fieldsPerCell }).map((_, index) => (
+      <div className="p-1 space-y-1 min-h-[60px] flex flex-col justify-center items-center">
+        {Array.from({ length: currentFieldCount }).map((_, index) => (
           isEditing ? (
             <Input
               key={index}
               value={fields[index] || ''}
               onChange={(e) => handleFieldChange(index, e.target.value)}
               onBlur={handleBlur}
-              className="h-7 text-xs bg-background/50"
+              className="h-7 text-xs bg-background/50 text-center w-full"
               placeholder={`Field ${index + 1}`}
             />
           ) : (
-            <div key={index} className="h-7 px-2 py-1 text-xs flex items-center">
+            <div key={index} className="h-7 px-2 py-1 text-xs flex items-center justify-center w-full">
               {fields[index] || ''}
             </div>
           )
         ))}
         
         {isEditing && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full h-6 text-xs"
+          <div className="flex gap-1 w-full">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex-1 h-6 text-xs"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Color
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-3" onClick={(e) => e.stopPropagation()}>
+                <div className="space-y-2">
+                  {Object.keys(colorKey).length > 0 && (
+                    <>
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">Color Key</p>
+                      <div className="space-y-1">
+                        {Object.entries(colorKey).map(([color, label]) => (
+                          <button
+                            key={color}
+                            className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-accent text-left"
+                            onClick={() => onColorUpdate(rowIndex, colIndex, color)}
+                          >
+                            <div
+                              className="w-6 h-6 rounded border flex-shrink-0"
+                              style={{ backgroundColor: color }}
+                            />
+                            <span className="text-sm">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="border-t pt-2 mt-2">
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">Other Colors</p>
+                      </div>
+                    </>
+                  )}
+                  <div className="grid grid-cols-6 gap-1">
+                    <button
+                      className="w-8 h-8 rounded border-2 border-input flex items-center justify-center text-xs"
+                      onClick={() => onColorUpdate(rowIndex, colIndex, undefined)}
+                      title="Clear color"
+                    >
+                      ✕
+                    </button>
+                    {PRESET_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        className="w-8 h-8 rounded border"
+                        style={{ backgroundColor: color }}
+                        onClick={() => onColorUpdate(rowIndex, colIndex, color)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Select value={currentFieldCount.toString()} onValueChange={handleFieldCountChange}>
+              <SelectTrigger 
+                className="h-6 text-xs w-12 px-1" 
                 onClick={(e) => e.stopPropagation()}
               >
-                Color
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-3" onClick={(e) => e.stopPropagation()}>
-              <div className="space-y-2">
-                {Object.keys(colorKey).length > 0 && (
-                  <>
-                    <p className="text-xs font-semibold text-muted-foreground mb-2">Color Key</p>
-                    <div className="space-y-1">
-                      {Object.entries(colorKey).map(([color, label]) => (
-                        <button
-                          key={color}
-                          className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-accent text-left"
-                          onClick={() => onColorUpdate(rowIndex, colIndex, color)}
-                        >
-                          <div
-                            className="w-6 h-6 rounded border flex-shrink-0"
-                            style={{ backgroundColor: color }}
-                          />
-                          <span className="text-sm">{label}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <div className="border-t pt-2 mt-2">
-                      <p className="text-xs font-semibold text-muted-foreground mb-2">Other Colors</p>
-                    </div>
-                  </>
-                )}
-                <div className="grid grid-cols-6 gap-1">
-                  <button
-                    className="w-8 h-8 rounded border-2 border-input flex items-center justify-center text-xs"
-                    onClick={() => onColorUpdate(rowIndex, colIndex, undefined)}
-                    title="Clear color"
-                  >
-                    ✕
-                  </button>
-                  {PRESET_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      className="w-8 h-8 rounded border"
-                      style={{ backgroundColor: color }}
-                      onClick={() => onColorUpdate(rowIndex, colIndex, color)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent onClick={(e) => e.stopPropagation()}>
+                <SelectItem value="1">1</SelectItem>
+                <SelectItem value="2">2</SelectItem>
+                <SelectItem value="3">3</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         )}
       </div>
     </td>

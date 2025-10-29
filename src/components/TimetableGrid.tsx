@@ -98,6 +98,29 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
     });
   };
 
+  const handleFieldCountUpdate = (rowIndex: number, colIndex: number, count: 1 | 2 | 3) => {
+    const key = getCellKey(rowIndex, colIndex);
+    const existingCell = timetable.cells[key] || {
+      rowIndex,
+      colIndex,
+      fields: Array(timetable.fieldsPerCell).fill(''),
+      week: timetable.type === 'fortnightly' ? currentWeek : undefined,
+    };
+
+    // Resize fields array
+    const newFields = Array(count).fill('');
+    for (let i = 0; i < Math.min(count, existingCell.fields.length); i++) {
+      newFields[i] = existingCell.fields[i];
+    }
+
+    const updatedCell = { ...existingCell, fields: newFields, fieldsPerCell: count };
+
+    onUpdate({
+      ...timetable,
+      cells: { ...timetable.cells, [key]: updatedCell }
+    });
+  };
+
   const handleCellSelect = (rowIndex: number, colIndex: number) => {
     if (!isEditing) return;
     const key = getCellKey(rowIndex, colIndex);
@@ -286,6 +309,7 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
                       colIndex={colIndex}
                       onUpdate={handleCellUpdate}
                       onColorUpdate={handleCellColorUpdate}
+                      onFieldCountUpdate={handleFieldCountUpdate}
                       onSelect={handleCellSelect}
                       isSelected={selectedCells.has(key)}
                       showCurrentTime={isCurrentTime}

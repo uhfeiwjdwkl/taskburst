@@ -14,6 +14,7 @@ export interface TimetableCell {
   colSpan?: number;
   hidden?: boolean; // if part of a merged cell
   week?: 1 | 2; // for fortnightly timetables
+  fieldsPerCell?: 1 | 2 | 3; // override timetable default
 }
 
 export interface Timetable {
