@@ -41,6 +41,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const [currentSessionStartSeconds, setCurrentSessionStartSeconds] = useState<number>(0);
   const [showRewindOption, setShowRewindOption] = useState(false);
   const [pendingAction, setPendingAction] = useState<'skip' | 'reset' | null>(null);
+  const [pendingSessionData, setPendingSessionData] = useState<{ endProgress: number } | null>(null);
   const intervalRef = useRef<number>();
 
   const totalDuration = phase === 'focus' ? FOCUS_DURATION : BREAK_DURATION + breakBonus;
@@ -101,17 +102,19 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     return (now - start) / 1000 / 60; // Convert to minutes
   };
 
-  const saveSession = (endProgress: number) => {
+  const saveSession = (endProgress: number, skipRewindCheck: boolean = false) => {
     if (!activeTask || !currentSessionStartTime) return;
 
     const duration = getCurrentSessionDuration();
     
-    // Only save if session was at least 2 minutes
-    if (duration < 2) {
+    // If session is <2 minutes and we haven't skipped the check, show rewind option
+    if (duration < 2 && !skipRewindCheck) {
+      setPendingSessionData({ endProgress });
       setShowRewindOption(true);
       return;
     }
 
+    // Save the session
     const session: Session = {
       id: Date.now().toString(),
       taskId: activeTask.id,
@@ -126,6 +129,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
 
     const savedSessions = JSON.parse(localStorage.getItem('sessions') || '[]');
     localStorage.setItem('sessions', JSON.stringify([...savedSessions, session]));
+    setPendingSessionData(null);
   };
 
   useEffect(() => {
@@ -242,6 +246,17 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     }
     
     setShowRewindOption(false);
+    setPendingSessionData(null);
+    setCurrentSessionStartTime(null);
+  };
+
+  const handleContinueWithoutRewind = () => {
+    // Save the session even though it's <2 minutes
+    if (pendingSessionData && activeTask) {
+      saveSession(pendingSessionData.endProgress, true);
+    }
+    setShowRewindOption(false);
+    setPendingSessionData(null);
     setCurrentSessionStartTime(null);
   };
 
@@ -341,7 +356,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowRewindOption(false)}>
+              <Button variant="outline" onClick={handleContinueWithoutRewind}>
                 Continue
               </Button>
               <Button onClick={handleRewind} className="bg-gradient-primary">
