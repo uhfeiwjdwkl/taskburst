@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import ProgressRing from './ProgressRing';
 import ProgressGridEditor from './ProgressGridEditor';
 import { TimerPhase, Task } from '@/types/task';
@@ -27,7 +35,10 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const [showStartEditor, setShowStartEditor] = useState(false);
   const [showEndEditor, setShowEndEditor] = useState(false);
   const [sessionStartProgress, setSessionStartProgress] = useState(0);
-  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const [currentSessionStartTime, setCurrentSessionStartTime] = useState<Date | null>(null);
+  const [currentSessionStartSeconds, setCurrentSessionStartSeconds] = useState<number>(0);
+  const [showRewindOption, setShowRewindOption] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'skip' | 'reset' | null>(null);
   const intervalRef = useRef<number>();
 
   const totalDuration = phase === 'focus' ? FOCUS_DURATION : BREAK_DURATION + breakBonus;
@@ -81,13 +92,23 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     });
   };
 
-  const saveSession = (endProgress: number, sessionDuration?: number) => {
-    if (!activeTask || !sessionStartTime) return;
+  const getCurrentSessionDuration = () => {
+    if (!currentSessionStartTime) return 0;
+    const now = Date.now();
+    const start = currentSessionStartTime.getTime();
+    return (now - start) / 1000 / 60; // Convert to minutes
+  };
 
-    const duration = sessionDuration ?? (FOCUS_DURATION - seconds) / 60; // Convert to minutes
+  const saveSession = (endProgress: number) => {
+    if (!activeTask || !currentSessionStartTime) return;
+
+    const duration = getCurrentSessionDuration();
     
     // Only save if session was at least 2 minutes
-    if (duration < 2) return;
+    if (duration < 2) {
+      setShowRewindOption(true);
+      return;
+    }
 
     const session: Session = {
       id: Date.now().toString(),
@@ -122,12 +143,6 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
               fireConfetti();
               onTaskComplete(activeTask.id);
               setBreakBonus(300); // Add 5 minutes (300 seconds) to break
-              setPhase('break');
-              setSeconds(BREAK_DURATION + 300);
-              setIsRunning(false);
-              onRunningChange?.(false);
-              // Show end editor and then set up break session tracking
-              setShowEndEditor(true);
             }
           }
           
@@ -137,24 +152,8 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     } else if (seconds === 0) {
       // Phase complete - play sound and show end editor
       playTimerEndSound();
-      if (activeTask && phase === 'focus') {
+      if (activeTask) {
         setShowEndEditor(true);
-      } else if (phase === 'break' && sessionStartTime && activeTask) {
-        // Break ended naturally - save session if >= 2 minutes
-        const duration = (BREAK_DURATION + breakBonus) / 60;
-        if (duration >= 2) {
-          saveSession(activeTask.progressGridFilled, duration);
-        }
-        const nextPhase = 'focus';
-        setPhase(nextPhase);
-        setSeconds(FOCUS_DURATION);
-        setBreakBonus(0);
-        setSessionStartTime(null);
-      } else {
-        const nextPhase = phase === 'focus' ? 'break' : 'focus';
-        setPhase(nextPhase);
-        setSeconds(nextPhase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);
-        setBreakBonus(0);
       }
       setIsRunning(false);
       onRunningChange?.(false);
@@ -171,51 +170,48 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     if (!isRunning && phase === 'focus' && activeTask) {
       // Show start editor before starting focus
       setShowStartEditor(true);
-    } else if (!isRunning && phase === 'break') {
-      // Starting break - record start time
-      setSessionStartTime(new Date());
+    } else if (!isRunning) {
+      // Starting/resuming timer - track session start
+      setCurrentSessionStartTime(new Date());
+      setCurrentSessionStartSeconds(seconds);
       setIsRunning(true);
       onRunningChange?.(true);
-    } else if (isRunning && phase === 'focus' && sessionStartTime && activeTask) {
-      // Pausing focus - show end editor if session >= 2 minutes
-      const duration = (FOCUS_DURATION - seconds) / 60;
-      if (duration >= 2) {
-        setShowEndEditor(true);
-      } else {
-        setIsRunning(false);
-        onRunningChange?.(false);
-        setSessionStartTime(null);
-      }
-    } else if (isRunning && phase === 'break' && sessionStartTime && activeTask) {
-      // Pausing break - save if >= 2 minutes
-      const duration = (BREAK_DURATION + breakBonus - seconds) / 60;
-      if (duration >= 2) {
-        saveSession(activeTask.progressGridFilled, duration);
-      }
+    } else if (isRunning && activeTask) {
+      // Pausing - show end editor to record progress
       setIsRunning(false);
       onRunningChange?.(false);
-      setSessionStartTime(null);
-    } else {
-      // Resume from pause
-      const newRunningState = !isRunning;
-      setIsRunning(newRunningState);
-      onRunningChange?.(newRunningState);
+      setShowEndEditor(true);
     }
   };
 
   const handleStartEditorSave = (filled: number) => {
     setSessionStartProgress(filled);
-    setSessionStartTime(new Date());
+    setCurrentSessionStartTime(new Date());
+    setCurrentSessionStartSeconds(seconds);
     setIsRunning(true);
     onRunningChange?.(true);
   };
 
   const handleEndEditorSave = (filled: number) => {
-    const duration = (FOCUS_DURATION - seconds) / 60;
-    saveSession(filled, duration);
-    setIsRunning(false);
-    onRunningChange?.(false);
-    setSessionStartTime(null);
+    saveSession(filled);
+    setCurrentSessionStartTime(null);
+    
+    // Handle pending actions
+    if (pendingAction === 'skip') {
+      if (phase === 'focus') {
+        setPhase('break');
+        setSeconds(BREAK_DURATION);
+        setBreakBonus(0);
+      } else {
+        setPhase('focus');
+        setSeconds(FOCUS_DURATION);
+        setBreakBonus(0);
+      }
+      setPendingAction(null);
+    } else if (pendingAction === 'reset') {
+      setSeconds(phase === 'focus' ? FOCUS_DURATION : BREAK_DURATION + breakBonus);
+      setPendingAction(null);
+    }
   };
 
   const handlePhaseComplete = (filled: number) => {
@@ -224,63 +220,52 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     setPhase(nextPhase);
     setSeconds(nextPhase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);
     setBreakBonus(0);
-    
-    // If moving to break, set up session tracking for the break
-    if (nextPhase === 'break') {
-      setSessionStartTime(new Date());
-    } else {
-      setSessionStartTime(null);
-    }
+    setCurrentSessionStartTime(null);
+  };
+
+  const handleRewind = () => {
+    setSeconds(currentSessionStartSeconds);
+    setShowRewindOption(false);
+    setCurrentSessionStartTime(null);
   };
 
   const handleReset = () => {
-    // If focus session was running and >= 2 minutes, show end editor
-    if (isRunning && phase === 'focus' && sessionStartTime) {
-      const duration = (FOCUS_DURATION - seconds) / 60;
-      if (duration >= 2) {
-        setShowEndEditor(true);
-        return;
-      }
+    if (isRunning && activeTask) {
+      // If running, show end editor to save session
+      setIsRunning(false);
+      onRunningChange?.(false);
+      setPendingAction('reset');
+      setShowEndEditor(true);
+      return;
     }
     
     setIsRunning(false);
     onRunningChange?.(false);
     setSeconds(phase === 'focus' ? FOCUS_DURATION : BREAK_DURATION + breakBonus);
-    setSessionStartTime(null);
+    setCurrentSessionStartTime(null);
   };
 
   const handleSkip = () => {
+    if (isRunning && activeTask) {
+      // If running, show end editor to save session first
+      setIsRunning(false);
+      onRunningChange?.(false);
+      setPendingAction('skip');
+      setShowEndEditor(true);
+      return;
+    }
+    
+    // Skip to next phase
     if (phase === 'focus') {
-      // Skipping focus - show end editor if session >= 2 minutes
-      if (sessionStartTime) {
-        const duration = (FOCUS_DURATION - seconds) / 60;
-        if (duration >= 2) {
-          setShowEndEditor(true);
-          return;
-        }
-      }
       setPhase('break');
       setSeconds(BREAK_DURATION);
       setBreakBonus(0);
-      setIsRunning(false);
-      onRunningChange?.(false);
-      // Start tracking break session
-      setSessionStartTime(new Date());
     } else {
-      // Skipping break - save if >= 2 minutes
-      if (sessionStartTime && activeTask) {
-        const duration = (BREAK_DURATION + breakBonus - seconds) / 60;
-        if (duration >= 2) {
-          saveSession(activeTask.progressGridFilled, duration);
-        }
-      }
       setPhase('focus');
       setSeconds(FOCUS_DURATION);
       setBreakBonus(0);
-      setIsRunning(false);
-      onRunningChange?.(false);
-      setSessionStartTime(null);
     }
+    setCurrentSessionStartTime(null);
   };
 
   const formatTime = (secs: number) => {
@@ -312,6 +297,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
                 setPhase(nextPhase);
                 setSeconds(nextPhase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);
                 setBreakBonus(0);
+                setCurrentSessionStartTime(null);
               }
             }}
             onSave={(filled) => {
@@ -319,16 +305,35 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
                 handlePhaseComplete(filled);
               } else {
                 handleEndEditorSave(filled);
-                // If moving to break after completing task early, track break
-                if (phase === 'break') {
-                  setSessionStartTime(new Date());
-                }
               }
+              setShowEndEditor(false);
             }}
             title="Session Complete"
             description="Update your progress to reflect what you achieved in this session."
           />
         </>
+      )}
+
+      {/* Rewind Option Dialog */}
+      {showRewindOption && activeTask && (
+        <Dialog open={showRewindOption} onOpenChange={setShowRewindOption}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Session Too Short</DialogTitle>
+              <DialogDescription>
+                This session was less than 2 minutes and won't be recorded. Would you like to rewind to the start of this session?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowRewindOption(false)}>
+                Continue
+              </Button>
+              <Button onClick={handleRewind} className="bg-gradient-primary">
+                Rewind
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
       
       <div className="flex flex-col items-center gap-8">
