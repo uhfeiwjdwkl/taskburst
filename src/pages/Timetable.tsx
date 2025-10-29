@@ -119,7 +119,9 @@ const Timetable = () => {
         );
         localStorage.setItem('timetables', JSON.stringify(updated));
         const activeTimetables = updated.filter(t => !t.deletedAt);
-        saveTimetables(activeTimetables);
+        setTimetables(activeTimetables.sort((a, b) => 
+          b.favorite === a.favorite ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : b.favorite ? 1 : -1
+        ));
         if (selectedTimetable?.id === timetableToDelete) {
           setSelectedTimetable(activeTimetables.length > 0 ? activeTimetables[0] : null);
         }
