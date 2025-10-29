@@ -66,7 +66,7 @@ export const exportToPDF = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {
           <tbody>
             ${timetable.rows.map((timeSlot, rowIndex) => `
               <tr style="height: 60px;">
-                <td class="time-column">${timeSlot.label}<br><small style="color: #888;">${timeSlot.startTime}</small></td>
+                <td class="time-column">${timeSlot.startTime}</td>
                 ${isFortnightly ?
                   // Week 1 cells
                   timetable.columns.map((_, colIndex) => {
@@ -166,7 +166,7 @@ export const exportToExcel = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {
   
   // Data rows
   timetable.rows.forEach((timeSlot, rowIndex) => {
-    const row: any[] = [`${timeSlot.label} ${timeSlot.startTime}`];
+    const row: any[] = [timeSlot.startTime];
     
     if (isFortnightly) {
       // Week 1 cells

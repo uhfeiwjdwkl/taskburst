@@ -308,9 +308,8 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
                     return null;
                   }
 
-                  // For fortnightly timetables, only show cells for the current week in view mode
-                  // In edit mode, always allow editing regardless of week
-                  if (!isEditing && timetable.type === 'fortnightly' && cell && cell.week && cell.week !== currentWeek) {
+                  // For fortnightly timetables in view mode only, hide cells from other weeks
+                  if (!isEditing && timetable.type === 'fortnightly' && cell?.week && cell.week !== currentWeek) {
                     return <td key={key} className="border p-0 min-h-[60px]" />;
                   }
 
