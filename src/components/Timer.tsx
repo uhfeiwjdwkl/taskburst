@@ -25,9 +25,10 @@ interface TimerProps {
   activeTask?: Task | null;
   onTaskComplete?: (taskId: string) => void;
   onRunningChange?: (isRunning: boolean) => void;
+  onUpdateTask?: (task: Task) => void;
 }
 
-const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChange }: TimerProps) => {
+const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChange, onUpdateTask }: TimerProps) => {
   const [phase, setPhase] = useState<TimerPhase>('focus');
   const [seconds, setSeconds] = useState(FOCUS_DURATION);
   const [isRunning, setIsRunning] = useState(false);
@@ -35,6 +36,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const [showStartEditor, setShowStartEditor] = useState(false);
   const [showEndEditor, setShowEndEditor] = useState(false);
   const [sessionStartProgress, setSessionStartProgress] = useState(0);
+  const [sessionStartSpentMinutes, setSessionStartSpentMinutes] = useState(0);
   const [currentSessionStartTime, setCurrentSessionStartTime] = useState<Date | null>(null);
   const [currentSessionStartSeconds, setCurrentSessionStartSeconds] = useState<number>(0);
   const [showRewindOption, setShowRewindOption] = useState(false);
@@ -170,10 +172,12 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     if (!isRunning && phase === 'focus' && activeTask) {
       // Show start editor before starting focus
       setShowStartEditor(true);
-    } else if (!isRunning) {
+    } else if (!isRunning && activeTask) {
       // Starting/resuming timer - track session start
       setCurrentSessionStartTime(new Date());
       setCurrentSessionStartSeconds(seconds);
+      setSessionStartProgress(activeTask.progressGridFilled);
+      setSessionStartSpentMinutes(activeTask.spentMinutes);
       setIsRunning(true);
       onRunningChange?.(true);
     } else if (isRunning && activeTask) {
@@ -186,6 +190,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
 
   const handleStartEditorSave = (filled: number) => {
     setSessionStartProgress(filled);
+    setSessionStartSpentMinutes(activeTask?.spentMinutes || 0);
     setCurrentSessionStartTime(new Date());
     setCurrentSessionStartSeconds(seconds);
     setIsRunning(true);
@@ -224,7 +229,18 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   };
 
   const handleRewind = () => {
+    // Restore timer
     setSeconds(currentSessionStartSeconds);
+    
+    // Restore task progress and time
+    if (activeTask && onUpdateTask) {
+      onUpdateTask({
+        ...activeTask,
+        spentMinutes: sessionStartSpentMinutes,
+        progressGridFilled: sessionStartProgress
+      });
+    }
+    
     setShowRewindOption(false);
     setCurrentSessionStartTime(null);
   };
