@@ -2,13 +2,36 @@ import { useState, useEffect } from 'react';
 import { Session } from '@/types/session';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ArrowLeft, Clock, Calendar as CalendarIcon } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { ArrowLeft, Clock, Calendar as CalendarIcon, Trash2, Edit2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const History = () => {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [newTaskName, setNewTaskName] = useState('');
 
   useEffect(() => {
     const savedSessions = localStorage.getItem('sessions');
@@ -20,6 +43,47 @@ const History = () => {
       ));
     }
   }, []);
+
+  const saveSessions = (updatedSessions: Session[]) => {
+    localStorage.setItem('sessions', JSON.stringify(updatedSessions));
+    setSessions(updatedSessions.sort((a: Session, b: Session) => 
+      new Date(b.dateEnded).getTime() - new Date(a.dateEnded).getTime()
+    ));
+  };
+
+  const handleDeleteClick = (session: Session) => {
+    setSelectedSession(session);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (selectedSession) {
+      const updatedSessions = sessions.filter(s => s.id !== selectedSession.id);
+      saveSessions(updatedSessions);
+      toast.success('Session deleted');
+      setDeleteDialogOpen(false);
+      setSelectedSession(null);
+    }
+  };
+
+  const handleRenameClick = (session: Session) => {
+    setSelectedSession(session);
+    setNewTaskName(session.taskName);
+    setRenameDialogOpen(true);
+  };
+
+  const handleRenameSave = () => {
+    if (selectedSession && newTaskName.trim()) {
+      const updatedSessions = sessions.map(s => 
+        s.id === selectedSession.id ? { ...s, taskName: newTaskName.trim() } : s
+      );
+      saveSessions(updatedSessions);
+      toast.success('Session renamed');
+      setRenameDialogOpen(false);
+      setSelectedSession(null);
+      setNewTaskName('');
+    }
+  };
 
   const formatDuration = (minutes: number) => {
     const mins = Math.floor(minutes);
@@ -90,9 +154,29 @@ const History = () => {
                       <Card key={session.id} className="p-4">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
-                            <h3 className="font-semibold text-lg mb-2">
-                              {session.taskName}
-                            </h3>
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <h3 className="font-semibold text-lg">
+                                {session.taskName}
+                              </h3>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handleRenameClick(session)}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  onClick={() => handleDeleteClick(session)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
                             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-3">
                               <div className="flex items-center gap-1">
                                 <Clock className="h-4 w-4" />
@@ -170,6 +254,56 @@ const History = () => {
             ))}
           </div>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Session?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this session? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Rename Dialog */}
+        <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Rename Session</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <Input
+                value={newTaskName}
+                onChange={(e) => setNewTaskName(e.target.value)}
+                placeholder="Enter new task name"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleRenameSave();
+                  }
+                }}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRenameDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleRenameSave} className="bg-gradient-primary">
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
