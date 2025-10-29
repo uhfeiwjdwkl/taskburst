@@ -61,18 +61,7 @@ const Index = () => {
     }
   }, [tasks]);
 
-  // Auto-select most important task
-  useEffect(() => {
-    if (!activeTaskId && tasks.length > 0) {
-      const sortedByPriority = [...tasks].sort((a, b) => {
-        if (b.importance !== a.importance) {
-          return b.importance - a.importance;
-        }
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-      });
-      setActiveTaskId(sortedByPriority[0].id);
-    }
-  }, [tasks, activeTaskId]);
+  // Note: Task selection is now manual via Study button - no auto-selection
 
   // Update task progress every 30 seconds
   useEffect(() => {
