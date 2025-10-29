@@ -70,9 +70,7 @@ const Index = () => {
 
   // Save tasks to localStorage whenever they change
   useEffect(() => {
-    if (tasks.length > 0) {
-      localStorage.setItem('tasks', JSON.stringify(tasks));
-    }
+    localStorage.setItem('tasks', JSON.stringify(tasks));
   }, [tasks]);
 
   // Note: Task selection is now manual via Study button - no auto-selection
