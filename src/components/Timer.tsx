@@ -52,6 +52,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const [showEndEditor, setShowEndEditor] = useState(false);
   const [sessionStartProgress, setSessionStartProgress] = useState(0);
   const [sessionStartSpentMinutes, setSessionStartSpentMinutes] = useState(0);
+  const [sessionStartPhase, setSessionStartPhase] = useState<TimerPhase>('focus');
   const [currentSessionStartTime, setCurrentSessionStartTime] = useState<Date | null>(null);
   const [currentSessionStartSeconds, setCurrentSessionStartSeconds] = useState<number>(0);
   const [showRewindOption, setShowRewindOption] = useState(false);
@@ -85,6 +86,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
         setCurrentSessionStartSeconds(state.currentSessionStartSeconds || 0);
         setSessionStartProgress(state.sessionStartProgress || 0);
         setSessionStartSpentMinutes(state.sessionStartSpentMinutes || 0);
+        setSessionStartPhase(state.sessionStartPhase || 'focus');
       } catch (e) {
         console.error('Failed to load timer state:', e);
       }
@@ -101,9 +103,10 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       currentSessionStartSeconds,
       sessionStartProgress,
       sessionStartSpentMinutes,
+      sessionStartPhase,
     };
     localStorage.setItem('timerState', JSON.stringify(state));
-  }, [phase, seconds, breakBonus, currentSessionStartTime, currentSessionStartSeconds, sessionStartProgress, sessionStartSpentMinutes]);
+  }, [phase, seconds, breakBonus, currentSessionStartTime, currentSessionStartSeconds, sessionStartProgress, sessionStartSpentMinutes, sessionStartPhase]);
 
   // Auto-start timer when a new task is selected (Study button pressed)
   const prevActiveTaskIdRef = useRef<string | null>(null);
@@ -199,7 +202,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       progressGridStart: sessionStartProgress,
       progressGridEnd: endProgress,
       progressGridSize: activeTask.progressGridSize,
-      phase,
+      phase: sessionStartPhase, // Use the phase when session started, not current phase
     };
 
     const savedSessions = JSON.parse(localStorage.getItem('sessions') || '[]');
@@ -259,6 +262,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       setCurrentSessionStartSeconds(seconds);
       setSessionStartProgress(activeTask.progressGridFilled);
       setSessionStartSpentMinutes(activeTask.spentMinutes);
+      setSessionStartPhase(phase); // Track which phase we're starting
       setIsRunning(true);
       onRunningChange?.(true);
     } else if (isRunning && activeTask) {
@@ -274,6 +278,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     setSessionStartSpentMinutes(activeTask?.spentMinutes || 0);
     setCurrentSessionStartTime(new Date());
     setCurrentSessionStartSeconds(seconds);
+    setSessionStartPhase(phase); // Track which phase we're starting
     setIsRunning(true);
     onRunningChange?.(true);
   };
