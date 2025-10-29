@@ -102,10 +102,10 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     return (now - start) / 1000 / 60; // Convert to minutes
   };
 
-  const saveSession = (endProgress: number, skipRewindCheck: boolean = false) => {
+  const saveSession = (endProgress: number, skipRewindCheck: boolean = false): boolean => {
     if (!activeTask || !currentSessionStartTime) {
       console.warn('Cannot save session: missing activeTask or currentSessionStartTime');
-      return;
+      return false;
     }
 
     const duration = getCurrentSessionDuration();
@@ -116,7 +116,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       console.log('Session too short, showing rewind option');
       setPendingSessionData({ endProgress });
       setShowRewindOption(true);
-      return;
+      return false; // Session not saved yet, pending user decision
     }
 
     // Save the session
@@ -136,6 +136,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     localStorage.setItem('sessions', JSON.stringify([...savedSessions, session]));
     console.log('Session saved:', session);
     setPendingSessionData(null);
+    return true; // Session was saved
   };
 
   useEffect(() => {
@@ -208,8 +209,12 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   };
 
   const handleEndEditorSave = (filled: number) => {
-    saveSession(filled);
-    setCurrentSessionStartTime(null);
+    const sessionSaved = saveSession(filled);
+    
+    // Only clear session start time if session was actually saved (not pending rewind decision)
+    if (sessionSaved) {
+      setCurrentSessionStartTime(null);
+    }
     
     // Handle pending actions
     if (pendingAction === 'skip') {
@@ -263,7 +268,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     }
     setShowRewindOption(false);
     setPendingSessionData(null);
-    setCurrentSessionStartTime(null);
+    setCurrentSessionStartTime(null); // Now clear it after saving
   };
 
   const handleReset = () => {
