@@ -57,7 +57,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const [currentSessionStartSeconds, setCurrentSessionStartSeconds] = useState<number>(0);
   const [showRewindOption, setShowRewindOption] = useState(false);
   const [pendingAction, setPendingAction] = useState<'skip' | 'reset' | null>(null);
-  const [pendingSessionData, setPendingSessionData] = useState<{ endProgress: number } | null>(null);
+  const [pendingSessionData, setPendingSessionData] = useState<{ endProgress: number; duration: number } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [tempFocusDuration, setTempFocusDuration] = useState(focusDuration);
   const [tempBreakDuration, setTempBreakDuration] = useState(breakDuration);
@@ -168,7 +168,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     });
   };
 
-  const saveSession = (endProgress: number, skipRewindCheck: boolean = false): boolean => {
+  const saveSession = (endProgress: number, duration?: number, skipRewindCheck: boolean = false): boolean => {
     if (!activeTask || !currentSessionStartTime) {
       console.warn('Cannot save session: missing activeTask or currentSessionStartTime');
       return false;
@@ -176,13 +176,13 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
 
     // Calculate duration based on timer seconds, not wall-clock time
     // This excludes time spent in the progress grid editor
-    const duration = (currentSessionStartSeconds - seconds) / 60; // Convert to minutes
-    console.log('Saving session with duration:', duration, 'minutes');
+    const calculatedDuration = duration ?? (currentSessionStartSeconds - seconds) / 60; // Convert to minutes
+    console.log('Saving session with duration:', calculatedDuration, 'minutes');
     
     // If session is <2 minutes and we haven't skipped the check, show rewind option
-    if (duration < 2 && !skipRewindCheck) {
+    if (calculatedDuration < 2 && !skipRewindCheck) {
       console.log('Session too short, showing rewind option');
-      setPendingSessionData({ endProgress });
+      setPendingSessionData({ endProgress, duration: calculatedDuration });
       setShowRewindOption(true);
       return false; // Session not saved yet, pending user decision
     }
@@ -193,7 +193,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       taskId: activeTask.id,
       taskName: activeTask.name,
       dateEnded: new Date().toISOString(),
-      duration,
+      duration: calculatedDuration,
       progressGridStart: sessionStartProgress,
       progressGridEnd: endProgress,
       progressGridSize: activeTask.progressGridSize,
@@ -332,9 +332,9 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   };
 
   const handleContinueWithoutRewind = () => {
-    // Save the session even though it's <2 minutes
+    // Save the session even though it's <2 minutes, using the stored duration
     if (pendingSessionData && activeTask) {
-      saveSession(pendingSessionData.endProgress, true);
+      saveSession(pendingSessionData.endProgress, pendingSessionData.duration, true);
     }
     setShowRewindOption(false);
     setPendingSessionData(null);
