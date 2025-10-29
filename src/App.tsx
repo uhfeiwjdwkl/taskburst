@@ -8,6 +8,7 @@ import Archive from "./pages/Archive";
 import Calendar from "./pages/Calendar";
 import Categories from "./pages/Categories";
 import History from "./pages/History";
+import RecentlyDeleted from "./pages/RecentlyDeleted";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/history" element={<History />} />
+          <Route path="/recently-deleted" element={<RecentlyDeleted />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

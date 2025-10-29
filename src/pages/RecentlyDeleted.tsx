@@ -3,7 +3,6 @@ import { Session } from '@/types/session';
 import { Task } from '@/types/task';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,93 +13,71 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { ArrowLeft, Clock, Calendar as CalendarIcon, Trash2, Edit2, Trash } from 'lucide-react';
+import { ArrowLeft, Clock, Calendar as CalendarIcon, Trash2, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-const History = () => {
+const RecentlyDeleted = () => {
   const navigate = useNavigate();
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deletedSessions, setDeletedSessions] = useState<Session[]>([]);
+  const [permanentDeleteDialogOpen, setPermanentDeleteDialogOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
-  const [newDescription, setNewDescription] = useState('');
 
   useEffect(() => {
-    const savedSessions = localStorage.getItem('sessions');
-    if (savedSessions) {
-      const parsed = JSON.parse(savedSessions);
-      // Sort by date, newest first
-      setSessions(parsed.sort((a: Session, b: Session) => 
+    const savedDeletedSessions = localStorage.getItem('deletedSessions');
+    if (savedDeletedSessions) {
+      const parsed = JSON.parse(savedDeletedSessions);
+      setDeletedSessions(parsed.sort((a: Session, b: Session) => 
         new Date(b.dateEnded).getTime() - new Date(a.dateEnded).getTime()
       ));
     }
   }, []);
 
-  const saveSessions = (updatedSessions: Session[]) => {
-    localStorage.setItem('sessions', JSON.stringify(updatedSessions));
-    setSessions(updatedSessions.sort((a: Session, b: Session) => 
+  const saveDeletedSessions = (updatedSessions: Session[]) => {
+    localStorage.setItem('deletedSessions', JSON.stringify(updatedSessions));
+    setDeletedSessions(updatedSessions.sort((a: Session, b: Session) => 
       new Date(b.dateEnded).getTime() - new Date(a.dateEnded).getTime()
     ));
   };
 
-  const handleDeleteClick = (session: Session) => {
+  const handleRestore = (session: Session) => {
+    // Restore session to active sessions
+    const activeSessions = JSON.parse(localStorage.getItem('sessions') || '[]');
+    localStorage.setItem('sessions', JSON.stringify([...activeSessions, session]));
+    
+    // Restore time to task
+    const tasks = JSON.parse(localStorage.getItem('tasks') || '[]') as Task[];
+    const updatedTasks = tasks.map(task => {
+      if (task.id === session.taskId) {
+        return {
+          ...task,
+          spentMinutes: task.spentMinutes + session.duration
+        };
+      }
+      return task;
+    });
+    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+    
+    // Remove from deleted sessions
+    const updatedDeleted = deletedSessions.filter(s => s.id !== session.id);
+    saveDeletedSessions(updatedDeleted);
+    
+    toast.success('Session restored');
+  };
+
+  const handlePermanentDeleteClick = (session: Session) => {
     setSelectedSession(session);
-    setDeleteDialogOpen(true);
+    setPermanentDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handlePermanentDeleteConfirm = () => {
     if (selectedSession) {
-      // Move to deleted sessions instead of permanent deletion
-      const deletedSessions = JSON.parse(localStorage.getItem('deletedSessions') || '[]');
-      localStorage.setItem('deletedSessions', JSON.stringify([...deletedSessions, selectedSession]));
-      
-      // Subtract time from task
-      const tasks = JSON.parse(localStorage.getItem('tasks') || '[]') as Task[];
-      const updatedTasks = tasks.map(task => {
-        if (task.id === selectedSession.taskId) {
-          return {
-            ...task,
-            spentMinutes: Math.max(0, task.spentMinutes - selectedSession.duration)
-          };
-        }
-        return task;
-      });
-      localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-      
-      // Remove from active sessions
-      const updatedSessions = sessions.filter(s => s.id !== selectedSession.id);
-      saveSessions(updatedSessions);
-      toast.success('Session moved to recently deleted');
-      setDeleteDialogOpen(false);
+      const updatedSessions = deletedSessions.filter(s => s.id !== selectedSession.id);
+      saveDeletedSessions(updatedSessions);
+      toast.success('Session permanently deleted');
+      setPermanentDeleteDialogOpen(false);
       setSelectedSession(null);
-    }
-  };
-
-  const handleEditClick = (session: Session) => {
-    setSelectedSession(session);
-    setNewDescription(session.description || '');
-    setEditDialogOpen(true);
-  };
-
-  const handleEditSave = () => {
-    if (selectedSession) {
-      const updatedSessions = sessions.map(s => 
-        s.id === selectedSession.id ? { ...s, description: newDescription.trim() } : s
-      );
-      saveSessions(updatedSessions);
-      toast.success('Session description updated');
-      setEditDialogOpen(false);
-      setSelectedSession(null);
-      setNewDescription('');
     }
   };
 
@@ -113,7 +90,7 @@ const History = () => {
   const groupByDate = (sessions: Session[]) => {
     const grouped: { [key: string]: Session[] } = {};
     sessions.forEach(session => {
-      const date = new Date(session.dateEnded).toLocaleDateString('en-GB'); // DD/MM/YYYY
+      const date = new Date(session.dateEnded).toLocaleDateString('en-GB');
       if (!grouped[date]) {
         grouped[date] = [];
       }
@@ -122,7 +99,7 @@ const History = () => {
     return grouped;
   };
 
-  const groupedSessions = groupByDate(sessions);
+  const groupedSessions = groupByDate(deletedSessions);
 
   return (
     <div className="min-h-screen bg-background">
@@ -131,31 +108,24 @@ const History = () => {
           <Button
             variant="outline"
             size="icon"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/history')}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex-1">
+          <div>
             <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              Session History
+              Recently Deleted
             </h1>
             <p className="text-muted-foreground mt-1">
-              View all your past focus sessions
+              Restore or permanently delete sessions
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/recently-deleted')}
-          >
-            <Trash className="h-4 w-4 mr-2" />
-            Recently Deleted
-          </Button>
         </header>
 
-        {sessions.length === 0 ? (
+        {deletedSessions.length === 0 ? (
           <Card className="p-8 text-center">
             <p className="text-muted-foreground">
-              No sessions recorded yet. Complete a focus session to see it here!
+              No deleted sessions
             </p>
           </Card>
         ) : (
@@ -177,7 +147,7 @@ const History = () => {
                       : 0;
 
                     return (
-                      <Card key={session.id} className="p-4">
+                      <Card key={session.id} className="p-4 opacity-70">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
                             <div className="flex items-start justify-between gap-2 mb-2">
@@ -194,15 +164,15 @@ const History = () => {
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8"
-                                  onClick={() => handleEditClick(session)}
+                                  onClick={() => handleRestore(session)}
                                 >
-                                  <Edit2 className="h-4 w-4" />
+                                  <RotateCcw className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   className="h-8 w-8 text-destructive hover:text-destructive"
-                                  onClick={() => handleDeleteClick(session)}
+                                  onClick={() => handlePermanentDeleteClick(session)}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -226,7 +196,6 @@ const History = () => {
                               </div>
                             </div>
 
-                            {/* Progress Achievement */}
                             <div>
                               <div className="text-sm font-medium mb-2">
                                 Progress Made: {progressChange > 0 ? '+' : ''}{progressChange} squares 
@@ -286,58 +255,28 @@ const History = () => {
           </div>
         )}
 
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialog open={permanentDeleteDialogOpen} onOpenChange={setPermanentDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Session?</AlertDialogTitle>
+              <AlertDialogTitle>Permanently Delete Session?</AlertDialogTitle>
               <AlertDialogDescription>
-                This session will be moved to Recently Deleted. The time spent will be removed from the task progress.
+                This action cannot be undone. This session will be permanently deleted.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
-                onClick={handleDeleteConfirm}
+                onClick={handlePermanentDeleteConfirm}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                Delete
+                Permanently Delete
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
-        {/* Edit Description Dialog */}
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Session Description</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <Input
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-                placeholder="Enter session description"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleEditSave();
-                  }
-                }}
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleEditSave} className="bg-gradient-primary">
-                Save
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );
 };
 
-export default History;
+export default RecentlyDeleted;
