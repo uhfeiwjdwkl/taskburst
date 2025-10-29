@@ -3,7 +3,7 @@ import { Task } from '@/types/task';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Trash2, Clock } from 'lucide-react';
+import { ArrowLeft, Trash2, Clock, Undo2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -17,6 +17,20 @@ const Archive = () => {
       setArchivedTasks(JSON.parse(archived));
     }
   }, []);
+
+  const handleUncomplete = (taskId: string) => {
+    const task = archivedTasks.find(t => t.id === taskId);
+    if (task) {
+      const uncompleted = { ...task, completed: false };
+      const activeTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+      localStorage.setItem('tasks', JSON.stringify([...activeTasks, uncompleted]));
+      
+      const updated = archivedTasks.filter(t => t.id !== taskId);
+      setArchivedTasks(updated);
+      localStorage.setItem('archivedTasks', JSON.stringify(updated));
+      toast.success('Task moved back to active tasks');
+    }
+  };
 
   const handleDelete = (taskId: string) => {
     const task = archivedTasks.find(t => t.id === taskId);
@@ -80,7 +94,7 @@ const Archive = () => {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold text-lg truncate line-through">
+                      <h3 className="font-semibold text-lg truncate">
                         {task.name}
                       </h3>
                       <Badge className={importanceColors[task.importance]}>
@@ -107,14 +121,24 @@ const Archive = () => {
                     </div>
                   </div>
 
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDelete(task.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleUncomplete(task.id)}
+                    >
+                      <Undo2 className="h-4 w-4 mr-1" />
+                      Uncomplete
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDelete(task.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </Card>
             ))}
