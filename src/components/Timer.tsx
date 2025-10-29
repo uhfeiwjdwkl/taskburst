@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
+import { Play, Pause, RotateCcw, SkipForward, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -16,8 +18,8 @@ import { Session } from '@/types/session';
 import confetti from 'canvas-confetti';
 import { playTimerEndSound } from '@/lib/sounds';
 
-const FOCUS_DURATION = 25 * 60; // 25 minutes in seconds
-const BREAK_DURATION = 5 * 60; // 5 minutes in seconds
+const DEFAULT_FOCUS_DURATION = 25; // minutes
+const DEFAULT_BREAK_DURATION = 5; // minutes
 
 interface TimerProps {
   onTick?: (seconds: number) => void;
@@ -29,6 +31,19 @@ interface TimerProps {
 }
 
 const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChange, onUpdateTask }: TimerProps) => {
+  // Load durations from localStorage
+  const [focusDuration, setFocusDuration] = useState(() => {
+    const saved = localStorage.getItem('focusDuration');
+    return saved ? parseInt(saved) : DEFAULT_FOCUS_DURATION;
+  });
+  const [breakDuration, setBreakDuration] = useState(() => {
+    const saved = localStorage.getItem('breakDuration');
+    return saved ? parseInt(saved) : DEFAULT_BREAK_DURATION;
+  });
+
+  const FOCUS_DURATION = focusDuration * 60; // convert to seconds
+  const BREAK_DURATION = breakDuration * 60; // convert to seconds
+
   const [phase, setPhase] = useState<TimerPhase>('focus');
   const [seconds, setSeconds] = useState(FOCUS_DURATION);
   const [isRunning, setIsRunning] = useState(false);
@@ -42,6 +57,9 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const [showRewindOption, setShowRewindOption] = useState(false);
   const [pendingAction, setPendingAction] = useState<'skip' | 'reset' | null>(null);
   const [pendingSessionData, setPendingSessionData] = useState<{ endProgress: number } | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [tempFocusDuration, setTempFocusDuration] = useState(focusDuration);
+  const [tempBreakDuration, setTempBreakDuration] = useState(breakDuration);
   const intervalRef = useRef<number>();
 
   const totalDuration = phase === 'focus' ? FOCUS_DURATION : BREAK_DURATION + breakBonus;
@@ -51,6 +69,41 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const taskProgress = activeTask 
     ? Math.min((activeTask.spentMinutes / activeTask.estimatedMinutes) * 100, 100)
     : 0;
+
+  // Load timer state from localStorage on mount
+  useEffect(() => {
+    const savedState = localStorage.getItem('timerState');
+    if (savedState) {
+      try {
+        const state = JSON.parse(savedState);
+        setPhase(state.phase);
+        setSeconds(state.seconds);
+        setBreakBonus(state.breakBonus || 0);
+        if (state.currentSessionStartTime) {
+          setCurrentSessionStartTime(new Date(state.currentSessionStartTime));
+        }
+        setCurrentSessionStartSeconds(state.currentSessionStartSeconds || 0);
+        setSessionStartProgress(state.sessionStartProgress || 0);
+        setSessionStartSpentMinutes(state.sessionStartSpentMinutes || 0);
+      } catch (e) {
+        console.error('Failed to load timer state:', e);
+      }
+    }
+  }, []);
+
+  // Save timer state to localStorage whenever it changes
+  useEffect(() => {
+    const state = {
+      phase,
+      seconds,
+      breakBonus,
+      currentSessionStartTime: currentSessionStartTime?.toISOString(),
+      currentSessionStartSeconds,
+      sessionStartProgress,
+      sessionStartSpentMinutes,
+    };
+    localStorage.setItem('timerState', JSON.stringify(state));
+  }, [phase, seconds, breakBonus, currentSessionStartTime, currentSessionStartSeconds, sessionStartProgress, sessionStartSpentMinutes]);
 
   const fireConfetti = () => {
     const count = 200;
@@ -316,6 +369,20 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     return `${mins.toString().padStart(2, '0')}:${remainingSecs.toString().padStart(2, '0')}`;
   };
 
+  const handleSaveSettings = () => {
+    setFocusDuration(tempFocusDuration);
+    setBreakDuration(tempBreakDuration);
+    localStorage.setItem('focusDuration', tempFocusDuration.toString());
+    localStorage.setItem('breakDuration', tempBreakDuration.toString());
+    
+    // Reset timer to new duration if not running
+    if (!isRunning) {
+      setSeconds(phase === 'focus' ? tempFocusDuration * 60 : tempBreakDuration * 60);
+    }
+    
+    setShowSettings(false);
+  };
+
   return (
     <>
       {activeTask && (
@@ -355,6 +422,54 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
           />
         </>
       )}
+
+      {/* Settings Dialog */}
+      <Dialog open={showSettings} onOpenChange={setShowSettings}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Timer Settings</DialogTitle>
+            <DialogDescription>
+              Customize your focus and break durations
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="focus-duration">Focus Duration (minutes)</Label>
+              <Input
+                id="focus-duration"
+                type="number"
+                min="1"
+                max="120"
+                value={tempFocusDuration}
+                onChange={(e) => setTempFocusDuration(parseInt(e.target.value) || DEFAULT_FOCUS_DURATION)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="break-duration">Break Duration (minutes)</Label>
+              <Input
+                id="break-duration"
+                type="number"
+                min="1"
+                max="60"
+                value={tempBreakDuration}
+                onChange={(e) => setTempBreakDuration(parseInt(e.target.value) || DEFAULT_BREAK_DURATION)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setTempFocusDuration(focusDuration);
+              setTempBreakDuration(breakDuration);
+              setShowSettings(false);
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveSettings} className="bg-gradient-primary">
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Rewind Option Dialog */}
       {showRewindOption && activeTask && (
@@ -457,6 +572,15 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
         >
           <SkipForward className="mr-2 h-5 w-5" />
           {phase === 'focus' ? 'Skip to Break' : 'Skip to Focus'}
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          onClick={() => setShowSettings(true)}
+          className="relative z-50 bg-card"
+        >
+          <Settings className="mr-2 h-5 w-5" />
+          Settings
         </Button>
       </div>
     </div>
