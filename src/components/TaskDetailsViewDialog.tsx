@@ -25,6 +25,16 @@ const TaskDetailsViewDialog = ({ task, open, onClose }: TaskDetailsViewDialogPro
     ? Math.min((task.spentMinutes / task.estimatedMinutes) * 100, 100)
     : 0;
 
+  // Format times in m s format
+  const remainingSeconds = Math.round(remainingMinutes * 60);
+  const remainingMins = Math.floor(remainingSeconds / 60);
+  const remainingSecs = remainingSeconds % 60;
+  
+  const spentSeconds = Math.round(task.spentMinutes * 60);
+  const spentMins = Math.floor(spentSeconds / 60);
+  const spentSecs = spentSeconds % 60;
+  const formattedSpent = `${spentMins}:${spentSecs.toString().padStart(2, '0')}`;
+
   const importanceColors = [
     'bg-muted text-muted-foreground',
     'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -79,14 +89,14 @@ const TaskDetailsViewDialog = ({ task, open, onClose }: TaskDetailsViewDialogPro
                 <Clock className="h-3 w-3" />
                 Time Spent
               </Label>
-              <p className="mt-1 font-semibold">{Math.round(task.spentMinutes)} min</p>
+              <p className="mt-1 font-semibold">{spentMins}m {spentSecs}s</p>
             </div>
             <div>
               <Label className="text-muted-foreground text-sm flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 Time Remaining
               </Label>
-              <p className="mt-1 font-semibold">{remainingMinutes} min</p>
+              <p className="mt-1 font-semibold">{remainingMins}m {remainingSecs}s</p>
             </div>
           </div>
 
@@ -100,7 +110,7 @@ const TaskDetailsViewDialog = ({ task, open, onClose }: TaskDetailsViewDialogPro
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {Math.round(task.spentMinutes)} / {task.estimatedMinutes} minutes ({Math.round(progressPercentage)}%)
+                {formattedSpent} / {Math.round(task.estimatedMinutes)} minutes ({Math.round(progressPercentage)}%)
               </p>
             </div>
           </div>
