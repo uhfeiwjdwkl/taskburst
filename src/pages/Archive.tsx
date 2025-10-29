@@ -19,10 +19,17 @@ const Archive = () => {
   }, []);
 
   const handleDelete = (taskId: string) => {
-    const updated = archivedTasks.filter(t => t.id !== taskId);
-    setArchivedTasks(updated);
-    localStorage.setItem('archivedTasks', JSON.stringify(updated));
-    toast.success('Task deleted from archive');
+    const task = archivedTasks.find(t => t.id === taskId);
+    if (task) {
+      const deletedTask = { ...task, deletedAt: new Date().toISOString() };
+      const deleted = JSON.parse(localStorage.getItem('deletedArchive') || '[]');
+      localStorage.setItem('deletedArchive', JSON.stringify([...deleted, deletedTask]));
+      
+      const updated = archivedTasks.filter(t => t.id !== taskId);
+      setArchivedTasks(updated);
+      localStorage.setItem('archivedTasks', JSON.stringify(updated));
+      toast.success('Task moved to recently deleted');
+    }
   };
 
   const getPriorityLabel = (importance: number) => {

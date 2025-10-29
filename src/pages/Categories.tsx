@@ -184,6 +184,16 @@ const Categories = () => {
                         onShowDetails={handleShowDetails}
                         onEdit={handleEdit}
                         onComplete={handleCompleteTask}
+                        onDelete={(taskId) => {
+                          const task = tasks.find(t => t.id === taskId);
+                          if (task) {
+                            const deletedTask = { ...task, deletedAt: new Date().toISOString() };
+                            const deleted = JSON.parse(localStorage.getItem('deletedTasks') || '[]');
+                            localStorage.setItem('deletedTasks', JSON.stringify([...deleted, deletedTask]));
+                            setTasks(tasks.filter(t => t.id !== taskId));
+                            toast.success('Task moved to recently deleted');
+                          }
+                        }}
                         onUpdateTask={handleUpdateTask}
                       />
                     ))}

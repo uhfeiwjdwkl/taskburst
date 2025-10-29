@@ -105,6 +105,21 @@ const Index = () => {
     }
   };
 
+  const handleDeleteTask = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      const deletedTask = { ...task, deletedAt: new Date().toISOString() };
+      const deleted = JSON.parse(localStorage.getItem('deletedTasks') || '[]');
+      localStorage.setItem('deletedTasks', JSON.stringify([...deleted, deletedTask]));
+      setTasks(tasks.filter(t => t.id !== taskId));
+      toast.success('Task moved to recently deleted');
+      
+      if (activeTaskId === taskId) {
+        setActiveTaskId(null);
+      }
+    }
+  };
+
   const handleCompleteTask = (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
     if (task) {
@@ -182,50 +197,13 @@ const Index = () => {
             </h1>
             <p className="text-muted-foreground mt-1">Stay productive with Pomodoro technique</p>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <Button
-              onClick={() => setAddDialogOpen(true)}
-              className="bg-gradient-primary hover:opacity-90 shadow-glow"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Task
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/categories')}
-            >
-              <FolderOpen className="h-4 w-4 mr-2" />
-              Categories
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/calendar')}
-            >
-              <Calendar className="h-4 w-4 mr-2" />
-              Calendar
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/timetable')}
-            >
-              <Table className="h-4 w-4 mr-2" />
-              Timetable
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/history')}
-            >
-              <HistoryIcon className="h-4 w-4 mr-2" />
-              History
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/archive')}
-            >
-              <Archive className="h-4 w-4 mr-2" />
-              Archive
-            </Button>
-          </div>
+          <Button
+            onClick={() => setAddDialogOpen(true)}
+            className="bg-gradient-primary hover:opacity-90 shadow-glow"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            New Task
+          </Button>
         </header>
 
         {/* Timer Section */}
@@ -248,32 +226,20 @@ const Index = () => {
           <h2 className="text-2xl font-semibold mb-4">
             Your Tasks ({sortedTasks.length})
           </h2>
-          {sortedTasks.length === 0 ? (
-            <div className="text-center py-12 bg-card rounded-lg border border-border">
-              <p className="text-muted-foreground mb-4">No tasks yet. Add your first task to get started!</p>
-              <Button
-                onClick={() => setAddDialogOpen(true)}
-                className="bg-gradient-primary"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Your First Task
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {sortedTasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  onStartFocus={handleStartFocus}
-                  onShowDetails={handleShowDetails}
-                  onEdit={handleEdit}
-                  onComplete={handleCompleteTask}
-                  onUpdateTask={handleUpdateTask}
-                />
-              ))}
-            </div>
-          )}
+          <div className="space-y-4">
+            {sortedTasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                onStartFocus={handleStartFocus}
+                onShowDetails={handleShowDetails}
+                onEdit={handleEdit}
+                onComplete={handleCompleteTask}
+                onDelete={handleDeleteTask}
+                onUpdateTask={handleUpdateTask}
+              />
+            ))}
+          </div>
         </section>
 
         {/* Dialogs */}

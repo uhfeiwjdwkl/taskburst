@@ -1,7 +1,7 @@
 import { Task } from '@/types/task';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Clock, Info, Play, CheckCircle2, Edit } from 'lucide-react';
+import { Clock, Info, Play, CheckCircle2, Edit, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -11,10 +11,11 @@ interface TaskCardProps {
   onShowDetails: (taskId: string) => void;
   onEdit: (taskId: string) => void;
   onComplete: (taskId: string) => void;
+  onDelete: (taskId: string) => void;
   onUpdateTask: (task: Task) => void;
 }
 
-const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onUpdateTask }: TaskCardProps) => {
+const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDelete, onUpdateTask }: TaskCardProps) => {
   const remainingMinutes = Math.max(task.estimatedMinutes - task.spentMinutes, 0);
   const remainingSeconds = Math.round(remainingMinutes * 60);
   const remainingMins = Math.floor(remainingSeconds / 60);
@@ -145,10 +146,17 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onUpd
               size="sm"
               variant="outline"
               onClick={() => onComplete(task.id)}
-              className="ml-auto"
             >
               <CheckCircle2 className="h-4 w-4 mr-1" />
               Complete
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onDelete(task.id)}
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </div>

@@ -138,16 +138,10 @@ const Timetable = () => {
             </Button>
             <h1 className="text-3xl font-bold">Timetables</h1>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate('/timetable/recently-deleted')}>
-              <Clock className="h-4 w-4 mr-2" />
-              Recently Deleted
-            </Button>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Timetable
-            </Button>
-          </div>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Timetable
+          </Button>
         </div>
 
         {timetables.length === 0 ? (
@@ -177,88 +171,74 @@ const Timetable = () => {
                     });
                   }}
                 >
-                  <div
-                    className={`rounded-lg border transition-colors ${
-                      selectedTimetable?.id === timetable.id
-                        ? 'bg-accent border-primary'
-                        : 'hover:bg-accent/50'
-                    }`}
-                  >
-                    <div className="p-3 flex items-start justify-between gap-2">
-                      <div 
-                        className="flex-1 min-w-0 cursor-pointer"
-                        onClick={() => setSelectedTimetable(timetable)}
-                      >
-                        <p className="font-medium truncate">{timetable.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {timetable.type === 'weekly' ? 'Weekly' : 'Fortnightly'}
-                        </p>
-                      </div>
-                      <div className="flex gap-1">
-                        <CollapsibleTrigger asChild>
+                  <CollapsibleTrigger asChild>
+                    <div
+                      className={`rounded-lg border transition-colors cursor-pointer ${
+                        selectedTimetable?.id === timetable.id
+                          ? 'bg-accent border-primary'
+                          : 'hover:bg-accent/50'
+                      }`}
+                    >
+                      <div className="p-3 flex items-start justify-between gap-2">
+                        <div 
+                          className="flex-1 min-w-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTimetable(timetable);
+                          }}
+                        >
+                          <p className="font-medium truncate">{timetable.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {timetable.type === 'weekly' ? 'Weekly' : 'Fortnightly'}
+                          </p>
+                        </div>
+                        <div className="flex gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
                             className="h-6 w-6"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleFavorite(timetable.id);
+                            }}
                           >
-                            <ChevronDown
-                              className={`h-3 w-3 transition-transform ${
-                                collapsedTimetables.has(timetable.id) ? '-rotate-90' : ''
+                            <Star
+                              className={`h-3 w-3 ${
+                                timetable.favorite ? 'fill-yellow-400 text-yellow-400' : ''
                               }`}
                             />
                           </Button>
-                        </CollapsibleTrigger>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleFavorite(timetable.id);
-                          }}
-                        >
-                          <Star
-                            className={`h-3 w-3 ${
-                              timetable.favorite ? 'fill-yellow-400 text-yellow-400' : ''
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteClick(timetable.id);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <ChevronDown
+                            className={`h-4 w-4 transition-transform ${
+                              collapsedTimetables.has(timetable.id) ? '-rotate-90' : ''
                             }`}
                           />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(timetable.id);
-                          }}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                    <CollapsibleContent>
-                      <div className="px-3 pb-3 text-xs text-muted-foreground border-t pt-2 mt-2">
-                        <div className="space-y-1">
-                          <div>Periods: {timetable.rows.length}</div>
-                          <div>Days: {timetable.columns.join(', ')}</div>
-                          {Object.keys(timetable.colorKey).length > 0 && (
-                            <div className="flex gap-1 mt-2 flex-wrap">
-                              {Object.entries(timetable.colorKey).map(([color, label]) => (
-                                <div key={color} className="flex items-center gap-1">
-                                  <div
-                                    className="w-2 h-2 rounded"
-                                    style={{ backgroundColor: color }}
-                                  />
-                                  <span className="text-[10px]">{label}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       </div>
-                    </CollapsibleContent>
-                  </div>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="pl-4 pr-2 py-2">
+                      <TimetableGrid
+                        timetable={timetable}
+                        currentWeek={1}
+                        onUpdate={handleUpdateTimetable}
+                        isEditing={false}
+                        focusedColor={undefined}
+                      />
+                    </div>
+                  </CollapsibleContent>
                 </Collapsible>
               ))}
             </div>

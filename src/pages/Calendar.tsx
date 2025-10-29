@@ -217,6 +217,18 @@ const CalendarPage = () => {
                           toast.success('Task completed and archived! 🎉');
                         }
                       }}
+                      onDelete={(taskId) => {
+                        const task = tasks.find(t => t.id === taskId);
+                        if (task) {
+                          const deletedTask = { ...task, deletedAt: new Date().toISOString() };
+                          const deleted = JSON.parse(localStorage.getItem('deletedTasks') || '[]');
+                          localStorage.setItem('deletedTasks', JSON.stringify([...deleted, deletedTask]));
+                          const updated = tasks.filter(t => t.id !== taskId);
+                          setTasks(updated);
+                          localStorage.setItem('tasks', JSON.stringify(updated));
+                          toast.success('Task moved to recently deleted');
+                        }
+                      }}
                       onUpdateTask={handleUpdateTask}
                     />
                   ))}
