@@ -231,30 +231,18 @@ const Timetable = () => {
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-between">
-                  <div />
-                  {selectedTimetable.type === 'fortnightly' && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentWeek(currentWeek === 1 ? 2 : 1)}
-                      >
-                        <ChevronLeft className="h-4 w-4 mr-1" />
-                        Week {currentWeek === 1 ? 2 : 1}
-                      </Button>
-                      <span className="font-medium">Week {currentWeek}</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentWeek(currentWeek === 1 ? 2 : 1)}
-                      >
-                        Week {currentWeek === 1 ? 2 : 1}
-                        <ChevronLeft className="h-4 w-4 ml-1 rotate-180" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                {selectedTimetable.type === 'fortnightly' && (
+                  <div className="flex items-center justify-between">
+                    <div />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentWeek(currentWeek === 1 ? 2 : 1)}
+                    >
+                      Switch to Week {currentWeek === 1 ? 2 : 1}
+                    </Button>
+                  </div>
+                )}
 
                 {isEditing && (
                   <ColorKeyEditor

@@ -17,6 +17,7 @@ interface TimetableCellProps {
   currentTimeProgress?: number;
   isEditing: boolean;
   focusedColor?: string;
+  colorKey: Record<string, string>;
 }
 
 const PRESET_COLORS = [
@@ -37,7 +38,8 @@ export function TimetableCell({
   showCurrentTime,
   currentTimeProgress,
   isEditing,
-  focusedColor
+  focusedColor,
+  colorKey
 }: TimetableCellProps) {
   const [fields, setFields] = useState<string[]>(
     cell?.fields || Array(fieldsPerCell).fill('')
@@ -120,22 +122,48 @@ export function TimetableCell({
                 Color
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-2" onClick={(e) => e.stopPropagation()}>
-              <div className="grid grid-cols-6 gap-1">
-                <button
-                  className="w-8 h-8 rounded border-2 border-input flex items-center justify-center text-xs"
-                  onClick={() => onColorUpdate(rowIndex, colIndex, undefined)}
-                >
-                  ✕
-                </button>
-                {PRESET_COLORS.map((color) => (
+            <PopoverContent className="w-auto p-3" onClick={(e) => e.stopPropagation()}>
+              <div className="space-y-2">
+                {Object.keys(colorKey).length > 0 && (
+                  <>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2">Color Key</p>
+                    <div className="space-y-1">
+                      {Object.entries(colorKey).map(([color, label]) => (
+                        <button
+                          key={color}
+                          className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-accent text-left"
+                          onClick={() => onColorUpdate(rowIndex, colIndex, color)}
+                        >
+                          <div
+                            className="w-6 h-6 rounded border flex-shrink-0"
+                            style={{ backgroundColor: color }}
+                          />
+                          <span className="text-sm">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="border-t pt-2 mt-2">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">Other Colors</p>
+                    </div>
+                  </>
+                )}
+                <div className="grid grid-cols-6 gap-1">
                   <button
-                    key={color}
-                    className="w-8 h-8 rounded border"
-                    style={{ backgroundColor: color }}
-                    onClick={() => onColorUpdate(rowIndex, colIndex, color)}
-                  />
-                ))}
+                    className="w-8 h-8 rounded border-2 border-input flex items-center justify-center text-xs"
+                    onClick={() => onColorUpdate(rowIndex, colIndex, undefined)}
+                    title="Clear color"
+                  >
+                    ✕
+                  </button>
+                  {PRESET_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      className="w-8 h-8 rounded border"
+                      style={{ backgroundColor: color }}
+                      onClick={() => onColorUpdate(rowIndex, colIndex, color)}
+                    />
+                  ))}
+                </div>
               </div>
             </PopoverContent>
           </Popover>

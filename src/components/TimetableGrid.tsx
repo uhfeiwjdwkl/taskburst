@@ -10,9 +10,10 @@ interface TimetableGridProps {
   onUpdate: (timetable: Timetable) => void;
   isEditing: boolean;
   focusedColor?: string;
+  onBulkColorUpdate?: (color: string | undefined) => void;
 }
 
-export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, focusedColor }: TimetableGridProps) {
+export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, focusedColor, onBulkColorUpdate }: TimetableGridProps) {
   const [currentTimePosition, setCurrentTimePosition] = useState<{ row: number; progress: number } | null>(null);
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
   const [isSelecting, setIsSelecting] = useState(false);
@@ -71,6 +72,7 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
       color: existingCell?.color,
       rowSpan: existingCell?.rowSpan,
       colSpan: existingCell?.colSpan,
+      week: timetable.type === 'fortnightly' ? currentWeek : undefined,
     };
 
     onUpdate({
@@ -84,7 +86,8 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
     const existingCell = timetable.cells[key] || {
       rowIndex,
       colIndex,
-      fields: Array(timetable.fieldsPerCell).fill('')
+      fields: Array(timetable.fieldsPerCell).fill(''),
+      week: timetable.type === 'fortnightly' ? currentWeek : undefined,
     };
 
     const updatedCell = { ...existingCell, color };
@@ -196,16 +199,46 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
     setSelectedCells(new Set());
   };
 
+  const handleBulkColorChange = (color: string | undefined) => {
+    const updatedCells = { ...timetable.cells };
+    selectedCells.forEach(key => {
+      const cell = updatedCells[key];
+      if (cell) {
+        updatedCells[key] = { ...cell, color };
+      }
+    });
+    onUpdate({ ...timetable, cells: updatedCells });
+    toast.success(`Color applied to ${selectedCells.size} cells`);
+  };
+
   return (
     <div className="space-y-4">
       {isEditing && selectedCells.size > 0 && (
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap items-center">
           <Button size="sm" onClick={handleMergeCells} disabled={selectedCells.size < 2}>
             Merge Cells ({selectedCells.size})
           </Button>
           <Button size="sm" variant="outline" onClick={handleUnmergeCells}>
             Unmerge Selected
           </Button>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Color:</span>
+            {Object.entries(timetable.colorKey).map(([color, label]) => (
+              <Button
+                key={color}
+                size="sm"
+                variant="outline"
+                onClick={() => handleBulkColorChange(color)}
+                className="gap-2"
+              >
+                <div className="w-3 h-3 rounded" style={{ backgroundColor: color }} />
+                {label}
+              </Button>
+            ))}
+            <Button size="sm" variant="outline" onClick={() => handleBulkColorChange(undefined)}>
+              Clear
+            </Button>
+          </div>
           <Button size="sm" variant="ghost" onClick={() => setSelectedCells(new Set())}>
             Clear Selection
           </Button>
@@ -237,6 +270,11 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
                     return null;
                   }
 
+                  // For fortnightly timetables, only show cells for the current week
+                  if (timetable.type === 'fortnightly' && cell && cell.week && cell.week !== currentWeek) {
+                    return <td key={key} className="border p-0 min-h-[60px]" />;
+                  }
+
                   const isCurrentTime = currentTimePosition?.row === rowIndex;
 
                   return (
@@ -254,6 +292,7 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
                       currentTimeProgress={currentTimePosition?.progress}
                       isEditing={isEditing}
                       focusedColor={focusedColor}
+                      colorKey={timetable.colorKey}
                     />
                   );
                 })}

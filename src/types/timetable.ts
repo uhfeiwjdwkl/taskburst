@@ -13,6 +13,7 @@ export interface TimetableCell {
   rowSpan?: number;
   colSpan?: number;
   hidden?: boolean; // if part of a merged cell
+  week?: 1 | 2; // for fortnightly timetables
 }
 
 export interface Timetable {
