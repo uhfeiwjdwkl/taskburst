@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TimetableCell as TimetableCellType } from "@/types/timetable";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -9,12 +9,11 @@ interface TimetableCellProps {
   fieldsPerCell: 1 | 2 | 3;
   rowIndex: number;
   colIndex: number;
-  isSelected: boolean;
   onUpdate: (rowIndex: number, colIndex: number, fields: string[]) => void;
   onColorUpdate: (rowIndex: number, colIndex: number, color: string | undefined) => void;
-  onSelect: (rowIndex: number, colIndex: number, isShiftKey: boolean) => void;
   showCurrentTime?: boolean;
   currentTimeProgress?: number;
+  isEditing: boolean;
 }
 
 const PRESET_COLORS = [
@@ -28,16 +27,19 @@ export function TimetableCell({
   fieldsPerCell,
   rowIndex,
   colIndex,
-  isSelected,
   onUpdate,
   onColorUpdate,
-  onSelect,
   showCurrentTime,
-  currentTimeProgress
+  currentTimeProgress,
+  isEditing
 }: TimetableCellProps) {
   const [fields, setFields] = useState<string[]>(
     cell?.fields || Array(fieldsPerCell).fill('')
   );
+
+  useEffect(() => {
+    setFields(cell?.fields || Array(fieldsPerCell).fill(''));
+  }, [cell, fieldsPerCell]);
 
   const handleFieldChange = (index: number, value: string) => {
     const newFields = [...fields];
@@ -49,10 +51,6 @@ export function TimetableCell({
     onUpdate(rowIndex, colIndex, fields);
   };
 
-  const handleClick = (e: React.MouseEvent) => {
-    onSelect(rowIndex, colIndex, e.shiftKey);
-  };
-
   const rowSpan = cell?.rowSpan || 1;
   const colSpan = cell?.colSpan || 1;
 
@@ -60,8 +58,7 @@ export function TimetableCell({
     <td
       rowSpan={rowSpan}
       colSpan={colSpan}
-      className={`border relative p-0 ${isSelected ? 'ring-2 ring-primary' : ''}`}
-      onClick={handleClick}
+      className="border relative p-0"
       style={{
         backgroundColor: cell?.color || 'transparent',
         minHeight: '60px'
@@ -78,46 +75,54 @@ export function TimetableCell({
       
       <div className="p-1 space-y-1 min-h-[60px]">
         {Array.from({ length: fieldsPerCell }).map((_, index) => (
-          <Input
-            key={index}
-            value={fields[index] || ''}
-            onChange={(e) => handleFieldChange(index, e.target.value)}
-            onBlur={handleBlur}
-            className="h-7 text-xs bg-background/50"
-            placeholder={`Field ${index + 1}`}
-          />
+          isEditing ? (
+            <Input
+              key={index}
+              value={fields[index] || ''}
+              onChange={(e) => handleFieldChange(index, e.target.value)}
+              onBlur={handleBlur}
+              className="h-7 text-xs bg-background/50"
+              placeholder={`Field ${index + 1}`}
+            />
+          ) : (
+            <div key={index} className="h-7 px-2 py-1 text-xs flex items-center">
+              {fields[index] || ''}
+            </div>
+          )
         ))}
         
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full h-6 text-xs"
-              onClick={(e) => e.stopPropagation()}
-            >
-              Color
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-2" onClick={(e) => e.stopPropagation()}>
-            <div className="grid grid-cols-6 gap-1">
-              <button
-                className="w-8 h-8 rounded border-2 border-input flex items-center justify-center text-xs"
-                onClick={() => onColorUpdate(rowIndex, colIndex, undefined)}
+        {isEditing && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full h-6 text-xs"
+                onClick={(e) => e.stopPropagation()}
               >
-                ✕
-              </button>
-              {PRESET_COLORS.map((color) => (
+                Color
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-2" onClick={(e) => e.stopPropagation()}>
+              <div className="grid grid-cols-6 gap-1">
                 <button
-                  key={color}
-                  className="w-8 h-8 rounded border"
-                  style={{ backgroundColor: color }}
-                  onClick={() => onColorUpdate(rowIndex, colIndex, color)}
-                />
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
+                  className="w-8 h-8 rounded border-2 border-input flex items-center justify-center text-xs"
+                  onClick={() => onColorUpdate(rowIndex, colIndex, undefined)}
+                >
+                  ✕
+                </button>
+                {PRESET_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    className="w-8 h-8 rounded border"
+                    style={{ backgroundColor: color }}
+                    onClick={() => onColorUpdate(rowIndex, colIndex, color)}
+                  />
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
     </td>
   );

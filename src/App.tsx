@@ -10,6 +10,7 @@ import Categories from "./pages/Categories";
 import History from "./pages/History";
 import RecentlyDeleted from "./pages/RecentlyDeleted";
 import Timetable from "./pages/Timetable";
+import TimetableRecentlyDeleted from "./pages/TimetableRecentlyDeleted";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/history" element={<History />} />
           <Route path="/recently-deleted" element={<RecentlyDeleted />} />
           <Route path="/timetable" element={<Timetable />} />
+          <Route path="/timetable/recently-deleted" element={<TimetableRecentlyDeleted />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

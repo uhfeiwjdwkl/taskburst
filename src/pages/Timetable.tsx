@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Star, Trash2, ChevronLeft, Home } from "lucide-react";
+import { Plus, Star, Trash2, ChevronLeft, Home, Edit, Eye, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CreateTimetableDialog } from "@/components/CreateTimetableDialog";
 import { TimetableGrid } from "@/components/TimetableGrid";
@@ -26,16 +26,18 @@ const Timetable = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [timetableToDelete, setTimetableToDelete] = useState<string | null>(null);
   const [currentWeek, setCurrentWeek] = useState<1 | 2>(1); // for fortnightly view
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('timetables');
     if (saved) {
       const parsed = JSON.parse(saved) as TimetableType[];
-      setTimetables(parsed.sort((a, b) => 
+      const active = parsed.filter(t => !t.deletedAt);
+      setTimetables(active.sort((a, b) => 
         b.favorite === a.favorite ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : b.favorite ? 1 : -1
       ));
-      if (parsed.length > 0 && !selectedTimetable) {
-        setSelectedTimetable(parsed[0]);
+      if (active.length > 0 && !selectedTimetable) {
+        setSelectedTimetable(active[0]);
       }
     }
   }, []);
@@ -67,9 +69,14 @@ const Timetable = () => {
   };
 
   const handleUpdateTimetable = (updated: TimetableType) => {
-    const newTimetables = timetables.map(t => t.id === updated.id ? updated : t);
-    saveTimetables(newTimetables);
-    setSelectedTimetable(updated);
+    const saved = localStorage.getItem('timetables');
+    if (saved) {
+      const allTimetables = JSON.parse(saved) as TimetableType[];
+      const newTimetables = allTimetables.map(t => t.id === updated.id ? updated : t);
+      localStorage.setItem('timetables', JSON.stringify(newTimetables));
+      saveTimetables(newTimetables.filter(t => !t.deletedAt));
+      setSelectedTimetable(updated);
+    }
   };
 
   const handleToggleFavorite = (id: string) => {
@@ -89,12 +96,20 @@ const Timetable = () => {
 
   const handleDeleteConfirm = () => {
     if (timetableToDelete) {
-      const updated = timetables.filter(t => t.id !== timetableToDelete);
-      saveTimetables(updated);
-      if (selectedTimetable?.id === timetableToDelete) {
-        setSelectedTimetable(updated.length > 0 ? updated[0] : null);
+      const saved = localStorage.getItem('timetables');
+      if (saved) {
+        const allTimetables = JSON.parse(saved) as TimetableType[];
+        const updated = allTimetables.map(t => 
+          t.id === timetableToDelete ? { ...t, deletedAt: new Date().toISOString() } : t
+        );
+        localStorage.setItem('timetables', JSON.stringify(updated));
+        const activeTimetables = updated.filter(t => !t.deletedAt);
+        saveTimetables(activeTimetables);
+        if (selectedTimetable?.id === timetableToDelete) {
+          setSelectedTimetable(activeTimetables.length > 0 ? activeTimetables[0] : null);
+        }
+        toast.success("Timetable moved to recently deleted");
       }
-      toast.success("Timetable deleted");
     }
     setDeleteDialogOpen(false);
     setTimetableToDelete(null);
@@ -116,10 +131,16 @@ const Timetable = () => {
             </Button>
             <h1 className="text-3xl font-bold">Timetables</h1>
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Timetable
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/timetable/recently-deleted')}>
+              <Clock className="h-4 w-4 mr-2" />
+              Recently Deleted
+            </Button>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Timetable
+            </Button>
+          </div>
         </div>
 
         {timetables.length === 0 ? (
@@ -188,6 +209,29 @@ const Timetable = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-semibold">{selectedTimetable.name}</h2>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={isEditing ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setIsEditing(!isEditing)}
+                    >
+                      {isEditing ? (
+                        <>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Mode
+                        </>
+                      ) : (
+                        <>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div />
                   {selectedTimetable.type === 'fortnightly' && (
                     <div className="flex items-center gap-2">
                       <Button
@@ -211,15 +255,18 @@ const Timetable = () => {
                   )}
                 </div>
 
-                <ColorKeyEditor
-                  colorKey={selectedTimetable.colorKey}
-                  onUpdate={handleUpdateColorKey}
-                />
+                {isEditing && (
+                  <ColorKeyEditor
+                    colorKey={selectedTimetable.colorKey}
+                    onUpdate={handleUpdateColorKey}
+                  />
+                )}
 
                 <TimetableGrid
                   timetable={selectedTimetable}
                   currentWeek={currentWeek}
                   onUpdate={handleUpdateTimetable}
+                  isEditing={isEditing}
                 />
               </div>
             )}
@@ -237,7 +284,7 @@ const Timetable = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Timetable</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete this timetable? This action cannot be undone.
+                This timetable will be moved to recently deleted. It will be permanently removed after 30 days.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

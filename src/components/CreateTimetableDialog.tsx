@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Timetable, TimeSlot } from "@/types/timetable";
 import { Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface CreateTimetableDialogProps {
   open: boolean;
@@ -19,19 +20,26 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
   const [fieldsPerCell, setFieldsPerCell] = useState<1 | 2 | 3>(1);
   const [fortnightStartDate, setFortnightStartDate] = useState("");
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([
-    { id: '1', label: '9:00 AM', startTime: '09:00', endTime: '10:00' }
+    { id: '1', label: '9:00 AM', startTime: '09:00', duration: 60 }
   ]);
 
-  const defaultDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const [selectedDays, setSelectedDays] = useState<string[]>([...allDays]);
 
   const handleAddTimeSlot = () => {
     const newSlot: TimeSlot = {
       id: Date.now().toString(),
       label: '',
       startTime: '',
-      endTime: ''
+      duration: 60
     };
     setTimeSlots([...timeSlots, newSlot]);
+  };
+
+  const toggleDay = (day: string) => {
+    setSelectedDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    );
   };
 
   const handleRemoveTimeSlot = (id: string) => {
@@ -47,11 +55,16 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
   };
 
   const handleCreate = () => {
-    if (!name.trim() || timeSlots.some(s => !s.label || !s.startTime || !s.endTime)) {
+    if (!name.trim() || timeSlots.some(s => !s.label || !s.startTime || !s.duration)) {
       return;
     }
 
     if (type === 'fortnightly' && !fortnightStartDate) {
+      return;
+    }
+
+    if (selectedDays.length === 0) {
+      toast.error("Please select at least one day");
       return;
     }
 
@@ -62,7 +75,7 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
       type,
       fortnightStartDate: type === 'fortnightly' ? fortnightStartDate : undefined,
       rows: timeSlots,
-      columns: defaultDays,
+      columns: selectedDays,
       fieldsPerCell,
       cells: {},
       colorKey: {},
@@ -76,7 +89,8 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
     setType('weekly');
     setFieldsPerCell(1);
     setFortnightStartDate("");
-    setTimeSlots([{ id: '1', label: '9:00 AM', startTime: '09:00', endTime: '10:00' }]);
+    setTimeSlots([{ id: '1', label: '9:00 AM', startTime: '09:00', duration: 60 }]);
+    setSelectedDays([...allDays]);
     onOpenChange(false);
   };
 
@@ -140,6 +154,24 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
           )}
 
           <div className="space-y-2">
+            <Label>Days to Include</Label>
+            <div className="grid grid-cols-4 gap-2">
+              {allDays.map((day) => (
+                <Button
+                  key={day}
+                  type="button"
+                  variant={selectedDays.includes(day) ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => toggleDay(day)}
+                  className="text-xs"
+                >
+                  {day.slice(0, 3)}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Time Slots</Label>
               <Button size="sm" variant="outline" onClick={handleAddTimeSlot}>
@@ -159,13 +191,16 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
                     <div className="grid grid-cols-2 gap-2">
                       <Input
                         type="time"
+                        placeholder="Start time"
                         value={slot.startTime}
                         onChange={(e) => handleUpdateTimeSlot(slot.id, 'startTime', e.target.value)}
                       />
                       <Input
-                        type="time"
-                        value={slot.endTime}
-                        onChange={(e) => handleUpdateTimeSlot(slot.id, 'endTime', e.target.value)}
+                        type="number"
+                        placeholder="Duration (min)"
+                        value={slot.duration || ''}
+                        onChange={(e) => handleUpdateTimeSlot(slot.id, 'duration', e.target.value)}
+                        min="1"
                       />
                     </div>
                   </div>
