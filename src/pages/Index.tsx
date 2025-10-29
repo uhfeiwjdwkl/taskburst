@@ -5,6 +5,7 @@ import TaskCard from '@/components/TaskCard';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
 import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import AddTaskDialog from '@/components/AddTaskDialog';
+import { TimetableCurrentBlock } from '@/components/TimetableCurrentBlock';
 import { Button } from '@/components/ui/button';
 import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -229,6 +230,7 @@ const Index = () => {
 
         {/* Timer Section */}
         <section className="bg-card rounded-2xl shadow-lg p-8 mb-8 border border-border relative z-50 pointer-events-auto">
+          <TimetableCurrentBlock />
           <Timer 
             onTick={handleTimerTick} 
             activeTaskId={activeTaskId} 

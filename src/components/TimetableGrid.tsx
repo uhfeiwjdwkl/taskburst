@@ -14,7 +14,7 @@ interface TimetableGridProps {
 }
 
 export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, focusedColor, onBulkColorUpdate }: TimetableGridProps) {
-  const [currentTimePosition, setCurrentTimePosition] = useState<{ row: number; progress: number } | null>(null);
+  const [currentTimePosition, setCurrentTimePosition] = useState<{ row: number; progress: number; colIndex: number } | null>(null);
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
   const [isSelecting, setIsSelecting] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -38,6 +38,11 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
         }
       }
 
+      // Find the column index for the current day
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const currentDayName = dayNames[currentDay];
+      const currentDayColIndex = timetable.columns.indexOf(currentDayName);
+
       // Find which row the current time falls in
       for (let i = 0; i < timetable.rows.length; i++) {
         const slot = timetable.rows[i];
@@ -47,7 +52,7 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
 
         if (currentTime >= slotStart && currentTime < slotEnd) {
           const progress = (currentTime - slotStart) / slot.duration;
-          setCurrentTimePosition({ row: i, progress });
+          setCurrentTimePosition({ row: i, progress, colIndex: currentDayColIndex });
           return;
         }
       }
@@ -298,7 +303,7 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
                     return <td key={key} className="border p-0 min-h-[60px]" />;
                   }
 
-                  const isCurrentTime = currentTimePosition?.row === rowIndex;
+                  const isCurrentTime = currentTimePosition?.row === rowIndex && currentTimePosition?.colIndex === colIndex;
 
                   return (
                     <TimetableCellComponent

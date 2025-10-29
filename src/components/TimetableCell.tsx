@@ -81,6 +81,21 @@ export function TimetableCell({
     onFieldCountUpdate(rowIndex, colIndex, count);
   };
 
+  // Auto font size based on content length
+  const getAutoFontSize = (text: string, fieldCount: number) => {
+    const length = text.length;
+    if (length === 0) return 'text-xs';
+    
+    // Adjust for multiple fields - smaller base size
+    const baseSize = fieldCount > 1 ? 10 : 12;
+    
+    if (length > 40) return `text-[${Math.max(baseSize - 4, 8)}px]`;
+    if (length > 30) return `text-[${Math.max(baseSize - 2, 9)}px]`;
+    if (length > 20) return `text-[${baseSize}px]`;
+    if (length > 10) return `text-[${baseSize + 1}px]`;
+    return `text-[${baseSize + 2}px]`;
+  };
+
   return (
     <td
       rowSpan={rowSpan}
@@ -114,7 +129,11 @@ export function TimetableCell({
               placeholder={`Field ${index + 1}`}
             />
           ) : (
-            <div key={index} className="h-7 px-2 py-1 text-xs flex items-center justify-center w-full">
+            <div 
+              key={index} 
+              className={`h-7 px-2 py-1 flex items-center justify-center w-full font-medium ${getAutoFontSize(fields[index] || '', currentFieldCount)}`}
+              style={{ lineHeight: '1.2' }}
+            >
               {fields[index] || ''}
             </div>
           )
