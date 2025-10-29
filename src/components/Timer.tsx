@@ -103,12 +103,17 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   };
 
   const saveSession = (endProgress: number, skipRewindCheck: boolean = false) => {
-    if (!activeTask || !currentSessionStartTime) return;
+    if (!activeTask || !currentSessionStartTime) {
+      console.warn('Cannot save session: missing activeTask or currentSessionStartTime');
+      return;
+    }
 
     const duration = getCurrentSessionDuration();
+    console.log('Saving session with duration:', duration, 'minutes');
     
     // If session is <2 minutes and we haven't skipped the check, show rewind option
     if (duration < 2 && !skipRewindCheck) {
+      console.log('Session too short, showing rewind option');
       setPendingSessionData({ endProgress });
       setShowRewindOption(true);
       return;
@@ -129,6 +134,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
 
     const savedSessions = JSON.parse(localStorage.getItem('sessions') || '[]');
     localStorage.setItem('sessions', JSON.stringify([...savedSessions, session]));
+    console.log('Session saved:', session);
     setPendingSessionData(null);
   };
 
