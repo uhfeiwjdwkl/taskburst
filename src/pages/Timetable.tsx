@@ -299,6 +299,16 @@ const Timetable = () => {
                     <div className="p-4 space-y-4 border-t">
                       {isEditing && selectedTimetable?.id === timetable.id && (
                         <div className="space-y-4">
+                          {selectedTimetable.type === 'fortnightly' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentWeek(currentWeek === 1 ? 2 : 1)}
+                            >
+                              Switch to Week {currentWeek === 1 ? 2 : 1}
+                            </Button>
+                          )}
+
                           <div className="space-y-2">
                             <Collapsible
                               open={expandedEditSections.has('rows-cols')}

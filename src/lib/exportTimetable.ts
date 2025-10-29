@@ -7,7 +7,10 @@ export const exportToPDF = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {
   // For fortnightly, we'll show both weeks side by side
   const numWeeks = isFortnightly ? 2 : 1;
   const totalColumns = numWeeks * timetable.columns.length + 1; // +1 for time column
-  const colWidth = `${Math.floor(100 / totalColumns)}%`;
+  
+  // Time column should be smaller (10%), rest divided equally
+  const timeColWidth = '10%';
+  const dataColWidth = `${Math.floor(90 / (totalColumns - 1))}%`;
   
   // Create a simple HTML representation of the timetable with preserved colors
   const html = `
@@ -24,16 +27,16 @@ export const exportToPDF = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {
           table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
           th, td { 
             border: 1px solid #ddd; 
-            padding: 12px; 
+            padding: 8px; 
             text-align: center; 
             vertical-align: middle;
-            width: ${colWidth};
             height: 60px;
-            overflow: hidden;
+            overflow: visible;
           }
           th { background-color: #f2f2f2; font-weight: bold; }
-          .time-column { background-color: #f9f9f9; font-weight: bold; }
-          .cell-content { line-height: 1.4; word-wrap: break-word; }
+          .time-column { background-color: #f9f9f9; font-weight: bold; width: ${timeColWidth}; font-size: 11px; }
+          .data-cell { width: ${dataColWidth}; }
+          .cell-content { line-height: 1.3; word-wrap: break-word; font-size: 12px; }
         </style>
       </head>
       <body>
@@ -45,34 +48,34 @@ export const exportToPDF = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {
           <thead>
             ${isFortnightly ? `
               <tr>
-                <th style="width: ${colWidth};" rowspan="2">Time</th>
-                <th colspan="${timetable.columns.length}" style="background-color: #e8e8e8;">Week 1</th>
-                <th colspan="${timetable.columns.length}" style="background-color: #e8e8e8;">Week 2</th>
+                <th class="time-column" rowspan="2">Time</th>
+                <th colspan="${timetable.columns.length}" class="data-cell" style="background-color: #e8e8e8;">Week 1</th>
+                <th colspan="${timetable.columns.length}" class="data-cell" style="background-color: #e8e8e8;">Week 2</th>
               </tr>
               <tr>
-                ${timetable.columns.map(day => `<th style="width: ${colWidth};">${day}</th>`).join('')}
-                ${timetable.columns.map(day => `<th style="width: ${colWidth};">${day}</th>`).join('')}
+                ${timetable.columns.map(day => `<th class="data-cell">${day}</th>`).join('')}
+                ${timetable.columns.map(day => `<th class="data-cell">${day}</th>`).join('')}
               </tr>
             ` : `
               <tr>
-                <th style="width: ${colWidth};">Time</th>
-                ${timetable.columns.map(day => `<th style="width: ${colWidth};">${day}</th>`).join('')}
+                <th class="time-column">Time</th>
+                ${timetable.columns.map(day => `<th class="data-cell">${day}</th>`).join('')}
               </tr>
             `}
           </thead>
           <tbody>
             ${timetable.rows.map((timeSlot, rowIndex) => `
               <tr style="height: 60px;">
-                <td class="time-column" style="width: ${colWidth};">${timeSlot.label}<br><small style="color: #888;">${timeSlot.startTime}</small></td>
-                ${isFortnightly ? 
+                <td class="time-column">${timeSlot.label}<br><small style="color: #888;">${timeSlot.startTime}</small></td>
+                ${isFortnightly ?
                   // Week 1 cells
                   timetable.columns.map((_, colIndex) => {
                     const key = `${rowIndex}-${colIndex}`;
                     const cell = timetable.cells[key];
-                    if (cell?.hidden || (cell?.week && cell.week !== 1)) return '<td style="width: ' + colWidth + '; height: 60px;"></td>';
+                    if (cell?.hidden || (cell?.week && cell.week !== 1)) return '<td class="data-cell"></td>';
                     const bgColor = cell?.color || '#ffffff';
                     const textColor = getContrastColor(bgColor);
-                    return `<td style="background-color: ${bgColor}; color: ${textColor}; width: ${colWidth}; height: 60px;" ${cell?.rowSpan ? `rowspan="${cell.rowSpan}"` : ''} ${cell?.colSpan ? `colspan="${cell.colSpan}"` : ''}>
+                    return `<td class="data-cell" style="background-color: ${bgColor}; color: ${textColor};" ${cell?.rowSpan ? `rowspan="${cell.rowSpan}"` : ''} ${cell?.colSpan ? `colspan="${cell.colSpan}"` : ''}>
                       <div class="cell-content">${cell?.fields?.filter(f => f).join('<br>') || ''}</div>
                     </td>`;
                   }).join('') +
@@ -80,10 +83,10 @@ export const exportToPDF = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {
                   timetable.columns.map((_, colIndex) => {
                     const key = `${rowIndex}-${colIndex}`;
                     const cell = timetable.cells[key];
-                    if (cell?.hidden || (cell?.week && cell.week !== 2)) return '<td style="width: ' + colWidth + '; height: 60px;"></td>';
+                    if (cell?.hidden || (cell?.week && cell.week !== 2)) return '<td class="data-cell"></td>';
                     const bgColor = cell?.color || '#ffffff';
                     const textColor = getContrastColor(bgColor);
-                    return `<td style="background-color: ${bgColor}; color: ${textColor}; width: ${colWidth}; height: 60px;" ${cell?.rowSpan ? `rowspan="${cell.rowSpan}"` : ''} ${cell?.colSpan ? `colspan="${cell.colSpan}"` : ''}>
+                    return `<td class="data-cell" style="background-color: ${bgColor}; color: ${textColor};" ${cell?.rowSpan ? `rowspan="${cell.rowSpan}"` : ''} ${cell?.colSpan ? `colspan="${cell.colSpan}"` : ''}>
                       <div class="cell-content">${cell?.fields?.filter(f => f).join('<br>') || ''}</div>
                     </td>`;
                   }).join('')
@@ -95,7 +98,7 @@ export const exportToPDF = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {
                     if (cell?.hidden) return '';
                     const bgColor = cell?.color || '#ffffff';
                     const textColor = getContrastColor(bgColor);
-                    return `<td style="background-color: ${bgColor}; color: ${textColor}; width: ${colWidth}; height: 60px;" ${cell?.rowSpan ? `rowspan="${cell.rowSpan}"` : ''} ${cell?.colSpan ? `colspan="${cell.colSpan}"` : ''}>
+                    return `<td class="data-cell" style="background-color: ${bgColor}; color: ${textColor};" ${cell?.rowSpan ? `rowspan="${cell.rowSpan}"` : ''} ${cell?.colSpan ? `colspan="${cell.colSpan}"` : ''}>
                       <div class="cell-content">${cell?.fields?.filter(f => f).join('<br>') || ''}</div>
                     </td>`;
                   }).join('')
@@ -163,7 +166,7 @@ export const exportToExcel = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {
   
   // Data rows
   timetable.rows.forEach((timeSlot, rowIndex) => {
-    const row: any[] = [`${timeSlot.label}\n${timeSlot.startTime}`];
+    const row: any[] = [`${timeSlot.label} ${timeSlot.startTime}`];
     
     if (isFortnightly) {
       // Week 1 cells

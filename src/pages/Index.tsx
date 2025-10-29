@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Task } from '@/types/task';
+import { Timetable } from '@/types/timetable';
 import Timer from '@/components/Timer';
 import TaskCard from '@/components/TaskCard';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
@@ -7,7 +8,8 @@ import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import AddTaskDialog from '@/components/AddTaskDialog';
 import { TimetableCurrentBlock } from '@/components/TimetableCurrentBlock';
 import { Button } from '@/components/ui/button';
-import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { playTaskCompleteSound } from '@/lib/sounds';
@@ -21,6 +23,7 @@ const Index = () => {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [timerRunning, setTimerRunning] = useState(false);
+  const [favoriteTimetables, setFavoriteTimetables] = useState<Timetable[]>([]);
 
   // Load tasks from localStorage
   useEffect(() => {
@@ -52,6 +55,16 @@ const Index = () => {
       };
       setTasks([sampleTask]);
       localStorage.setItem('tasks', JSON.stringify([sampleTask]));
+    }
+  }, []);
+
+  // Load favorite timetables
+  useEffect(() => {
+    const savedTimetables = localStorage.getItem('timetables');
+    if (savedTimetables) {
+      const allTimetables = JSON.parse(savedTimetables) as Timetable[];
+      const favorites = allTimetables.filter(t => t.favorite && !t.deletedAt);
+      setFavoriteTimetables(favorites);
     }
   }, []);
 
@@ -241,6 +254,40 @@ const Index = () => {
             ))}
           </div>
         </section>
+
+        {/* Favorite Timetables Section */}
+        {favoriteTimetables.length > 0 && (
+          <section className="mt-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-semibold flex items-center gap-2">
+                <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                Favorite Timetables
+              </h2>
+              <Button variant="outline" size="sm" onClick={() => navigate('/timetable')}>
+                View All
+              </Button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {favoriteTimetables.map((timetable) => (
+                <Card
+                  key={timetable.id}
+                  className="p-4 cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => navigate('/timetable')}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-lg mb-1">{timetable.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {timetable.type === 'weekly' ? 'Weekly' : 'Fortnightly'} • {timetable.rows.length} periods
+                      </p>
+                    </div>
+                    <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Dialogs */}
         <TaskDetailsDialog
