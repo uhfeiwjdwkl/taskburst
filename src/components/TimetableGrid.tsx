@@ -1,16 +1,21 @@
 import { useState, useEffect, useRef } from "react";
 import { Timetable } from "@/types/timetable";
 import { TimetableCell as TimetableCellComponent } from "@/components/TimetableCell";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface TimetableGridProps {
   timetable: Timetable;
   currentWeek: 1 | 2;
   onUpdate: (timetable: Timetable) => void;
   isEditing: boolean;
+  focusedColor?: string;
 }
 
-export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing }: TimetableGridProps) {
+export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, focusedColor }: TimetableGridProps) {
   const [currentTimePosition, setCurrentTimePosition] = useState<{ row: number; progress: number } | null>(null);
+  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
+  const [isSelecting, setIsSelecting] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -90,8 +95,122 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing }: T
     });
   };
 
+  const handleCellSelect = (rowIndex: number, colIndex: number) => {
+    if (!isEditing) return;
+    const key = getCellKey(rowIndex, colIndex);
+    setSelectedCells(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  };
+
+  const handleMergeCells = () => {
+    if (selectedCells.size < 2) return;
+    
+    const cells = Array.from(selectedCells).map(key => {
+      const [row, col] = key.split('-').map(Number);
+      return { row, col, key };
+    });
+    
+    // Find bounds
+    const minRow = Math.min(...cells.map(c => c.row));
+    const maxRow = Math.max(...cells.map(c => c.row));
+    const minCol = Math.min(...cells.map(c => c.col));
+    const maxCol = Math.max(...cells.map(c => c.col));
+    
+    // Verify it's a rectangular selection
+    const expectedCells = (maxRow - minRow + 1) * (maxCol - minCol + 1);
+    if (selectedCells.size !== expectedCells) {
+      toast.error("Please select a rectangular area to merge");
+      return;
+    }
+    
+    const anchorKey = getCellKey(minRow, minCol);
+    const anchorCell = timetable.cells[anchorKey] || {
+      rowIndex: minRow,
+      colIndex: minCol,
+      fields: Array(timetable.fieldsPerCell).fill('')
+    };
+    
+    const updatedCells = { ...timetable.cells };
+    
+    // Set the anchor cell with span
+    updatedCells[anchorKey] = {
+      ...anchorCell,
+      rowSpan: maxRow - minRow + 1,
+      colSpan: maxCol - minCol + 1
+    };
+    
+    // Hide other cells
+    cells.forEach(({ key, row, col }) => {
+      if (key !== anchorKey) {
+        updatedCells[key] = {
+          ...(updatedCells[key] || { rowIndex: row, colIndex: col, fields: Array(timetable.fieldsPerCell).fill('') }),
+          hidden: true
+        };
+      }
+    });
+    
+    onUpdate({ ...timetable, cells: updatedCells });
+    setSelectedCells(new Set());
+  };
+
+  const handleUnmergeCells = () => {
+    if (selectedCells.size === 0) return;
+    
+    const updatedCells = { ...timetable.cells };
+    
+    selectedCells.forEach(key => {
+      const cell = updatedCells[key];
+      if (cell?.rowSpan && cell.rowSpan > 1 || cell?.colSpan && cell.colSpan > 1) {
+        const { rowSpan = 1, colSpan = 1 } = cell;
+        
+        // Reset the main cell
+        updatedCells[key] = {
+          ...cell,
+          rowSpan: 1,
+          colSpan: 1
+        };
+        
+        // Unhide the other cells
+        for (let r = 0; r < rowSpan; r++) {
+          for (let c = 0; c < colSpan; c++) {
+            const unhideKey = getCellKey(cell.rowIndex + r, cell.colIndex + c);
+            if (unhideKey !== key && updatedCells[unhideKey]) {
+              updatedCells[unhideKey] = {
+                ...updatedCells[unhideKey],
+                hidden: false
+              };
+            }
+          }
+        }
+      }
+    });
+    
+    onUpdate({ ...timetable, cells: updatedCells });
+    setSelectedCells(new Set());
+  };
+
   return (
     <div className="space-y-4">
+      {isEditing && selectedCells.size > 0 && (
+        <div className="flex gap-2">
+          <Button size="sm" onClick={handleMergeCells} disabled={selectedCells.size < 2}>
+            Merge Cells ({selectedCells.size})
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleUnmergeCells}>
+            Unmerge Selected
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedCells(new Set())}>
+            Clear Selection
+          </Button>
+        </div>
+      )}
       <div ref={gridRef} className="border rounded-lg overflow-auto">
         <table className="w-full border-collapse">
           <thead>
@@ -129,9 +248,12 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing }: T
                       colIndex={colIndex}
                       onUpdate={handleCellUpdate}
                       onColorUpdate={handleCellColorUpdate}
+                      onSelect={handleCellSelect}
+                      isSelected={selectedCells.has(key)}
                       showCurrentTime={isCurrentTime}
                       currentTimeProgress={currentTimePosition?.progress}
                       isEditing={isEditing}
+                      focusedColor={focusedColor}
                     />
                   );
                 })}

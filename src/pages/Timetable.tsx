@@ -27,6 +27,7 @@ const Timetable = () => {
   const [timetableToDelete, setTimetableToDelete] = useState<string | null>(null);
   const [currentWeek, setCurrentWeek] = useState<1 | 2>(1); // for fortnightly view
   const [isEditing, setIsEditing] = useState(false);
+  const [focusedColor, setFocusedColor] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const saved = localStorage.getItem('timetables');
@@ -262,11 +263,39 @@ const Timetable = () => {
                   />
                 )}
 
+                {Object.keys(selectedTimetable.colorKey).length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant={!focusedColor ? "default" : "outline"}
+                      onClick={() => setFocusedColor(undefined)}
+                    >
+                      All
+                    </Button>
+                    {Object.entries(selectedTimetable.colorKey).map(([color, label]) => (
+                      <Button
+                        key={color}
+                        size="sm"
+                        variant={focusedColor === color ? "default" : "outline"}
+                        onClick={() => setFocusedColor(color === focusedColor ? undefined : color)}
+                        className="gap-2"
+                      >
+                        <div
+                          className="w-3 h-3 rounded"
+                          style={{ backgroundColor: color }}
+                        />
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+
                 <TimetableGrid
                   timetable={selectedTimetable}
                   currentWeek={currentWeek}
                   onUpdate={handleUpdateTimetable}
                   isEditing={isEditing}
+                  focusedColor={focusedColor}
                 />
               </div>
             )}

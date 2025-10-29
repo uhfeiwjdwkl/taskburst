@@ -11,9 +11,12 @@ interface TimetableCellProps {
   colIndex: number;
   onUpdate: (rowIndex: number, colIndex: number, fields: string[]) => void;
   onColorUpdate: (rowIndex: number, colIndex: number, color: string | undefined) => void;
+  onSelect: (rowIndex: number, colIndex: number) => void;
+  isSelected: boolean;
   showCurrentTime?: boolean;
   currentTimeProgress?: number;
   isEditing: boolean;
+  focusedColor?: string;
 }
 
 const PRESET_COLORS = [
@@ -29,9 +32,12 @@ export function TimetableCell({
   colIndex,
   onUpdate,
   onColorUpdate,
+  onSelect,
+  isSelected,
   showCurrentTime,
   currentTimeProgress,
-  isEditing
+  isEditing,
+  focusedColor
 }: TimetableCellProps) {
   const [fields, setFields] = useState<string[]>(
     cell?.fields || Array(fieldsPerCell).fill('')
@@ -54,15 +60,26 @@ export function TimetableCell({
   const rowSpan = cell?.rowSpan || 1;
   const colSpan = cell?.colSpan || 1;
 
+  const shouldDesaturate = focusedColor && cell?.color && cell.color !== focusedColor;
+
+  const handleCellClick = (e: React.MouseEvent) => {
+    if (isEditing && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      onSelect(rowIndex, colIndex);
+    }
+  };
+
   return (
     <td
       rowSpan={rowSpan}
       colSpan={colSpan}
-      className="border relative p-0"
+      className={`border relative p-0 cursor-pointer transition-all ${isSelected ? 'ring-2 ring-primary ring-inset' : ''}`}
       style={{
         backgroundColor: cell?.color || 'transparent',
-        minHeight: '60px'
+        minHeight: '60px',
+        filter: shouldDesaturate ? 'saturate(0.2) opacity(0.5)' : 'none'
       }}
+      onClick={handleCellClick}
     >
       {showCurrentTime && currentTimeProgress !== undefined && (
         <div

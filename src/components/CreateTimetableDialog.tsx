@@ -26,6 +26,14 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
   const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const [selectedDays, setSelectedDays] = useState<string[]>([...allDays]);
 
+  const generateLabel = (startTime: string) => {
+    if (!startTime) return '';
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+
   const handleAddTimeSlot = () => {
     const newSlot: TimeSlot = {
       id: Date.now().toString(),
@@ -49,13 +57,21 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
   };
 
   const handleUpdateTimeSlot = (id: string, field: keyof TimeSlot, value: string) => {
-    setTimeSlots(timeSlots.map(slot => 
-      slot.id === id ? { ...slot, [field]: value } : slot
-    ));
+    setTimeSlots(timeSlots.map(slot => {
+      if (slot.id === id) {
+        const updated = { ...slot, [field]: value };
+        // Auto-generate label from start time
+        if (field === 'startTime') {
+          updated.label = generateLabel(value);
+        }
+        return updated;
+      }
+      return slot;
+    }));
   };
 
   const handleCreate = () => {
-    if (!name.trim() || timeSlots.some(s => !s.label || !s.startTime || !s.duration)) {
+    if (!name.trim() || timeSlots.some(s => !s.startTime || !s.duration)) {
       return;
     }
 
@@ -182,27 +198,25 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
               {timeSlots.map((slot, index) => (
                 <div key={slot.id} className="flex gap-2 items-start p-2 border rounded">
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 grid grid-cols-2 gap-2">
                     <Input
-                      placeholder="Label (e.g., 9:00 AM)"
-                      value={slot.label}
-                      onChange={(e) => handleUpdateTimeSlot(slot.id, 'label', e.target.value)}
+                      type="time"
+                      placeholder="Start time"
+                      value={slot.startTime}
+                      onChange={(e) => handleUpdateTimeSlot(slot.id, 'startTime', e.target.value)}
                     />
-                    <div className="grid grid-cols-2 gap-2">
-                      <Input
-                        type="time"
-                        placeholder="Start time"
-                        value={slot.startTime}
-                        onChange={(e) => handleUpdateTimeSlot(slot.id, 'startTime', e.target.value)}
-                      />
-                      <Input
-                        type="number"
-                        placeholder="Duration (min)"
-                        value={slot.duration || ''}
-                        onChange={(e) => handleUpdateTimeSlot(slot.id, 'duration', e.target.value)}
-                        min="1"
-                      />
-                    </div>
+                    <Input
+                      type="number"
+                      placeholder="Duration (min)"
+                      value={slot.duration || ''}
+                      onChange={(e) => handleUpdateTimeSlot(slot.id, 'duration', e.target.value)}
+                      min="1"
+                    />
+                    {slot.label && (
+                      <div className="col-span-2 text-xs text-muted-foreground">
+                        Display: {slot.label}
+                      </div>
+                    )}
                   </div>
                   <Button
                     size="icon"
