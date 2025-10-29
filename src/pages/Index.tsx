@@ -25,7 +25,14 @@ const Index = () => {
   useEffect(() => {
     const savedTasks = localStorage.getItem('tasks');
     if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
+      const loadedTasks = JSON.parse(savedTasks);
+      // Migrate tasks to include progress grid properties
+      const migratedTasks = loadedTasks.map((task: Task) => ({
+        ...task,
+        progressGridSize: task.progressGridSize ?? 10,
+        progressGridFilled: task.progressGridFilled ?? 0,
+      }));
+      setTasks(migratedTasks);
     } else {
       // Add a sample task for first-time users
       const sampleTask: Task = {
