@@ -217,6 +217,7 @@ const CalendarPage = () => {
                           toast.success('Task completed and archived! 🎉');
                         }
                       }}
+                      onUpdateTask={handleUpdateTask}
                     />
                   ))}
                 </div>

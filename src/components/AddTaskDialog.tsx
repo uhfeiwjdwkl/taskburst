@@ -34,6 +34,7 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
   const [importance, setImportance] = useState(2);
   const [estimatedMinutes, setEstimatedMinutes] = useState(25);
   const [dueDate, setDueDate] = useState(prefilledDate || '');
+  const [progressGridSize, setProgressGridSize] = useState(10);
 
   // Update dueDate when prefilledDate changes
   useEffect(() => {
@@ -54,6 +55,8 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
       spentMinutes: 0,
       dueDate,
       completed: false,
+      progressGridSize,
+      progressGridFilled: 0,
     });
 
     // Reset form
@@ -63,6 +66,7 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
     setImportance(2);
     setEstimatedMinutes(25);
     setDueDate('');
+    setProgressGridSize(10);
     onClose();
   };
 
@@ -154,6 +158,19 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
               className="mt-1"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="add-progressGridSize">Progress Grid Size (number of squares)</Label>
+            <Input
+              id="add-progressGridSize"
+              type="number"
+              value={progressGridSize}
+              onChange={(e) => setProgressGridSize(Math.max(1, parseInt(e.target.value) || 1))}
+              className="mt-1"
+              min="1"
+              max="100"
             />
           </div>
 

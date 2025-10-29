@@ -184,6 +184,7 @@ const Categories = () => {
                         onShowDetails={handleShowDetails}
                         onEdit={handleEdit}
                         onComplete={handleCompleteTask}
+                        onUpdateTask={handleUpdateTask}
                       />
                     ))}
                   </div>

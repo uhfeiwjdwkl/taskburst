@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import ProgressRing from './ProgressRing';
 import { TimerPhase, Task } from '@/types/task';
 import confetti from 'canvas-confetti';
+import { playTimerEndSound } from '@/lib/sounds';
 
 const FOCUS_DURATION = 25 * 60; // 25 minutes in seconds
 const BREAK_DURATION = 5 * 60; // 5 minutes in seconds
@@ -102,7 +103,8 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
         });
       }, 1000);
     } else if (seconds === 0) {
-      // Phase complete
+      // Phase complete - play sound
+      playTimerEndSound();
       const nextPhase = phase === 'focus' ? 'break' : 'focus';
       setPhase(nextPhase);
       setSeconds(nextPhase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);

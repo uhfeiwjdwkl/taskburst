@@ -134,6 +134,23 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
             />
           </div>
 
+          <div>
+            <Label htmlFor="progressGridSize">Progress Grid Size (number of squares)</Label>
+            <Input
+              id="progressGridSize"
+              type="number"
+              value={editedTask.progressGridSize}
+              onChange={(e) => setEditedTask({ 
+                ...editedTask, 
+                progressGridSize: Math.max(1, parseInt(e.target.value) || 1),
+                progressGridFilled: Math.min(editedTask.progressGridFilled, Math.max(1, parseInt(e.target.value) || 1))
+              })}
+              className="mt-1"
+              min="1"
+              max="100"
+            />
+          </div>
+
           <div className="pt-4 flex gap-2 justify-end">
             <Button variant="outline" onClick={onClose}>
               Cancel

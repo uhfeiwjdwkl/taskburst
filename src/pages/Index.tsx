@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, Archive, Calendar, FolderOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { playTaskCompleteSound } from '@/lib/sounds';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ const Index = () => {
       // Add a sample task for first-time users
       const sampleTask: Task = {
         id: '1',
-        name: 'Welcome to Focus Timer! 🎯',
+        name: 'Welcome to TaskBurst! 🎯',
         description: 'Click the Study button to start a 25-minute work session. Edit this task or add your own!',
         category: 'Study',
         importance: 3,
@@ -38,6 +39,8 @@ const Index = () => {
         dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         completed: false,
         createdAt: new Date().toISOString(),
+        progressGridSize: 10,
+        progressGridFilled: 0,
       };
       setTasks([sampleTask]);
       localStorage.setItem('tasks', JSON.stringify([sampleTask]));
@@ -109,6 +112,9 @@ const Index = () => {
     const task = tasks.find(t => t.id === taskId);
     if (task) {
       const completedTask = { ...task, completed: true };
+      
+      // Play completion sound
+      playTaskCompleteSound();
       
       // Move to archive
       const archived = JSON.parse(localStorage.getItem('archivedTasks') || '[]');
@@ -248,6 +254,7 @@ const Index = () => {
                   onShowDetails={handleShowDetails}
                   onEdit={handleEdit}
                   onComplete={handleCompleteTask}
+                  onUpdateTask={handleUpdateTask}
                 />
               ))}
             </div>

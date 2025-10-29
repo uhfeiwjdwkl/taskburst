@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Clock, Info, Play, CheckCircle2, Edit } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface TaskCardProps {
   task: Task;
@@ -10,13 +11,10 @@ interface TaskCardProps {
   onShowDetails: (taskId: string) => void;
   onEdit: (taskId: string) => void;
   onComplete: (taskId: string) => void;
+  onUpdateTask: (task: Task) => void;
 }
 
-const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete }: TaskCardProps) => {
-  const progressPercentage = task.estimatedMinutes > 0 
-    ? Math.min((task.spentMinutes / task.estimatedMinutes) * 100, 100)
-    : 0;
-
+const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onUpdateTask }: TaskCardProps) => {
   const remainingMinutes = Math.max(task.estimatedMinutes - task.spentMinutes, 0);
   const remainingSeconds = Math.round(remainingMinutes * 60);
   const remainingMins = Math.floor(remainingSeconds / 60);
@@ -39,6 +37,18 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete }: Tas
   const getPriorityLabel = (importance: number) => {
     const labels = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
     return labels[importance] || 'None';
+  };
+
+  const progressPercentage = task.progressGridSize > 0
+    ? Math.round((task.progressGridFilled / task.progressGridSize) * 100)
+    : 0;
+
+  const handleGridClick = (index: number) => {
+    const newFilled = index < task.progressGridFilled ? index : index + 1;
+    onUpdateTask({
+      ...task,
+      progressGridFilled: newFilled
+    });
   };
 
   return (
@@ -69,15 +79,29 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete }: Tas
             )}
           </div>
 
-          {/* Progress bar */}
+          {/* Progress Grid */}
           <div className="mb-3">
-            <div className="h-2 bg-secondary rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-primary transition-all duration-300"
-                style={{ width: `${progressPercentage}%` }}
-              />
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex flex-wrap gap-1">
+                {Array.from({ length: task.progressGridSize }).map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleGridClick(index)}
+                    className={cn(
+                      "w-4 h-4 border border-border rounded-sm transition-all hover:scale-110",
+                      index < task.progressGridFilled
+                        ? "bg-gradient-primary"
+                        : "bg-secondary"
+                    )}
+                    aria-label={`Toggle progress square ${index + 1}`}
+                  />
+                ))}
+              </div>
+              <div className="text-sm font-semibold bg-gradient-primary bg-clip-text text-transparent">
+                {progressPercentage}%
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground mt-1">
+            <div className="text-xs text-muted-foreground">
               {formattedSpent} / {Math.round(task.estimatedMinutes)} minutes
             </div>
           </div>

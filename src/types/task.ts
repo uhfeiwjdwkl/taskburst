@@ -9,6 +9,8 @@ export interface Task {
   dueDate: string;
   completed: boolean;
   createdAt: string;
+  progressGridSize: number; // Total number of squares in the grid
+  progressGridFilled: number; // Number of filled squares
 }
 
 export type TimerPhase = 'focus' | 'break';
