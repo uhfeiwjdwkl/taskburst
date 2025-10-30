@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { X, Plus } from 'lucide-react';
 
 interface TaskDetailsDialogProps {
   task: Task | null;
@@ -28,12 +29,26 @@ interface TaskDetailsDialogProps {
 
 const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogProps) => {
   const [editedTask, setEditedTask] = useState<Task | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState('');
+  const [showAddCategory, setShowAddCategory] = useState(false);
 
   useEffect(() => {
     if (task) {
       setEditedTask({ ...task });
     }
   }, [task]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('taskCategories');
+    if (saved) {
+      setCategories(JSON.parse(saved));
+    } else {
+      const defaultCategories = ['Work', 'Study', 'Personal', 'Health', 'Projects', 'Other'];
+      setCategories(defaultCategories);
+      localStorage.setItem('taskCategories', JSON.stringify(defaultCategories));
+    }
+  }, []);
 
   if (!editedTask) return null;
 
@@ -42,8 +57,27 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
     onClose();
   };
 
+  const handleAddCategory = () => {
+    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
+      const updated = [...categories, newCategory.trim()];
+      setCategories(updated);
+      localStorage.setItem('taskCategories', JSON.stringify(updated));
+      setEditedTask({ ...editedTask, category: newCategory.trim() });
+      setNewCategory('');
+      setShowAddCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = (category: string) => {
+    const updated = categories.filter(c => c !== category);
+    setCategories(updated);
+    localStorage.setItem('taskCategories', JSON.stringify(updated));
+    if (editedTask.category === category) {
+      setEditedTask({ ...editedTask, category: undefined });
+    }
+  };
+
   const importanceLabels = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
-  const defaultCategories = ['Work', 'Study', 'Personal', 'Health', 'Projects', 'Other'];
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -64,7 +98,29 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
           </div>
 
           <div>
-            <Label htmlFor="category">Category</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="category">Category</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAddCategory(!showAddCategory)}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add
+              </Button>
+            </div>
+            {showAddCategory && (
+              <div className="flex gap-2 mt-2">
+                <Input
+                  placeholder="New category"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                />
+                <Button type="button" size="sm" onClick={handleAddCategory}>Add</Button>
+              </div>
+            )}
             <Select
               value={editedTask.category || ''}
               onValueChange={(value) => setEditedTask({ ...editedTask, category: value })}
@@ -73,9 +129,23 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                {defaultCategories.map((cat) => (
+                {categories.map((cat) => (
                   <SelectItem key={cat} value={cat}>
-                    {cat}
+                    <div className="flex items-center justify-between w-full gap-2">
+                      <span>{cat}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteCategory(cat);
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>

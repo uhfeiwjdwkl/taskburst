@@ -216,18 +216,29 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
         )}
       </div>
       <div className="relative h-[600px] overflow-auto">
-        {/* Time grid */}
+        {/* Time labels on the left edge */}
+        <div className="absolute left-0 top-0 bottom-0 w-16 z-10">
+          {hours.map((hour) => (
+            <div
+              key={hour}
+              className="absolute w-full"
+              style={{ top: `${((hour - 6) / 17) * 100}%` }}
+            >
+              <span className="text-xs text-muted-foreground bg-background px-1 block text-right">
+                {formatTime(hour)}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Time grid lines */}
         <div className="absolute inset-0 pl-16">
           {hours.map((hour) => (
             <div
               key={hour}
               className="absolute w-full border-t border-border"
               style={{ top: `${((hour - 6) / 17) * 100}%`, left: 0 }}
-            >
-              <span className="absolute -left-16 text-xs text-muted-foreground -mt-2 bg-background px-1 w-14 text-right">
-                {formatTime(hour)}
-              </span>
-            </div>
+            />
           ))}
         </div>
 
@@ -247,10 +258,11 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
             return (
               <div
                 key={idx}
-                className="absolute left-0 right-0 mx-1 rounded-md p-1 border opacity-30 overflow-hidden cursor-pointer hover:opacity-40 transition-opacity"
+                className="absolute right-0 mx-1 rounded-md p-2 border opacity-30 overflow-hidden cursor-pointer hover:opacity-40 transition-opacity"
                 style={{
                   top: `${top}%`,
                   height: `${Math.max(height, 3)}%`,
+                  left: '68px',
                   backgroundColor: cell.color || '#e5e7eb',
                 }}
                 onClick={() => {
@@ -258,7 +270,7 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
                   setCellDetailsOpen(true);
                 }}
               >
-                <div className="text-[10px] font-medium truncate">
+                <div className="text-xs font-medium truncate">
                   {cell.fields.filter(f => f).join(' • ')}
                 </div>
               </div>
@@ -272,19 +284,23 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
             const widthPercent = 100 / totalColumns;
             const leftPercent = (column * widthPercent);
 
+            const adjustedLeft = 68 + (leftPercent * (100 - 68) / 100);
+            const adjustedWidth = (widthPercent * (100 - 68) / 100) - 0.5;
+
             return (
               <div
                 key={event.id}
-                className="absolute mx-1 rounded-md p-1 bg-primary/20 border-l-4 border-primary overflow-hidden cursor-pointer hover:bg-primary/30 transition-colors z-[1]"
+                className="absolute rounded-md p-2 bg-primary/20 border-l-4 border-primary overflow-hidden cursor-pointer hover:bg-primary/30 transition-colors z-[1]"
                 style={{
                   top: `${top}%`,
                   height: `${Math.max(height, 3)}%`,
-                  left: `${leftPercent}%`,
-                  width: `${widthPercent - 1}%`,
+                  left: `${adjustedLeft}px`,
+                  width: `calc(${adjustedWidth}% - 4px)`,
                 }}
                 onClick={() => onEventClick(event)}
               >
-                <div className="text-[10px] font-semibold truncate">{event.title}</div>
+                <div className="text-xs font-semibold truncate">{event.title}</div>
+                <div className="text-[10px] text-muted-foreground">{event.time}</div>
               </div>
             );
           })}

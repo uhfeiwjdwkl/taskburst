@@ -427,7 +427,7 @@ const Timetable = () => {
                         </div>
                       )}
 
-                      <TimetableGrid
+                       <TimetableGrid
                         timetable={isEditing && selectedTimetable?.id === timetable.id ? selectedTimetable : timetable}
                         currentWeek={currentWeek}
                         onUpdate={(updated) => {
@@ -439,8 +439,15 @@ const Timetable = () => {
                         }}
                         isEditing={isEditing && selectedTimetable?.id === timetable.id}
                         focusedColor={focusedColor}
-                        onCellClick={(cell) => {
-                          setSelectedCell(cell);
+                        onCellClick={(cell, rowIndex, colIndex) => {
+                          const timeSlot = timetable.rows[rowIndex];
+                          setSelectedCell({
+                            ...cell,
+                            timeSlot,
+                            rowIndex,
+                            colIndex,
+                            timetableId: timetable.id,
+                          });
                           setCellDetailsOpen(true);
                         }}
                       />
@@ -479,6 +486,32 @@ const Timetable = () => {
           onClose={() => {
             setCellDetailsOpen(false);
             setSelectedCell(null);
+          }}
+          onSave={(updatedCell) => {
+            if (selectedCell && selectedCell.timetableId) {
+              const timetable = timetables.find(t => t.id === selectedCell.timetableId);
+              if (timetable) {
+                const key = `${selectedCell.rowIndex}-${selectedCell.colIndex}`;
+                const updated = { ...timetable };
+                updated.cells[key] = {
+                  ...updated.cells[key],
+                  fields: updatedCell.fields,
+                  color: updatedCell.color,
+                };
+                
+                // Update the time slot if changed
+                if (updatedCell.timeSlot) {
+                  updated.rows[selectedCell.rowIndex] = {
+                    ...updated.rows[selectedCell.rowIndex],
+                    startTime: updatedCell.timeSlot.startTime,
+                    duration: updatedCell.timeSlot.duration,
+                  };
+                }
+                
+                handleUpdateTimetable(updated);
+                toast.success("Cell updated");
+              }
+            }
           }}
         />
       </div>

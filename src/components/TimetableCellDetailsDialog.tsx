@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -6,7 +7,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Clock } from 'lucide-react';
+import { Clock, Edit } from 'lucide-react';
+import TimetableCellEditDialog from '@/components/TimetableCellEditDialog';
 
 interface TimetableCellDetailsDialogProps {
   cell: {
@@ -19,10 +21,24 @@ interface TimetableCellDetailsDialogProps {
   } | null;
   open: boolean;
   onClose: () => void;
+  onSave?: (updatedCell: any) => void;
 }
 
-const TimetableCellDetailsDialog = ({ cell, open, onClose }: TimetableCellDetailsDialogProps) => {
+const TimetableCellDetailsDialog = ({ cell, open, onClose, onSave }: TimetableCellDetailsDialogProps) => {
+  const [editOpen, setEditOpen] = useState(false);
+
   if (!cell) return null;
+
+  const handleEdit = () => {
+    setEditOpen(true);
+  };
+
+  const handleSaveEdit = (updatedCell: any) => {
+    if (onSave) {
+      onSave(updatedCell);
+    }
+    setEditOpen(false);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -66,13 +82,25 @@ const TimetableCellDetailsDialog = ({ cell, open, onClose }: TimetableCellDetail
             </div>
           )}
 
-          <div className="pt-4 flex justify-end">
+          <div className="pt-4 flex gap-2 justify-end">
+            {onSave && (
+              <Button variant="outline" onClick={handleEdit}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            )}
             <Button onClick={onClose}>
               Close
             </Button>
           </div>
         </div>
       </DialogContent>
+      <TimetableCellEditDialog
+        cell={cell}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSave={handleSaveEdit}
+      />
     </Dialog>
   );
 };
