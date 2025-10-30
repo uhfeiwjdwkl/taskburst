@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Clock, Calendar as CalendarIcon, Tag } from 'lucide-react';
+import ProgressRing from '@/components/ProgressRing';
 
 interface TaskDetailsViewDialogProps {
   task: Task | null;
@@ -113,6 +114,20 @@ const TaskDetailsViewDialog = ({ task, open, onClose }: TaskDetailsViewDialogPro
                 {formattedSpent} / {Math.round(task.estimatedMinutes)} minutes ({Math.round(progressPercentage)}%)
               </p>
             </div>
+          </div>
+
+          <div>
+            <Label className="text-muted-foreground text-sm">Grid Progress</Label>
+            <div className="mt-2 flex justify-center">
+              <ProgressRing
+                progress={(task.progressGridFilled / task.progressGridSize) * 100}
+                size={80}
+                strokeWidth={8}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              {task.progressGridFilled} / {task.progressGridSize} squares filled
+            </p>
           </div>
 
           {task.dueDate && (

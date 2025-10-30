@@ -205,32 +205,33 @@ const CalendarPage = () => {
           </div>
         </header>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Calendar Section */}
-          <Card className="p-6">
-            <div className="flex justify-center">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateSelect}
-                className={cn("pointer-events-auto")}
-                modifiers={{
-                  hasTask: datesWithTasks,
-                }}
-                modifiersStyles={{
-                  hasTask: {
-                    fontWeight: 'bold',
-                    textDecoration: 'underline',
-                    textDecorationColor: 'hsl(var(--primary))',
-                    textDecorationThickness: '2px',
-                  },
-                }}
-              />
-            </div>
-          </Card>
+        <div className="space-y-6">
+          {/* Top Section: Calendar and Tasks Side by Side */}
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Calendar Section */}
+            <Card className="p-6">
+              <div className="flex justify-center">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={handleDateSelect}
+                  className={cn("pointer-events-auto")}
+                  modifiers={{
+                    hasTask: datesWithTasks,
+                  }}
+                  modifiersStyles={{
+                    hasTask: {
+                      fontWeight: 'bold',
+                      textDecoration: 'underline',
+                      textDecorationColor: 'hsl(var(--primary))',
+                      textDecorationThickness: '2px',
+                    },
+                  }}
+                />
+              </div>
+            </Card>
 
-          {/* Tasks for Selected Date */}
-          <div className="space-y-4">
+            {/* Tasks for Selected Date */}
             <Card className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -406,29 +407,29 @@ const CalendarPage = () => {
                 </div>
               )}
             </Card>
-
-            {/* Day Timetable */}
-            {selectedDate && (
-              <DayTimetableView 
-                events={eventsForSelectedDate} 
-                selectedDate={selectedDate}
-                onEventClick={handleEventClick}
-              />
-            )}
-
-            {/* Legend */}
-            <Card className="p-4">
-              <h3 className="font-semibold text-sm mb-2">Legend</h3>
-              <div className="text-sm text-muted-foreground">
-                <p className="flex items-center gap-2">
-                  <span className="font-bold underline" style={{ textDecorationColor: 'hsl(var(--primary))' }}>
-                    Dates
-                  </span>
-                  with underline have tasks due
-                </p>
-              </div>
-            </Card>
           </div>
+
+          {/* Bottom Section: Day Timetable Full Width */}
+          {selectedDate && (
+            <DayTimetableView 
+              events={eventsForSelectedDate} 
+              selectedDate={selectedDate}
+              onEventClick={handleEventClick}
+            />
+          )}
+
+          {/* Legend */}
+          <Card className="p-4">
+            <h3 className="font-semibold text-sm mb-2">Legend</h3>
+            <div className="text-sm text-muted-foreground">
+              <p className="flex items-center gap-2">
+                <span className="font-bold underline" style={{ textDecorationColor: 'hsl(var(--primary))' }}>
+                  Dates
+                </span>
+                with underline have tasks due
+              </p>
+            </div>
+          </Card>
         </div>
 
         <AddEventDialog

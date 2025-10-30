@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import TimetableCellDetailsDialog from '@/components/TimetableCellDetailsDialog';
 
 interface DayTimetableViewProps {
   events: CalendarEvent[];
@@ -21,6 +22,8 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
   const [timetables, setTimetables] = useState<Timetable[]>([]);
   const [selectedTimetableId, setSelectedTimetableId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [selectedCell, setSelectedCell] = useState<any>(null);
+  const [cellDetailsOpen, setCellDetailsOpen] = useState(false);
 
   // Load timetables
   useEffect(() => {
@@ -151,14 +154,14 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
       </div>
       <div className="relative h-[600px] overflow-auto">
         {/* Time grid */}
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 pl-12">
           {hours.map((hour) => (
             <div
               key={hour}
-              className="absolute w-full border-t border-border flex items-start"
+              className="absolute w-full border-t border-border"
               style={{ top: `${((hour - 6) / 17) * 100}%` }}
             >
-              <span className="text-xs text-muted-foreground w-16 -mt-2 bg-background">
+              <span className="absolute -left-12 text-xs text-muted-foreground -mt-2 bg-background px-1">
                 {formatTime(hour)}
               </span>
             </div>
@@ -166,7 +169,7 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
         </div>
 
         {/* Timetable cells (background, low opacity) */}
-        <div className="absolute inset-0 pl-16">
+        <div className="absolute inset-0 pl-12">
           {timetableCells.map((cell, idx) => {
             const position = getEventPosition(cell.timeSlot.startTime, cell.timeSlot.duration);
             if (!position) return null;
@@ -174,11 +177,15 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
             return (
               <div
                 key={idx}
-                className="absolute left-0 right-0 mx-2 rounded-md p-2 border opacity-30 overflow-hidden pointer-events-none"
+                className="absolute left-0 right-0 mx-1 rounded-md p-1 border opacity-30 overflow-hidden cursor-pointer hover:opacity-40 transition-opacity"
                 style={{
                   top: `${position.top}%`,
                   height: `${Math.max(position.height, 3)}%`,
                   backgroundColor: cell.color || '#e5e7eb',
+                }}
+                onClick={() => {
+                  setSelectedCell(cell);
+                  setCellDetailsOpen(true);
                 }}
               >
                 <div className="text-[10px] font-medium truncate">
@@ -190,7 +197,7 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
         </div>
 
         {/* Calendar events overlay (on top) */}
-        <div className="absolute inset-0 pl-16">
+        <div className="absolute inset-0 pl-12">
           {timedEvents.map((event) => {
             const position = event.time ? getEventPosition(event.time, event.duration) : null;
             if (!position) return null;
@@ -198,7 +205,7 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
             return (
               <div
                 key={event.id}
-                className="absolute left-0 right-0 mx-2 rounded-md p-2 bg-primary/20 border-l-4 border-primary overflow-hidden cursor-pointer hover:bg-primary/30 transition-colors"
+                className="absolute left-0 right-0 mx-1 rounded-md p-1 bg-primary/20 border-l-4 border-primary overflow-hidden cursor-pointer hover:bg-primary/30 transition-colors z-[1]"
                 style={{
                   top: `${position.top}%`,
                   height: `${Math.max(position.height, 3)}%`,
@@ -214,13 +221,21 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
         {/* Current time bar */}
         {currentTimeTop !== null && (
           <div
-            className="absolute left-16 right-0 h-0.5 bg-red-500 z-10"
-            style={{ top: `${currentTimeTop}%` }}
+            className="absolute left-0 right-0 h-0.5 bg-red-500 z-10"
+            style={{ top: `${currentTimeTop}%`, marginLeft: '48px' }}
           >
             <div className="absolute -left-1 -top-1 w-2 h-2 bg-red-500 rounded-full" />
           </div>
         )}
       </div>
+      <TimetableCellDetailsDialog
+        cell={selectedCell}
+        open={cellDetailsOpen}
+        onClose={() => {
+          setCellDetailsOpen(false);
+          setSelectedCell(null);
+        }}
+      />
     </Card>
   );
 }

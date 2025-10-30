@@ -10,24 +10,46 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Menu } from "lucide-react";
+import { useState, useEffect } from "react";
 
 export function Navigation() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const isActive = (path: string) => location.pathname === path;
+
+  const formatTime = () => {
+    const hours = currentTime.getHours().toString().padStart(2, '0');
+    const minutes = currentTime.getMinutes().toString().padStart(2, '0');
+    const day = currentTime.toLocaleDateString('en-GB', { weekday: 'short' });
+    const date = currentTime.getDate().toString().padStart(2, '0');
+    const month = (currentTime.getMonth() + 1).toString().padStart(2, '0');
+    const year = currentTime.getFullYear();
+    return `${hours}:${minutes} ${day} ${date}/${month}/${year}`;
+  };
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container flex h-14 items-center px-4">
-        <div className="mr-4 flex">
+        <div className="mr-4 flex flex-col">
           <Button
             variant="ghost"
             onClick={() => navigate('/')}
-            className="mr-2 font-semibold"
+            className="mr-2 font-semibold px-2"
           >
             TaskBurst
           </Button>
+          <span className="text-xs text-muted-foreground px-2 hidden md:block">
+            {formatTime()}
+          </span>
         </div>
 
         {/* Desktop Navigation */}
