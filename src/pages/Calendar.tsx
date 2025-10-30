@@ -13,6 +13,7 @@ import { AddEventDialog } from '@/components/AddEventDialog';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
 import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import TaskCard from '@/components/TaskCard';
+import { DayTimetableView } from '@/components/DayTimetableView';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import {
@@ -171,14 +172,6 @@ const CalendarPage = () => {
         }
       }
     });
-    events.forEach(event => {
-      try {
-        const date = parseISO(event.date);
-        dates.push(date);
-      } catch {
-        // Invalid date, skip
-      }
-    });
     return dates;
   };
 
@@ -293,96 +286,119 @@ const CalendarPage = () => {
                 </div>
               ) : (
                 <div className="space-y-4 max-h-[500px] overflow-y-auto">
-                  {/* Events Section */}
-                  {eventsForSelectedDate.length > 0 && (
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-semibold text-muted-foreground">Events</h3>
-                      {eventsForSelectedDate.map((event) => (
-                        <Card key={event.id} className="p-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-semibold mb-1">{event.title}</h4>
-                              {event.description && (
-                                <p className="text-sm text-muted-foreground mb-2">{event.description}</p>
-                              )}
-                              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                                {event.time && (
-                                  <div className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    {event.time}
-                                  </div>
-                                )}
-                                {event.location && (
-                                  <div className="flex items-center gap-1">
-                                    <MapPin className="h-3 w-3" />
-                                    {event.location}
-                                  </div>
-                                )}
-                              </div>
+                  {/* Combined List */}
+                  <div className="space-y-2">
+                    {/* Sort by time if available, then alphabetically */}
+                    {[
+                      ...tasksForSelectedDate.map(t => ({ type: 'task' as const, item: t, time: null })),
+                      ...eventsForSelectedDate.map(e => ({ type: 'event' as const, item: e, time: e.time }))
+                    ]
+                      .sort((a, b) => {
+                        // Items with time come first
+                        if (a.time && !b.time) return -1;
+                        if (!a.time && b.time) return 1;
+                        if (a.time && b.time) return a.time.localeCompare(b.time);
+                        // Then by title
+                        const aTitle = a.type === 'task' ? a.item.name : a.item.title;
+                        const bTitle = b.type === 'task' ? b.item.name : b.item.title;
+                        return aTitle.localeCompare(bTitle);
+                      })
+                      .map(({ type, item }) => {
+                        if (type === 'task') {
+                          const task = item as Task;
+                          return (
+                            <div key={`task-${task.id}`}>
+                              <Badge variant="outline" className="mb-2 text-xs">Task</Badge>
+                              <TaskCard
+                                task={task}
+                                onStartFocus={() => {
+                                  toast.success(`Starting focus session for: ${task.name}`);
+                                  navigate('/');
+                                }}
+                                onShowDetails={handleShowDetails}
+                                onEdit={handleEdit}
+                                onComplete={(taskId) => {
+                                  const taskToComplete = tasks.find(t => t.id === taskId);
+                                  if (taskToComplete) {
+                                    const completedTask = { ...taskToComplete, completed: true };
+                                    const archived = JSON.parse(localStorage.getItem('archivedTasks') || '[]');
+                                    localStorage.setItem('archivedTasks', JSON.stringify([...archived, completedTask]));
+                                    const updatedTasks = tasks.filter(t => t.id !== taskId);
+                                    setTasks(updatedTasks);
+                                    localStorage.setItem('tasks', JSON.stringify(updatedTasks));
+                                    toast.success('Task completed and archived! 🎉');
+                                  }
+                                }}
+                                onDelete={(taskId) => {
+                                  const task = tasks.find(t => t.id === taskId);
+                                  if (task) {
+                                    const deletedTask = { ...task, deletedAt: new Date().toISOString() };
+                                    const deleted = JSON.parse(localStorage.getItem('deletedTasks') || '[]');
+                                    localStorage.setItem('deletedTasks', JSON.stringify([...deleted, deletedTask]));
+                                    const updated = tasks.filter(t => t.id !== taskId);
+                                    setTasks(updated);
+                                    localStorage.setItem('tasks', JSON.stringify(updated));
+                                    toast.success('Task moved to recently deleted');
+                                  }
+                                }}
+                                onUpdateTask={handleUpdateTask}
+                              />
                             </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive h-8 w-8 p-0"
-                              onClick={() => {
-                                setEventToDelete(event.id);
-                                setDeleteEventDialog(true);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Tasks Section */}
-                  {tasksForSelectedDate.length > 0 && (
-                    <div className="space-y-2">
-                      <h3 className="text-sm font-semibold text-muted-foreground">Tasks</h3>
-                      {tasksForSelectedDate.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      onStartFocus={() => {
-                        toast.success(`Starting focus session for: ${task.name}`);
-                        navigate('/');
-                      }}
-                      onShowDetails={handleShowDetails}
-                      onEdit={handleEdit}
-                      onComplete={(taskId) => {
-                        const taskToComplete = tasks.find(t => t.id === taskId);
-                        if (taskToComplete) {
-                          const completedTask = { ...taskToComplete, completed: true };
-                          const archived = JSON.parse(localStorage.getItem('archivedTasks') || '[]');
-                          localStorage.setItem('archivedTasks', JSON.stringify([...archived, completedTask]));
-                          const updatedTasks = tasks.filter(t => t.id !== taskId);
-                          setTasks(updatedTasks);
-                          localStorage.setItem('tasks', JSON.stringify(updatedTasks));
-                          toast.success('Task completed and archived! 🎉');
+                          );
+                        } else {
+                          const event = item as CalendarEvent;
+                          return (
+                            <div key={`event-${event.id}`}>
+                              <Badge variant="secondary" className="mb-2 text-xs">Event</Badge>
+                              <Card className="p-3">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-semibold mb-1">{event.title}</h4>
+                                    {event.description && (
+                                      <p className="text-sm text-muted-foreground mb-2">{event.description}</p>
+                                    )}
+                                    <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                                      {event.time && (
+                                        <div className="flex items-center gap-1">
+                                          <Clock className="h-3 w-3" />
+                                          {event.time}
+                                          {event.duration && ` (${event.duration}m)`}
+                                        </div>
+                                      )}
+                                      {event.location && (
+                                        <div className="flex items-center gap-1">
+                                          <MapPin className="h-3 w-3" />
+                                          {event.location}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                                    onClick={() => {
+                                      setEventToDelete(event.id);
+                                      setDeleteEventDialog(true);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </Card>
+                            </div>
+                          );
                         }
-                      }}
-                      onDelete={(taskId) => {
-                        const task = tasks.find(t => t.id === taskId);
-                        if (task) {
-                          const deletedTask = { ...task, deletedAt: new Date().toISOString() };
-                          const deleted = JSON.parse(localStorage.getItem('deletedTasks') || '[]');
-                          localStorage.setItem('deletedTasks', JSON.stringify([...deleted, deletedTask]));
-                          const updated = tasks.filter(t => t.id !== taskId);
-                          setTasks(updated);
-                          localStorage.setItem('tasks', JSON.stringify(updated));
-                          toast.success('Task moved to recently deleted');
-                        }
-                      }}
-                      onUpdateTask={handleUpdateTask}
-                    />
-                      ))}
-                    </div>
-                  )}
+                      })}
+                  </div>
                 </div>
               )}
             </Card>
+
+            {/* Day Timetable */}
+            {selectedDate && eventsForSelectedDate.some(e => e.time) && (
+              <DayTimetableView events={eventsForSelectedDate} />
+            )}
 
             {/* Legend */}
             <Card className="p-4">

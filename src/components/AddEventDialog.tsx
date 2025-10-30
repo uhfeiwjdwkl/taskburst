@@ -24,6 +24,7 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(prefilledDate || '');
   const [time, setTime] = useState('');
+  const [duration, setDuration] = useState('60');
   const [location, setLocation] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -38,6 +39,7 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
       description: description.trim() || undefined,
       date,
       time: time || undefined,
+      duration: time ? parseInt(duration) || 60 : undefined,
       location: location.trim() || undefined,
     });
 
@@ -46,6 +48,7 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
     setDescription('');
     setDate(prefilledDate || '');
     setTime('');
+    setDuration('60');
     setLocation('');
     onClose();
   };
@@ -80,18 +83,18 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="date">Date *</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="date">Date *</Label>
+              <Input
+                id="date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+              />
+            </div>
 
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="time">Time</Label>
                 <Input
@@ -99,6 +102,20 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
                   type="time"
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="duration">Duration (minutes)</Label>
+                <Input
+                  id="duration"
+                  type="number"
+                  min="15"
+                  step="15"
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  disabled={!time}
+                  placeholder="60"
                 />
               </div>
             </div>
