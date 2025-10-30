@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Home, Calendar, FolderOpen, History as HistoryIcon, Table, Archive, Clock } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -10,7 +11,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Menu } from "lucide-react";
-import { useState, useEffect } from "react";
 
 export function Navigation() {
   const navigate = useNavigate();
