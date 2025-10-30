@@ -89,22 +89,85 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
 
   const timetableCells = getTimetableCells();
 
-  // Calculate position for each event
-  const getEventPosition = (time: string, duration: number = 60) => {
-    const [hours, minutes] = time.split(':').map(Number);
-    const totalMinutes = hours * 60 + minutes;
+  // Calculate overlapping events and their positions
+  const getEventPositions = () => {
+    const positions: Array<{
+      event: CalendarEvent;
+      top: number;
+      height: number;
+      column: number;
+      totalColumns: number;
+    }> = [];
+
     const startMinutes = 6 * 60; // 6 AM
     const endMinutes = 23 * 60; // 11 PM
-    
-    if (totalMinutes < startMinutes || totalMinutes >= endMinutes) {
-      return null;
-    }
 
-    const top = ((totalMinutes - startMinutes) / (endMinutes - startMinutes)) * 100;
-    const height = (duration / ((endMinutes - startMinutes))) * 100;
-    
-    return { top, height };
+    // Sort events by start time
+    const sortedEvents = [...timedEvents].sort((a, b) => {
+      const [aHours, aMinutes] = (a.time || '').split(':').map(Number);
+      const [bHours, bMinutes] = (b.time || '').split(':').map(Number);
+      return (aHours * 60 + aMinutes) - (bHours * 60 + bMinutes);
+    });
+
+    // Track concurrent events
+    const concurrentGroups: CalendarEvent[][] = [];
+
+    sortedEvents.forEach((event) => {
+      if (!event.time) return;
+      
+      const [hours, minutes] = event.time.split(':').map(Number);
+      const totalMinutes = hours * 60 + minutes;
+      const eventEnd = totalMinutes + (event.duration || 60);
+
+      if (totalMinutes < startMinutes || totalMinutes >= endMinutes) return;
+
+      // Find which group this event belongs to
+      let groupIndex = -1;
+      for (let i = 0; i < concurrentGroups.length; i++) {
+        const group = concurrentGroups[i];
+        const hasOverlap = group.some(existingEvent => {
+          const [eHours, eMinutes] = (existingEvent.time || '').split(':').map(Number);
+          const eStart = eHours * 60 + eMinutes;
+          const eEnd = eStart + (existingEvent.duration || 60);
+          return totalMinutes < eEnd && eventEnd > eStart;
+        });
+        if (hasOverlap) {
+          groupIndex = i;
+          break;
+        }
+      }
+
+      if (groupIndex === -1) {
+        concurrentGroups.push([event]);
+      } else {
+        concurrentGroups[groupIndex].push(event);
+      }
+    });
+
+    // Calculate positions
+    concurrentGroups.forEach(group => {
+      const totalColumns = group.length;
+      group.forEach((event, columnIndex) => {
+        const [hours, minutes] = (event.time || '').split(':').map(Number);
+        const totalMinutes = hours * 60 + minutes;
+        
+        const top = ((totalMinutes - startMinutes) / (endMinutes - startMinutes)) * 100;
+        const height = ((event.duration || 60) / (endMinutes - startMinutes)) * 100;
+
+        positions.push({
+          event,
+          top,
+          height,
+          column: columnIndex,
+          totalColumns
+        });
+      });
+    });
+
+    return positions;
   };
+
+  const eventPositions = getEventPositions();
 
   const formatTime = (hour: number) => {
     const period = hour >= 12 ? 'PM' : 'AM';
@@ -154,14 +217,14 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
       </div>
       <div className="relative h-[600px] overflow-auto">
         {/* Time grid */}
-        <div className="absolute inset-0 pl-12">
+        <div className="absolute inset-0 pl-16">
           {hours.map((hour) => (
             <div
               key={hour}
               className="absolute w-full border-t border-border"
-              style={{ top: `${((hour - 6) / 17) * 100}%` }}
+              style={{ top: `${((hour - 6) / 17) * 100}%`, left: 0 }}
             >
-              <span className="absolute -left-12 text-xs text-muted-foreground -mt-2 bg-background px-1">
+              <span className="absolute -left-16 text-xs text-muted-foreground -mt-2 bg-background px-1 w-14 text-right">
                 {formatTime(hour)}
               </span>
             </div>
@@ -169,18 +232,25 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
         </div>
 
         {/* Timetable cells (background, low opacity) */}
-        <div className="absolute inset-0 pl-12">
+        <div className="absolute inset-0 pl-16">
           {timetableCells.map((cell, idx) => {
-            const position = getEventPosition(cell.timeSlot.startTime, cell.timeSlot.duration);
-            if (!position) return null;
+            const [hours, minutes] = cell.timeSlot.startTime.split(':').map(Number);
+            const totalMinutes = hours * 60 + minutes;
+            const startMinutes = 6 * 60;
+            const endMinutes = 23 * 60;
+            
+            if (totalMinutes < startMinutes || totalMinutes >= endMinutes) return null;
+
+            const top = ((totalMinutes - startMinutes) / (endMinutes - startMinutes)) * 100;
+            const height = (cell.timeSlot.duration / (endMinutes - startMinutes)) * 100;
 
             return (
               <div
                 key={idx}
                 className="absolute left-0 right-0 mx-1 rounded-md p-1 border opacity-30 overflow-hidden cursor-pointer hover:opacity-40 transition-opacity"
                 style={{
-                  top: `${position.top}%`,
-                  height: `${Math.max(position.height, 3)}%`,
+                  top: `${top}%`,
+                  height: `${Math.max(height, 3)}%`,
                   backgroundColor: cell.color || '#e5e7eb',
                 }}
                 onClick={() => {
@@ -197,18 +267,20 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
         </div>
 
         {/* Calendar events overlay (on top) */}
-        <div className="absolute inset-0 pl-12">
-          {timedEvents.map((event) => {
-            const position = event.time ? getEventPosition(event.time, event.duration) : null;
-            if (!position) return null;
+        <div className="absolute inset-0 pl-16">
+          {eventPositions.map(({ event, top, height, column, totalColumns }) => {
+            const widthPercent = 100 / totalColumns;
+            const leftPercent = (column * widthPercent);
 
             return (
               <div
                 key={event.id}
-                className="absolute left-0 right-0 mx-1 rounded-md p-1 bg-primary/20 border-l-4 border-primary overflow-hidden cursor-pointer hover:bg-primary/30 transition-colors z-[1]"
+                className="absolute mx-1 rounded-md p-1 bg-primary/20 border-l-4 border-primary overflow-hidden cursor-pointer hover:bg-primary/30 transition-colors z-[1]"
                 style={{
-                  top: `${position.top}%`,
-                  height: `${Math.max(position.height, 3)}%`,
+                  top: `${top}%`,
+                  height: `${Math.max(height, 3)}%`,
+                  left: `${leftPercent}%`,
+                  width: `${widthPercent - 1}%`,
                 }}
                 onClick={() => onEventClick(event)}
               >
@@ -222,7 +294,7 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
         {currentTimeTop !== null && (
           <div
             className="absolute left-0 right-0 h-0.5 bg-red-500 z-10"
-            style={{ top: `${currentTimeTop}%`, marginLeft: '48px' }}
+            style={{ top: `${currentTimeTop}%`, marginLeft: '64px' }}
           >
             <div className="absolute -left-1 -top-1 w-2 h-2 bg-red-500 rounded-full" />
           </div>

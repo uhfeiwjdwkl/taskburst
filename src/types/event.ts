@@ -6,6 +6,10 @@ export interface CalendarEvent {
   time?: string; // "09:00" format
   duration?: number; // in minutes
   location?: string;
+  recurring?: {
+    enabled: boolean;
+    intervalDays: number; // Repeat every X days
+  };
   createdAt: string;
   deletedAt?: string; // ISO string - when moved to recently deleted
 }

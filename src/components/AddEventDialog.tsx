@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,8 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
   const [time, setTime] = useState('');
   const [duration, setDuration] = useState('60');
   const [location, setLocation] = useState('');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringDays, setRecurringDays] = useState('7');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +44,10 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
       time: time || undefined,
       duration: time ? parseInt(duration) || 60 : undefined,
       location: location.trim() || undefined,
+      recurring: isRecurring ? {
+        enabled: true,
+        intervalDays: parseInt(recurringDays) || 7
+      } : undefined,
     });
 
     // Reset form
@@ -50,6 +57,8 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
     setTime('');
     setDuration('60');
     setLocation('');
+    setIsRecurring(false);
+    setRecurringDays('7');
     onClose();
   };
 
@@ -128,6 +137,33 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="Event location (optional)"
               />
+            </div>
+
+            <div className="space-y-3 pt-2 border-t">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="recurring"
+                  checked={isRecurring}
+                  onCheckedChange={(checked) => setIsRecurring(checked as boolean)}
+                />
+                <Label htmlFor="recurring" className="cursor-pointer">
+                  Recurring event
+                </Label>
+              </div>
+              
+              {isRecurring && (
+                <div className="space-y-2 pl-6">
+                  <Label htmlFor="recurringDays">Repeat every (days)</Label>
+                  <Input
+                    id="recurringDays"
+                    type="number"
+                    min="1"
+                    value={recurringDays}
+                    onChange={(e) => setRecurringDays(e.target.value)}
+                    placeholder="7"
+                  />
+                </div>
+              )}
             </div>
           </div>
 

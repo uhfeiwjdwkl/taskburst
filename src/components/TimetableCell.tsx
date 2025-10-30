@@ -25,6 +25,8 @@ interface TimetableCellProps {
   colorKey: Record<string, string>;
   customColors?: string[];
   onCustomColorAdd: (color: string) => void;
+  onCellClick?: (cell: TimetableCellType, rowIndex: number, colIndex: number) => void;
+  timeSlot?: { startTime: string; duration: number };
 }
 
 const PRESET_COLORS = [
@@ -49,7 +51,9 @@ export function TimetableCell({
   focusedColor,
   colorKey,
   customColors = [],
-  onCustomColorAdd
+  onCustomColorAdd,
+  onCellClick,
+  timeSlot
 }: TimetableCellProps) {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [pickedColor, setPickedColor] = useState("#3b82f6");
@@ -82,6 +86,10 @@ export function TimetableCell({
     if (isEditing && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       onSelect(rowIndex, colIndex);
+    } else if (!isEditing && cell && onCellClick && timeSlot) {
+      // In view mode, click to see details
+      const cellWithTime = { ...cell, timeSlot };
+      onCellClick(cellWithTime as any, rowIndex, colIndex);
     }
   };
 

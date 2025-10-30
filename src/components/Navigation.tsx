@@ -29,17 +29,18 @@ export function Navigation() {
   const formatTime = () => {
     const hours = currentTime.getHours().toString().padStart(2, '0');
     const minutes = currentTime.getMinutes().toString().padStart(2, '0');
+    const seconds = currentTime.getSeconds().toString().padStart(2, '0');
     const day = currentTime.toLocaleDateString('en-GB', { weekday: 'short' });
     const date = currentTime.getDate().toString().padStart(2, '0');
     const month = (currentTime.getMonth() + 1).toString().padStart(2, '0');
     const year = currentTime.getFullYear();
-    return `${hours}:${minutes} ${day} ${date}/${month}/${year}`;
+    return `${hours}:${minutes}:${seconds} ${day} ${date}/${month}/${year}`;
   };
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container flex h-14 items-center px-4">
-        <div className="mr-4 flex flex-col">
+        <div className="mr-4 flex items-center gap-2">
           <Button
             variant="ghost"
             onClick={() => navigate('/')}
@@ -47,9 +48,9 @@ export function Navigation() {
           >
             TaskBurst
           </Button>
-          <span className="text-xs text-muted-foreground px-2 hidden md:block">
-            {formatTime()}
-          </span>
+          <div className="hidden md:block px-3 py-1 rounded-md bg-muted border">
+            <span className="font-mono text-sm font-bold">{formatTime()}</span>
+          </div>
         </div>
 
         {/* Desktop Navigation */}

@@ -11,9 +11,10 @@ interface TimetableGridProps {
   isEditing: boolean;
   focusedColor?: string;
   onBulkColorUpdate?: (color: string | undefined) => void;
+  onCellClick?: (cell: any, rowIndex: number, colIndex: number) => void;
 }
 
-export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, focusedColor, onBulkColorUpdate }: TimetableGridProps) {
+export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, focusedColor, onBulkColorUpdate, onCellClick }: TimetableGridProps) {
   const [currentTimePosition, setCurrentTimePosition] = useState<{ row: number; progress: number; colIndex: number } | null>(null);
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
   const [isSelecting, setIsSelecting] = useState(false);
@@ -362,6 +363,8 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
                       colorKey={timetable.colorKey}
                       customColors={timetable.customColors}
                       onCustomColorAdd={handleCustomColorAdd}
+                      onCellClick={onCellClick}
+                      timeSlot={timetable.rows[rowIndex]}
                     />
                   );
                 })}

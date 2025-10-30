@@ -9,6 +9,7 @@ import { TimetableRowColEditor } from "@/components/TimetableRowColEditor";
 import { Timetable as TimetableType, TimeSlot } from "@/types/timetable";
 import { toast } from "sonner";
 import { exportToPDF, exportToExcel } from "@/lib/exportTimetable";
+import TimetableCellDetailsDialog from "@/components/TimetableCellDetailsDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +46,8 @@ const Timetable = () => {
   const [focusedColor, setFocusedColor] = useState<string | undefined>(undefined);
   const [collapsedTimetables, setCollapsedTimetables] = useState<Set<string>>(new Set());
   const [expandedEditSections, setExpandedEditSections] = useState<Set<string>>(new Set());
+  const [selectedCell, setSelectedCell] = useState<any>(null);
+  const [cellDetailsOpen, setCellDetailsOpen] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('timetables');
@@ -436,6 +439,10 @@ const Timetable = () => {
                         }}
                         isEditing={isEditing && selectedTimetable?.id === timetable.id}
                         focusedColor={focusedColor}
+                        onCellClick={(cell) => {
+                          setSelectedCell(cell);
+                          setCellDetailsOpen(true);
+                        }}
                       />
                     </div>
                   </CollapsibleContent>
@@ -465,6 +472,15 @@ const Timetable = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <TimetableCellDetailsDialog
+          cell={selectedCell}
+          open={cellDetailsOpen}
+          onClose={() => {
+            setCellDetailsOpen(false);
+            setSelectedCell(null);
+          }}
+        />
       </div>
     </div>
   );
