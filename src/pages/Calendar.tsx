@@ -12,6 +12,7 @@ import AddTaskDialog from '@/components/AddTaskDialog';
 import { AddEventDialog } from '@/components/AddEventDialog';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
 import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
+import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
 import TaskCard from '@/components/TaskCard';
 import { DayTimetableView } from '@/components/DayTimetableView';
 import { format, isSameDay, parseISO } from 'date-fns';
@@ -37,6 +38,8 @@ const CalendarPage = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [eventDetailsDialogOpen, setEventDetailsDialogOpen] = useState(false);
   const [deleteEventDialog, setDeleteEventDialog] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
 
@@ -133,6 +136,11 @@ const CalendarPage = () => {
       setSelectedTask(task);
       setEditDialogOpen(true);
     }
+  };
+
+  const handleEventClick = (event: CalendarEvent) => {
+    setSelectedEvent(event);
+    setEventDetailsDialogOpen(true);
   };
 
   const getTasksForDate = (date: Date | undefined) => {
@@ -350,7 +358,10 @@ const CalendarPage = () => {
                           return (
                             <div key={`event-${event.id}`}>
                               <Badge variant="secondary" className="mb-2 text-xs">Event</Badge>
-                              <Card className="p-3">
+                              <Card 
+                                className="p-3 cursor-pointer hover:bg-accent transition-colors"
+                                onClick={() => handleEventClick(event)}
+                              >
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex-1 min-w-0">
                                     <h4 className="font-semibold mb-1">{event.title}</h4>
@@ -377,7 +388,8 @@ const CalendarPage = () => {
                                     size="sm"
                                     variant="ghost"
                                     className="text-destructive hover:text-destructive h-8 w-8 p-0"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       setEventToDelete(event.id);
                                       setDeleteEventDialog(true);
                                     }}
@@ -396,8 +408,12 @@ const CalendarPage = () => {
             </Card>
 
             {/* Day Timetable */}
-            {selectedDate && eventsForSelectedDate.some(e => e.time) && (
-              <DayTimetableView events={eventsForSelectedDate} />
+            {selectedDate && (
+              <DayTimetableView 
+                events={eventsForSelectedDate} 
+                selectedDate={selectedDate}
+                onEventClick={handleEventClick}
+              />
             )}
 
             {/* Legend */}
@@ -440,6 +456,12 @@ const CalendarPage = () => {
           task={selectedTask}
           open={detailsDialogOpen}
           onClose={() => setDetailsDialogOpen(false)}
+        />
+
+        <EventDetailsViewDialog
+          event={selectedEvent}
+          open={eventDetailsDialogOpen}
+          onClose={() => setEventDetailsDialogOpen(false)}
         />
 
         <AlertDialog open={deleteEventDialog} onOpenChange={setDeleteEventDialog}>
