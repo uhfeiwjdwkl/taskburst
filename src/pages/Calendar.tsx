@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import AddTaskDialog from '@/components/AddTaskDialog';
 import { AddEventDialog } from '@/components/AddEventDialog';
+import { EditEventDialog } from '@/components/EditEventDialog';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
 import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
@@ -40,6 +41,7 @@ const CalendarPage = () => {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [eventDetailsDialogOpen, setEventDetailsDialogOpen] = useState(false);
+  const [editEventDialogOpen, setEditEventDialogOpen] = useState(false);
   const [deleteEventDialog, setDeleteEventDialog] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
 
@@ -141,6 +143,18 @@ const CalendarPage = () => {
   const handleEventClick = (event: CalendarEvent) => {
     setSelectedEvent(event);
     setEventDetailsDialogOpen(true);
+  };
+
+  const handleEditEvent = () => {
+    setEventDetailsDialogOpen(false);
+    setEditEventDialogOpen(true);
+  };
+
+  const handleUpdateEvent = (updatedEvent: CalendarEvent) => {
+    const updatedEvents = events.map(e => e.id === updatedEvent.id ? updatedEvent : e);
+    setEvents(updatedEvents);
+    localStorage.setItem('calendarEvents', JSON.stringify(updatedEvents));
+    toast.success('Event updated successfully!');
   };
 
   const getTasksForDate = (date: Date | undefined) => {
@@ -462,7 +476,20 @@ const CalendarPage = () => {
         <EventDetailsViewDialog
           event={selectedEvent}
           open={eventDetailsDialogOpen}
-          onClose={() => setEventDetailsDialogOpen(false)}
+          onClose={() => {
+            setEventDetailsDialogOpen(false);
+            setSelectedEvent(null);
+          }}
+          onEdit={handleEditEvent}
+        />
+
+        <EditEventDialog
+          event={selectedEvent}
+          open={editEventDialogOpen}
+          onClose={() => {
+            setEditEventDialogOpen(false);
+          }}
+          onSave={handleUpdateEvent}
         />
 
         <AlertDialog open={deleteEventDialog} onOpenChange={setDeleteEventDialog}>

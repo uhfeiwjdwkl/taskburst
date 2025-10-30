@@ -7,15 +7,16 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Clock, Calendar as CalendarIcon } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, Edit, MapPin, Repeat } from 'lucide-react';
 
 interface EventDetailsViewDialogProps {
   event: CalendarEvent | null;
   open: boolean;
   onClose: () => void;
+  onEdit?: () => void;
 }
 
-const EventDetailsViewDialog = ({ event, open, onClose }: EventDetailsViewDialogProps) => {
+const EventDetailsViewDialog = ({ event, open, onClose, onEdit }: EventDetailsViewDialogProps) => {
   if (!event) return null;
 
   return (
@@ -71,7 +72,33 @@ const EventDetailsViewDialog = ({ event, open, onClose }: EventDetailsViewDialog
             </div>
           )}
 
-          <div className="pt-4 flex justify-end">
+          {event.location && (
+            <div>
+              <Label className="text-muted-foreground text-sm flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                Location
+              </Label>
+              <p className="mt-1">{event.location}</p>
+            </div>
+          )}
+
+          {event.recurring?.enabled && (
+            <div>
+              <Label className="text-muted-foreground text-sm flex items-center gap-1">
+                <Repeat className="h-3 w-3" />
+                Recurring
+              </Label>
+              <p className="mt-1">Every {event.recurring.intervalDays} {event.recurring.intervalDays === 1 ? 'day' : 'days'}</p>
+            </div>
+          )}
+
+          <div className="pt-4 flex gap-2 justify-end">
+            {onEdit && (
+              <Button variant="outline" onClick={onEdit}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            )}
             <Button onClick={onClose}>
               Close
             </Button>

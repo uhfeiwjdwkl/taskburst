@@ -98,18 +98,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
           </div>
 
           <div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="category">Category</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAddCategory(!showAddCategory)}
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Add
-              </Button>
-            </div>
+            <Label htmlFor="category">Category</Label>
             {showAddCategory && (
               <div className="flex gap-2 mt-2">
                 <Input
@@ -129,6 +118,18 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
+                <div className="border-b pb-2 mb-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAddCategory(!showAddCategory)}
+                    className="w-full justify-start"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Category
+                  </Button>
+                </div>
                 {categories.map((cat) => (
                   <SelectItem key={cat} value={cat}>
                     <div className="flex items-center justify-between w-full gap-2">

@@ -300,7 +300,6 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
                 onClick={() => onEventClick(event)}
               >
                 <div className="text-xs font-semibold truncate">{event.title}</div>
-                <div className="text-[10px] text-muted-foreground">{event.time}</div>
               </div>
             );
           })}
