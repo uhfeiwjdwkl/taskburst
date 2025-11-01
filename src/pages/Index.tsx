@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Task } from '@/types/task';
 import { Timetable } from '@/types/timetable';
+import { List } from '@/types/list';
 import Timer from '@/components/Timer';
 import TaskCard from '@/components/TaskCard';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
 import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import AddTaskDialog from '@/components/AddTaskDialog';
 import { TimetableCurrentBlock } from '@/components/TimetableCurrentBlock';
+import { CurrentEventDisplay } from '@/components/CurrentEventDisplay';
+import { ExportImportButton } from '@/components/ExportImportButton';
+import { exportAllData } from '@/lib/exportImport';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star } from 'lucide-react';
+import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { playTaskCompleteSound } from '@/lib/sounds';
@@ -24,6 +28,7 @@ const Index = () => {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [timerRunning, setTimerRunning] = useState(false);
   const [favoriteTimetables, setFavoriteTimetables] = useState<Timetable[]>([]);
+  const [favoriteLists, setFavoriteLists] = useState<List[]>([]);
 
   // Load tasks from localStorage
   useEffect(() => {
@@ -65,6 +70,13 @@ const Index = () => {
       const allTimetables = JSON.parse(savedTimetables) as Timetable[];
       const favorites = allTimetables.filter(t => t.favorite && !t.deletedAt);
       setFavoriteTimetables(favorites);
+    }
+
+    const savedLists = localStorage.getItem('lists');
+    if (savedLists) {
+      const allLists = JSON.parse(savedLists) as List[];
+      const favorites = allLists.filter(l => l.favorite && !l.deletedAt && !l.archivedAt);
+      setFavoriteLists(favorites);
     }
   }, []);
 
@@ -208,19 +220,30 @@ const Index = () => {
             </h1>
             <p className="text-muted-foreground mt-1">Stay productive with Pomodoro technique</p>
           </div>
-          <Button
-            onClick={() => setAddDialogOpen(true)}
-            className="bg-gradient-primary hover:opacity-90 shadow-glow"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Task
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportAllData}
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export All Data
+            </Button>
+            <Button
+              onClick={() => setAddDialogOpen(true)}
+              className="bg-gradient-primary hover:opacity-90 shadow-glow"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Task
+            </Button>
+          </div>
         </header>
 
         {/* Timer Section */}
         <section className="bg-card rounded-2xl shadow-lg p-8 mb-8 border border-border relative z-50 pointer-events-auto">
-          <TimetableCurrentBlock />
-          <Timer 
+          <CurrentEventDisplay />
+          <Timer
             onTick={handleTimerTick} 
             activeTaskId={activeTaskId} 
             activeTask={activeTask}
@@ -252,6 +275,44 @@ const Index = () => {
             ))}
           </div>
         </section>
+
+        {/* Favorite Lists Section */}
+        {favoriteLists.length > 0 && (
+          <section className="mt-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-semibold flex items-center gap-2">
+                <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                Favorite Lists
+              </h2>
+              <Button variant="outline" size="sm" onClick={() => navigate('/lists')}>
+                View All
+              </Button>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {favoriteLists.map((list) => {
+                const completedCount = list.items.filter(item => item.completed).length;
+                const totalCount = list.items.length;
+                return (
+                  <Card
+                    key={list.id}
+                    className="p-4 cursor-pointer hover:shadow-lg transition-shadow"
+                    onClick={() => navigate('/lists')}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg mb-1">{list.title}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {completedCount}/{totalCount} completed
+                        </p>
+                      </div>
+                      <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Favorite Timetables Section */}
         {favoriteTimetables.length > 0 && (

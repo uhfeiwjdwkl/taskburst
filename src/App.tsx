@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Archive from "./pages/Archive";
 import Calendar from "./pages/Calendar";
 import Categories from "./pages/Categories";
+import Lists from "./pages/Lists";
 import History from "./pages/History";
 import RecentlyDeletedUnified from "./pages/RecentlyDeletedUnified";
 import Timetable from "./pages/Timetable";
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/archive" element={<Archive />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/categories" element={<Categories />} />
+          <Route path="/lists" element={<Lists />} />
           <Route path="/history" element={<History />} />
           <Route path="/recently-deleted" element={<RecentlyDeletedUnified />} />
           <Route path="/timetable" element={<Timetable />} />

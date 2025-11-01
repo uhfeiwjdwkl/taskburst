@@ -10,6 +10,7 @@ import { Timetable as TimetableType, TimeSlot } from "@/types/timetable";
 import { toast } from "sonner";
 import { exportToPDF, exportToExcel } from "@/lib/exportTimetable";
 import TimetableCellDetailsDialog from "@/components/TimetableCellDetailsDialog";
+import { ExportImportButton } from "@/components/ExportImportButton";
 import {
   DropdownMenu,
   DropdownMenuContent,

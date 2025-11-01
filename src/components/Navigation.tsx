@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Home, Calendar, FolderOpen, History as HistoryIcon, Table, Archive, Clock } from "lucide-react";
+import { Home, Calendar, FolderOpen, History as HistoryIcon, Table, Archive, Clock, List } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   DropdownMenu,
@@ -41,13 +41,21 @@ export function Navigation() {
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container flex h-14 items-center px-4">
         <div className="mr-4 flex items-center gap-2">
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/')}
-            className="mr-2 font-semibold px-2"
-          >
-            TaskBurst
-          </Button>
+          <div className="relative group">
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/')}
+              className="mr-2 font-semibold px-2"
+            >
+              TaskBurst
+            </Button>
+            <a
+              href="https://kommenszlapf.website"
+              className="absolute left-0 top-full mt-1 bg-popover text-sm px-3 py-1 rounded-md shadow-lg border border-border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50"
+            >
+              Return to Home
+            </a>
+          </div>
           <div className="px-3 py-1 rounded-md bg-muted border">
             <div className="font-mono text-xs font-bold leading-tight">
               <div>{currentTime.getHours().toString().padStart(2, '0')}:{currentTime.getMinutes().toString().padStart(2, '0')}:{currentTime.getSeconds().toString().padStart(2, '0')}</div>
@@ -75,6 +83,14 @@ export function Navigation() {
           >
             <FolderOpen className="h-4 w-4 mr-2" />
             Categories
+          </Button>
+          <Button
+            variant={isActive('/lists') ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => navigate('/lists')}
+          >
+            <List className="h-4 w-4 mr-2" />
+            Lists
           </Button>
           <Button
             variant={isActive('/calendar') ? 'secondary' : 'ghost'}
@@ -136,6 +152,10 @@ export function Navigation() {
               <DropdownMenuItem onClick={() => navigate('/categories')}>
                 <FolderOpen className="h-4 w-4 mr-2" />
                 Categories
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/lists')}>
+                <List className="h-4 w-4 mr-2" />
+                Lists
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/calendar')}>
                 <Calendar className="h-4 w-4 mr-2" />

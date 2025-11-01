@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import TaskCard from '@/components/TaskCard';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
 import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
+import { ExportImportButton } from '@/components/ExportImportButton';
 import { toast } from 'sonner';
 
 const Categories = () => {
