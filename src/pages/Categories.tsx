@@ -102,19 +102,30 @@ const Categories = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-6xl mx-auto px-4 py-8">
-        <header className="flex items-center gap-4 mb-8">
-          <Button variant="outline" onClick={() => navigate('/')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              Categories
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Browse tasks by category
-            </p>
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={() => navigate('/')}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                Categories
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Browse tasks by category
+              </p>
+            </div>
           </div>
+          <ExportImportButton
+            data={tasks}
+            filename={`tasks-${new Date().toISOString().split('T')[0]}.json`}
+            onImport={(data) => {
+              setTasks(data);
+              toast.success('Tasks imported successfully!');
+            }}
+            storageKey="tasks"
+          />
         </header>
 
         <div className="grid md:grid-cols-3 gap-6">

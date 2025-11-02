@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ImportEventButton } from '@/components/ImportEventButton';
 import {
   Dialog,
   DialogContent,
@@ -66,7 +67,10 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Add Calendar Event</DialogTitle>
+          <DialogTitle className="flex items-center justify-between">
+            <span>Add Calendar Event</span>
+            <ImportEventButton onImport={onAdd} />
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">

@@ -36,19 +36,25 @@ export const exportAllData = async () => {
   const tasks = localStorage.getItem('tasks') || '[]';
   const deletedTasks = localStorage.getItem('deletedTasks') || '[]';
   const archivedTasks = localStorage.getItem('archivedTasks') || '[]';
+  const deletedArchive = localStorage.getItem('deletedArchive') || '[]';
   const events = localStorage.getItem('calendarEvents') || '[]';
   const timetables = localStorage.getItem('timetables') || '[]';
   const lists = localStorage.getItem('lists') || '[]';
-  const history = localStorage.getItem('history') || '[]';
+  const deletedListItems = localStorage.getItem('deletedListItems') || '[]';
+  const sessions = localStorage.getItem('sessions') || '[]';
+  const deletedSessions = localStorage.getItem('deletedSessions') || '[]';
   
   // Add files to zip
   zip.file('tasks.json', tasks);
   zip.file('deletedTasks.json', deletedTasks);
   zip.file('archivedTasks.json', archivedTasks);
+  zip.file('deletedArchive.json', deletedArchive);
   zip.file('events.json', events);
   zip.file('timetables.json', timetables);
   zip.file('lists.json', lists);
-  zip.file('history.json', history);
+  zip.file('deletedListItems.json', deletedListItems);
+  zip.file('sessions.json', sessions);
+  zip.file('deletedSessions.json', deletedSessions);
   
   // Generate zip
   const content = await zip.generateAsync({ type: 'blob' });
@@ -60,4 +66,16 @@ export const exportAllData = async () => {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+};
+
+export const importAllData = async (file: File): Promise<void> => {
+  const zip = await JSZip.loadAsync(file);
+  
+  const filePromises = Object.keys(zip.files).map(async (filename) => {
+    const content = await zip.files[filename].async('string');
+    const key = filename.replace('.json', '');
+    localStorage.setItem(key, content);
+  });
+  
+  await Promise.all(filePromises);
 };

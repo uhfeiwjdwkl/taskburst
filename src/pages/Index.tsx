@@ -11,6 +11,7 @@ import { TimetableCurrentBlock } from '@/components/TimetableCurrentBlock';
 import { CurrentEventDisplay } from '@/components/CurrentEventDisplay';
 import { ExportImportButton } from '@/components/ExportImportButton';
 import { exportAllData } from '@/lib/exportImport';
+import { ImportAllButton } from '@/components/ImportAllButton';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download } from 'lucide-react';
@@ -228,8 +229,9 @@ const Index = () => {
               className="gap-2"
             >
               <Download className="h-4 w-4" />
-              Export All Data
+              Export All
             </Button>
+            <ImportAllButton onImport={() => window.location.reload()} />
             <Button
               onClick={() => setAddDialogOpen(true)}
               className="bg-gradient-primary hover:opacity-90 shadow-glow"

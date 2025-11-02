@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Trash2, Clock, Undo2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { ExportImportButton } from '@/components/ExportImportButton';
 
 const Archive = () => {
   const navigate = useNavigate();
@@ -63,22 +64,34 @@ const Archive = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-4xl mx-auto px-4 py-8">
-        <header className="flex items-center gap-4 mb-8">
-          <Button
-            variant="outline"
-            onClick={() => navigate('/')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-success bg-clip-text text-transparent">
-              Archive
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Completed tasks ({archivedTasks.length})
-            </p>
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-success bg-clip-text text-transparent">
+                Archive
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Completed tasks ({archivedTasks.length})
+              </p>
+            </div>
           </div>
+          <ExportImportButton
+            data={archivedTasks}
+            filename={`archive-${new Date().toISOString().split('T')[0]}.json`}
+            onImport={(data) => {
+              setArchivedTasks(data);
+              localStorage.setItem('archivedTasks', JSON.stringify(data));
+              toast.success('Archive data imported successfully!');
+            }}
+            storageKey="archivedTasks"
+          />
         </header>
 
         {archivedTasks.length === 0 ? (

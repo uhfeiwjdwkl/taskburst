@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Clock, Calendar as CalendarIcon, Tag } from 'lucide-react';
 import ProgressRing from '@/components/ProgressRing';
+import { ExportTaskButton } from '@/components/ExportTaskButton';
 
 interface TaskDetailsViewDialogProps {
   task: Task | null;
@@ -145,7 +146,8 @@ const TaskDetailsViewDialog = ({ task, open, onClose }: TaskDetailsViewDialogPro
             </div>
           )}
 
-          <div className="pt-4 flex justify-end">
+          <div className="pt-4 flex gap-2 justify-end">
+            <ExportTaskButton task={task} />
             <Button onClick={onClose}>
               Close
             </Button>

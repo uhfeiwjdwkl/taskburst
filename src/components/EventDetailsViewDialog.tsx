@@ -5,9 +5,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { Clock, Calendar as CalendarIcon, Edit, MapPin, Repeat } from 'lucide-react';
+import { ExportEventButton } from '@/components/ExportEventButton';
 
 interface EventDetailsViewDialogProps {
   event: CalendarEvent | null;
@@ -93,6 +94,7 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit }: EventDetailsVi
           )}
 
           <div className="pt-4 flex gap-2 justify-end">
+            <ExportEventButton event={event} />
             {onEdit && (
               <Button variant="outline" onClick={onEdit}>
                 <Edit className="h-4 w-4 mr-2" />

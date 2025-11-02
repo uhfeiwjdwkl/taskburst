@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Plus, Settings } from 'lucide-react';
+import { ImportTaskButton } from '@/components/ImportTaskButton';
 import {
   Select,
   SelectContent,
@@ -95,7 +96,10 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Task</DialogTitle>
+          <DialogTitle className="flex items-center justify-between">
+            <span>Add New Task</span>
+            <ImportTaskButton onImport={onAdd} />
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">

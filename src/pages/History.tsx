@@ -25,6 +25,7 @@ import { ArrowLeft, Clock, Calendar as CalendarIcon, Trash2, Edit2 } from 'lucid
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { ExportImportButton } from '@/components/ExportImportButton';
 
 const History = () => {
   const navigate = useNavigate();
@@ -127,22 +128,36 @@ const History = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-4xl mx-auto px-4 py-8">
-        <header className="flex items-center gap-4 mb-8">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate('/')}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              Session History
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              View all your past focus sessions
-            </p>
+        <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate('/')}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex-1">
+              <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                Session History
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                View all your past focus sessions
+              </p>
+            </div>
           </div>
+          <ExportImportButton
+            data={sessions}
+            filename={`history-${new Date().toISOString().split('T')[0]}.json`}
+            onImport={(data) => {
+              localStorage.setItem('sessions', JSON.stringify(data));
+              setSessions(data.sort((a: Session, b: Session) => 
+                new Date(b.dateEnded).getTime() - new Date(a.dateEnded).getTime()
+              ));
+              toast.success('History imported successfully!');
+            }}
+            storageKey="sessions"
+          />
         </header>
 
         {sessions.length === 0 ? (
