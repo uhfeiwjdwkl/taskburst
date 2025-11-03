@@ -53,7 +53,7 @@ export function Navigation() {
               href="https://kommenszlapf.website"
               className="absolute left-0 top-full mt-1 bg-popover text-sm px-3 py-1 rounded-md shadow-lg border border-border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50"
             >
-              Return to Home
+              Return to kommenszlapf.website
             </a>
           </div>
           <div className="px-3 py-1 rounded-md bg-muted border">

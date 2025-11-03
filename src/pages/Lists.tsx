@@ -6,6 +6,7 @@ import { AddListDialog } from '@/components/AddListDialog';
 import { ListCard } from '@/components/ListCard';
 import { ListDetailsDialog } from '@/components/ListDetailsDialog';
 import { ExportImportButton } from '@/components/ExportImportButton';
+import { ImportListButton } from '@/components/ImportListButton';
 import { toast } from 'sonner';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
@@ -123,9 +124,17 @@ const Lists = () => {
             <ExportImportButton
               data={lists}
               filename={`lists-${new Date().toISOString().split('T')[0]}.json`}
-              onImport={handleImport}
+              onImport={(data) => {
+                if (Array.isArray(data) && data.every(item => 'title' in item && 'items' in item)) {
+                  handleImport(data);
+                  toast.success('Lists imported successfully!');
+                } else {
+                  toast.error('Invalid lists file. Please upload a valid lists JSON file.');
+                }
+              }}
               storageKey="lists"
             />
+            <ImportListButton onImport={handleAddList} />
             <Button
               onClick={() => setAddDialogOpen(true)}
               className="bg-gradient-primary hover:opacity-90 shadow-glow"

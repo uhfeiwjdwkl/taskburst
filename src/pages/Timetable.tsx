@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Star, Trash2, Home, Edit, Eye, ChevronDown, FileDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CreateTimetableDialog } from "@/components/CreateTimetableDialog";
+import { ImportTimetableDialog } from "@/components/ImportTimetableDialog";
 import { TimetableGrid } from "@/components/TimetableGrid";
 import { ColorKeyEditor } from "@/components/ColorKeyEditor";
 import { TimetableRowColEditor } from "@/components/TimetableRowColEditor";
@@ -38,6 +39,7 @@ const Timetable = () => {
   const [timetables, setTimetables] = useState<TimetableType[]>([]);
   const [selectedTimetable, setSelectedTimetable] = useState<TimetableType | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [timetableToDelete, setTimetableToDelete] = useState<string | null>(null);
   const [currentWeek, setCurrentWeek] = useState<1 | 2>(1); // for fortnightly view
@@ -213,10 +215,37 @@ const Timetable = () => {
             </Button>
             <h1 className="text-3xl font-bold">Timetables</h1>
           </div>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Timetable
-          </Button>
+          <div className="flex gap-2">
+            <ExportImportButton
+              data={timetables}
+              filename={`timetables-${new Date().toISOString().split('T')[0]}.json`}
+              onImport={(data) => {
+                if (Array.isArray(data) && data.every(item => 'name' in item && 'rows' in item)) {
+                  const allTimetables = JSON.parse(localStorage.getItem('timetables') || '[]');
+                  const otherTimetables = allTimetables.filter((t: TimetableType) => t.deletedAt);
+                  const timetablesWithDefaults = data.map(t => ({
+                    ...t,
+                    id: t.id || Date.now().toString() + Math.random(),
+                    createdAt: t.createdAt || new Date().toISOString()
+                  }));
+                  localStorage.setItem('timetables', JSON.stringify([...timetablesWithDefaults, ...otherTimetables]));
+                  saveTimetables(timetablesWithDefaults);
+                  toast.success('Timetables imported successfully!');
+                } else {
+                  toast.error('Invalid timetables file. Please upload a valid timetables JSON file.');
+                }
+              }}
+              storageKey="timetables"
+            />
+            <Button onClick={() => setIsImportDialogOpen(true)} variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Import from Excel
+            </Button>
+            <Button onClick={() => setIsCreateDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Timetable
+            </Button>
+          </div>
         </div>
 
         {timetables.length === 0 ? (
@@ -463,6 +492,12 @@ const Timetable = () => {
         <CreateTimetableDialog
           open={isCreateDialogOpen}
           onOpenChange={setIsCreateDialogOpen}
+          onCreate={handleCreateTimetable}
+        />
+
+        <ImportTimetableDialog
+          open={isImportDialogOpen}
+          onClose={() => setIsImportDialogOpen(false)}
           onCreate={handleCreateTimetable}
         />
 

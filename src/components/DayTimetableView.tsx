@@ -258,7 +258,7 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
             return (
               <div
                 key={idx}
-                className="absolute right-0 mx-1 rounded-md p-2 border opacity-30 overflow-hidden cursor-pointer hover:opacity-40 transition-opacity"
+                className="absolute rounded-md p-2 border opacity-30 overflow-hidden cursor-pointer hover:opacity-50 transition-opacity"
                 style={{
                   top: `${top}%`,
                   height: `${Math.max(height, 3)}%`,

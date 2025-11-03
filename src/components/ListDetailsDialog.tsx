@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Star, Edit, Trash2, Archive, Info } from 'lucide-react';
 import { ListItemDetailsDialog } from './ListItemDetailsDialog';
 import { EditListDialog } from './EditListDialog';
+import { ExportListButton } from './ExportListButton';
 
 interface ListDetailsDialogProps {
   list: List | null;
@@ -110,6 +111,7 @@ export const ListDetailsDialog = ({ list, open, onClose, onUpdate, onDelete, onA
 
             {/* Action buttons */}
             <div className="flex gap-2 flex-wrap">
+              <ExportListButton list={list} />
               <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
@@ -126,7 +128,26 @@ export const ListDetailsDialog = ({ list, open, onClose, onUpdate, onDelete, onA
 
             {/* List items */}
             <div>
-              <h3 className="font-semibold mb-3">Items ({list.items.length})</h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold">Items ({list.items.length})</h3>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => {
+                    const newItem = {
+                      id: Date.now().toString(),
+                      title: 'New Item',
+                      priority: 3,
+                      completed: false,
+                      createdAt: new Date().toISOString(),
+                    };
+                    onUpdate({ ...list, items: [...list.items, newItem] });
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Add Item
+                </Button>
+              </div>
               <div className="space-y-2">
                 {list.items.map((item) => (
                   <div

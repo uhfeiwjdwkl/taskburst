@@ -183,6 +183,19 @@ const CalendarPage = () => {
     });
   };
 
+  const getDatesWithEvents = () => {
+    const dates: Date[] = [];
+    events.forEach(event => {
+      try {
+        const date = parseISO(event.date);
+        dates.push(date);
+      } catch {
+        // Invalid date, skip
+      }
+    });
+    return dates;
+  };
+
   const getDatesWithTasks = () => {
     const dates: Date[] = [];
     tasks.forEach(task => {
@@ -201,23 +214,45 @@ const CalendarPage = () => {
   const tasksForSelectedDate = getTasksForDate(selectedDate);
   const eventsForSelectedDate = getEventsForDate(selectedDate);
   const datesWithTasks = getDatesWithTasks();
+  const datesWithEvents = getDatesWithEvents();
 
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-6xl mx-auto px-4 py-8">
-        <header className="flex items-center gap-4 mb-8">
-          <Button variant="outline" onClick={() => navigate('/')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              Calendar View
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Plan your tasks by date
-            </p>
+        <header className="flex items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={() => navigate('/')}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                Calendar View
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                Plan your tasks by date
+              </p>
+            </div>
           </div>
+          <ExportImportButton
+            data={events}
+            filename={`events-${new Date().toISOString().split('T')[0]}.json`}
+            onImport={(data) => {
+              if (Array.isArray(data) && data.every(item => 'title' in item && 'date' in item)) {
+                const eventsWithDefaults = data.map(e => ({
+                  ...e,
+                  id: e.id || Date.now().toString() + Math.random(),
+                  createdAt: e.createdAt || new Date().toISOString()
+                }));
+                setEvents(eventsWithDefaults);
+                localStorage.setItem('calendarEvents', JSON.stringify(eventsWithDefaults));
+                toast.success('Events imported successfully!');
+              } else {
+                toast.error('Invalid events file. Please upload a valid events JSON file.');
+              }
+            }}
+            storageKey="calendarEvents"
+          />
         </header>
 
         <div className="space-y-6">
@@ -233,13 +268,16 @@ const CalendarPage = () => {
                   className={cn("pointer-events-auto")}
                   modifiers={{
                     hasTask: datesWithTasks,
+                    hasEvent: datesWithEvents,
                   }}
                   modifiersStyles={{
                     hasTask: {
-                      fontWeight: 'bold',
                       textDecoration: 'underline',
                       textDecorationColor: 'hsl(var(--primary))',
                       textDecorationThickness: '2px',
+                    },
+                    hasEvent: {
+                      fontWeight: 'bold',
                     },
                   }}
                 />

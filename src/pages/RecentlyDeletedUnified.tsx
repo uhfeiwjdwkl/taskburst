@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Task } from '@/types/task';
 import { Session } from '@/types/session';
 import { Timetable } from '@/types/timetable';
+import { List, ListItem } from '@/types/list';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Undo2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns/formatDistanceToNow';
+import { ExportImportRecentlyDeletedButton } from '@/components/ExportImportRecentlyDeletedButton';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +27,8 @@ const RecentlyDeletedUnified = () => {
   const [deletedSessions, setDeletedSessions] = useState<Session[]>([]);
   const [deletedArchive, setDeletedArchive] = useState<Task[]>([]);
   const [deletedTimetables, setDeletedTimetables] = useState<Timetable[]>([]);
+  const [deletedLists, setDeletedLists] = useState<List[]>([]);
+  const [deletedListItems, setDeletedListItems] = useState<(ListItem & { listId: string; deletedAt?: string })[]>([]);
   const [permanentDeleteDialog, setPermanentDeleteDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ type: string; id: string } | null>(null);
 
@@ -56,6 +60,18 @@ const RecentlyDeletedUnified = () => {
     const deletedTT = timetables.filter(t => t.deletedAt && getDaysRemaining(t.deletedAt) > 0)
       .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
     setDeletedTimetables(deletedTT);
+
+    // Load deleted lists
+    const lists = JSON.parse(localStorage.getItem('lists') || '[]') as List[];
+    const deletedL = lists.filter(l => l.deletedAt && getDaysRemaining(l.deletedAt) > 0)
+      .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
+    setDeletedLists(deletedL);
+
+    // Load deleted list items
+    const listItems = JSON.parse(localStorage.getItem('deletedListItems') || '[]') as (ListItem & { listId: string; deletedAt?: string })[];
+    const deletedLI = listItems.filter(item => item.deletedAt && getDaysRemaining(item.deletedAt) > 0)
+      .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
+    setDeletedListItems(deletedLI);
   };
 
   const getDaysRemaining = (deletedAt: string) => {
@@ -156,11 +172,52 @@ const RecentlyDeletedUnified = () => {
       const updated = allTimetables.filter(t => t.id !== itemToDelete.id);
       localStorage.setItem('timetables', JSON.stringify(updated));
       setDeletedTimetables(updated.filter(t => t.deletedAt));
+    } else if (itemToDelete.type === 'list') {
+      const allLists = JSON.parse(localStorage.getItem('lists') || '[]') as List[];
+      const updated = allLists.filter(l => l.id !== itemToDelete.id);
+      localStorage.setItem('lists', JSON.stringify(updated));
+      setDeletedLists(updated.filter(l => l.deletedAt));
+    } else if (itemToDelete.type === 'list-item') {
+      const updated = deletedListItems.filter(item => item.id !== itemToDelete.id);
+      localStorage.setItem('deletedListItems', JSON.stringify(updated));
+      setDeletedListItems(updated);
     }
 
     toast.success('Permanently deleted');
     setPermanentDeleteDialog(false);
     setItemToDelete(null);
+  };
+
+  const handleRestoreList = (listId: string) => {
+    const list = deletedLists.find(l => l.id === listId);
+    if (list) {
+      const { deletedAt, ...cleanList } = list;
+      const allLists = JSON.parse(localStorage.getItem('lists') || '[]') as List[];
+      const updated = allLists.map(l => l.id === listId ? cleanList : l);
+      localStorage.setItem('lists', JSON.stringify(updated));
+      loadAllDeleted();
+      toast.success('List restored');
+    }
+  };
+
+  const handleRestoreListItem = (itemId: string) => {
+    const item = deletedListItems.find(i => i.id === itemId);
+    if (item) {
+      const { deletedAt, listId, ...cleanItem } = item;
+      const allLists = JSON.parse(localStorage.getItem('lists') || '[]') as List[];
+      const updated = allLists.map(l => {
+        if (l.id === listId) {
+          return { ...l, items: [...l.items, cleanItem] };
+        }
+        return l;
+      });
+      localStorage.setItem('lists', JSON.stringify(updated));
+      
+      const updatedDeleted = deletedListItems.filter(i => i.id !== itemId);
+      localStorage.setItem('deletedListItems', JSON.stringify(updatedDeleted));
+      loadAllDeleted();
+      toast.success('List item restored');
+    }
   };
 
   const formatDuration = (minutes: number) => {
@@ -178,11 +235,13 @@ const RecentlyDeletedUnified = () => {
         </div>
 
         <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="tasks">Tasks ({deletedTasks.length})</TabsTrigger>
             <TabsTrigger value="sessions">Sessions ({deletedSessions.length})</TabsTrigger>
             <TabsTrigger value="archive">Archive ({deletedArchive.length})</TabsTrigger>
             <TabsTrigger value="timetables">Timetables ({deletedTimetables.length})</TabsTrigger>
+            <TabsTrigger value="lists">Lists ({deletedLists.length})</TabsTrigger>
+            <TabsTrigger value="list-items">List Items ({deletedListItems.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tasks" className="space-y-4 mt-4">
@@ -340,6 +399,86 @@ const RecentlyDeletedUnified = () => {
                         className="text-destructive hover:text-destructive"
                         onClick={() => {
                           setItemToDelete({ type: 'timetable', id: timetable.id });
+                          setPermanentDeleteDialog(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="lists" className="space-y-4 mt-4">
+            {deletedLists.length === 0 ? (
+              <Card className="p-8 text-center text-muted-foreground">
+                No deleted lists
+              </Card>
+            ) : (
+              deletedLists.map(list => (
+                <Card key={list.id} className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-1">{list.title}</h3>
+                      <p className="text-sm text-muted-foreground mb-2">{list.items.length} items</p>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>Deleted {formatDistanceToNow(new Date(list.deletedAt!))} ago</span>
+                        <Badge variant="outline">{getDaysRemaining(list.deletedAt!)} days left</Badge>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => handleRestoreList(list.id)}>
+                        <Undo2 className="h-4 w-4 mr-1" />
+                        Restore
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => {
+                          setItemToDelete({ type: 'list', id: list.id });
+                          setPermanentDeleteDialog(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="list-items" className="space-y-4 mt-4">
+            {deletedListItems.length === 0 ? (
+              <Card className="p-8 text-center text-muted-foreground">
+                No deleted list items
+              </Card>
+            ) : (
+              deletedListItems.map(item => (
+                <Card key={item.id} className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-1">{item.title}</h3>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>Priority: {item.priority}</span>
+                        <span>Deleted {formatDistanceToNow(new Date(item.deletedAt!))} ago</span>
+                        <Badge variant="outline">{getDaysRemaining(item.deletedAt!)} days left</Badge>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => handleRestoreListItem(item.id)}>
+                        <Undo2 className="h-4 w-4 mr-1" />
+                        Restore
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => {
+                          setItemToDelete({ type: 'list-item', id: item.id });
                           setPermanentDeleteDialog(true);
                         }}
                       >
