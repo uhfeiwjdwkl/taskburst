@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Star, Edit, Trash2, Archive as ArchiveIcon } from 'lucide-react';
 import { Project } from '@/types/project';
 import { Task } from '@/types/task';
 import { ExportImportButton } from '@/components/ExportImportButton';
+import { AddProjectDialog } from '@/components/AddProjectDialog';
+import { EditProjectDialog } from '@/components/EditProjectDialog';
+import { ExportProjectButton } from '@/components/ExportProjectButton';
+import { ImportProjectButton } from '@/components/ImportProjectButton';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
@@ -11,8 +15,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 
 const Projects = () => {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   useEffect(() => {
     loadProjects();
@@ -29,15 +36,69 @@ const Projects = () => {
 
   const loadTasks = () => {
     const saved = localStorage.getItem('tasks');
+    const archived = localStorage.getItem('archivedTasks');
     if (saved) {
       const parsed = JSON.parse(saved) as Task[];
-      setTasks(parsed.filter(t => !t.deletedAt && !t.completed));
+      const archivedParsed = archived ? JSON.parse(archived) as Task[] : [];
+      setAllTasks([...parsed, ...archivedParsed].filter(t => !t.deletedAt));
     }
   };
 
   const saveProjects = (updated: Project[]) => {
-    localStorage.setItem('projects', JSON.stringify(updated));
+    const allProjects = [...updated].map((p, index) => ({ ...p, order: index }));
+    localStorage.setItem('projects', JSON.stringify(allProjects));
     loadProjects();
+  };
+
+  const handleAddProject = (newProject: Omit<Project, 'id' | 'createdAt' | 'order'>) => {
+    const project: Project = {
+      ...newProject,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+      order: projects.length,
+    };
+    saveProjects([...projects, project]);
+    toast.success('Project created!');
+  };
+
+  const handleEditProject = (updatedProject: Project) => {
+    const updated = projects.map(p => p.id === updatedProject.id ? updatedProject : p);
+    saveProjects(updated);
+    toast.success('Project updated!');
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      const deletedProject = { ...project, deletedAt: new Date().toISOString() };
+      const allProjects = JSON.parse(localStorage.getItem('projects') || '[]');
+      const updated = allProjects.map((p: Project) => p.id === projectId ? deletedProject : p);
+      localStorage.setItem('projects', JSON.stringify(updated));
+      loadProjects();
+      toast.success('Project moved to recently deleted');
+    }
+  };
+
+  const handleArchiveProject = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      const archivedProject = { ...project, archivedAt: new Date().toISOString() };
+      const allProjects = JSON.parse(localStorage.getItem('projects') || '[]');
+      const updated = allProjects.map((p: Project) => p.id === projectId ? archivedProject : p);
+      localStorage.setItem('projects', JSON.stringify(updated));
+      loadProjects();
+      toast.success('Project archived!');
+    }
+  };
+
+  const handleToggleFavorite = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      const updated = projects.map(p => 
+        p.id === projectId ? { ...p, favorite: !p.favorite } : p
+      );
+      saveProjects(updated);
+    }
   };
 
   const toggleExpanded = (projectId: string) => {
@@ -53,7 +114,7 @@ const Projects = () => {
   };
 
   const getProjectTasks = (project: Project): Task[] => {
-    return tasks.filter(t => project.taskIds.includes(t.id));
+    return allTasks.filter(t => project.taskIds.includes(t.id));
   };
 
   const calculateProjectStats = (project: Project) => {
@@ -98,7 +159,7 @@ const Projects = () => {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <p className="text-muted-foreground mb-4">No projects yet</p>
-            <Button>
+            <Button onClick={() => setAddDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Create your first project
             </Button>
@@ -114,30 +175,68 @@ const Projects = () => {
             return (
               <Card key={project.id}>
                 <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(project.id)}>
-                  <CardHeader className="cursor-pointer" onClick={() => toggleExpanded(project.id)}>
+                  <CardHeader>
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1 cursor-pointer" onClick={() => toggleExpanded(project.id)}>
                         <CollapsibleTrigger asChild>
                           <Button variant="ghost" size="sm">
                             {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                           </Button>
                         </CollapsibleTrigger>
-                        <div>
-                          <CardTitle>{project.title}</CardTitle>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <CardTitle>{project.title}</CardTitle>
+                            {project.favorite && <Star className="h-4 w-4 fill-primary text-primary" />}
+                          </div>
                           {project.description && (
                             <CardDescription>{project.description}</CardDescription>
                           )}
+                          <div className="text-sm text-muted-foreground mt-2">
+                            {stats.completedCount}/{stats.totalTasks} tasks • {stats.totalSpent}/{stats.totalEstimated} min
+                          </div>
+                          {project.dueDateTime && (
+                            <div className="text-sm text-muted-foreground mt-1">
+                              Due: {formatDateTimeToDDMMYYYY(project.dueDateTime)}
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {stats.completedCount}/{stats.totalTasks} tasks • {stats.totalSpent}/{stats.totalEstimated} min
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleFavorite(project.id)}
+                        >
+                          <Star className={`h-4 w-4 ${project.favorite ? 'fill-primary text-primary' : ''}`} />
+                        </Button>
+                        <ExportProjectButton project={project} />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedProject(project);
+                            setEditDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleArchiveProject(project.id)}
+                        >
+                          <ArchiveIcon className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteProject(project.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                    {project.dueDateTime && (
-                      <div className="text-sm text-muted-foreground mt-2">
-                        Due: {formatDateTimeToDDMMYYYY(project.dueDateTime)}
-                      </div>
-                    )}
                   </CardHeader>
                   <CollapsibleContent>
                     <CardContent>
@@ -148,10 +247,10 @@ const Projects = () => {
                           {projectTasks.map((task) => (
                             <div
                               key={task.id}
-                              className={`p-3 border rounded-md ${task.completed ? 'opacity-50 line-through' : ''}`}
+                              className="p-3 border rounded-md"
                             >
                               <div className="flex justify-between items-start">
-                                <div>
+                                <div className={task.completed ? 'line-through opacity-70' : ''}>
                                   <div className="font-medium">{task.name}</div>
                                   <div className="text-sm text-muted-foreground">{task.description}</div>
                                 </div>
@@ -171,6 +270,21 @@ const Projects = () => {
           })}
         </div>
       )}
+
+      <AddProjectDialog
+        open={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+        onSave={handleAddProject}
+        tasks={allTasks.filter(t => !t.completed)}
+      />
+
+      <EditProjectDialog
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        onSave={handleEditProject}
+        project={selectedProject}
+        tasks={allTasks}
+      />
     </div>
   );
 };

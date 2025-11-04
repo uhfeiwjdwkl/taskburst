@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Task } from '@/types/task';
 import { List } from '@/types/list';
+import { Project } from '@/types/project';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,11 +10,13 @@ import { ArrowLeft, Trash2, Clock, Undo2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ExportImportButton } from '@/components/ExportImportButton';
+import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
 
 const Archive = () => {
   const navigate = useNavigate();
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
   const [archivedLists, setArchivedLists] = useState<List[]>([]);
+  const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
 
   useEffect(() => {
     const archived = localStorage.getItem('archivedTasks');
@@ -25,6 +28,12 @@ const Archive = () => {
     if (lists) {
       const allLists: List[] = JSON.parse(lists);
       setArchivedLists(allLists.filter(l => l.archivedAt && !l.deletedAt));
+    }
+
+    const projects = localStorage.getItem('projects');
+    if (projects) {
+      const allProjects: Project[] = JSON.parse(projects);
+      setArchivedProjects(allProjects.filter(p => p.archivedAt && !p.deletedAt));
     }
   }, []);
 
@@ -53,6 +62,34 @@ const Archive = () => {
       const updatedArchived = archivedLists.filter(l => l.id !== listId);
       setArchivedLists(updatedArchived);
       toast.success('List moved back to active lists');
+    }
+  };
+
+  const handleUnarchiveProject = (projectId: string) => {
+    const project = archivedProjects.find(p => p.id === projectId);
+    if (project) {
+      const { archivedAt, ...unarchived } = project;
+      const allProjects = JSON.parse(localStorage.getItem('projects') || '[]');
+      const updated = allProjects.map((p: Project) => p.id === projectId ? unarchived : p);
+      localStorage.setItem('projects', JSON.stringify(updated));
+      
+      const updatedArchived = archivedProjects.filter(p => p.id !== projectId);
+      setArchivedProjects(updatedArchived);
+      toast.success('Project unarchived');
+    }
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    const project = archivedProjects.find(p => p.id === projectId);
+    if (project) {
+      const deletedProject = { ...project, deletedAt: new Date().toISOString() };
+      const allProjects = JSON.parse(localStorage.getItem('projects') || '[]');
+      const updated = allProjects.map((p: Project) => p.id === projectId ? deletedProject : p);
+      localStorage.setItem('projects', JSON.stringify(updated));
+      
+      const updatedArchived = archivedProjects.filter(p => p.id !== projectId);
+      setArchivedProjects(updatedArchived);
+      toast.success('Project moved to recently deleted');
     }
   };
 
@@ -115,7 +152,7 @@ const Archive = () => {
                 Archive
               </h1>
               <p className="text-muted-foreground mt-1">
-                {archivedTasks.length} tasks, {archivedLists.length} lists
+                {archivedTasks.length} tasks, {archivedLists.length} lists, {archivedProjects.length} projects
               </p>
             </div>
           </div>
@@ -132,9 +169,10 @@ const Archive = () => {
         </header>
 
         <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="tasks">Tasks ({archivedTasks.length})</TabsTrigger>
             <TabsTrigger value="lists">Lists ({archivedLists.length})</TabsTrigger>
+            <TabsTrigger value="projects">Projects ({archivedProjects.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tasks" className="space-y-4 mt-4">
@@ -245,6 +283,62 @@ const Archive = () => {
                           size="sm"
                           variant="ghost"
                           onClick={() => handleDeleteList(list.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="projects" className="space-y-4 mt-4">
+            {archivedProjects.length === 0 ? (
+              <Card className="p-8 text-center text-muted-foreground">
+                No archived projects yet. Archive some projects to see them here!
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {archivedProjects.map((project) => (
+                  <Card key={project.id} className="p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-lg truncate mb-2">
+                          {project.title}
+                        </h3>
+                        {project.description && (
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {project.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div>
+                            {project.taskIds.length} tasks
+                          </div>
+                          {project.dueDateTime && (
+                            <div>
+                              Due: {formatDateTimeToDDMMYYYY(project.dueDateTime)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleUnarchiveProject(project.id)}
+                        >
+                          <Undo2 className="h-4 w-4 mr-1" />
+                          Unarchive
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteProject(project.id)}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />

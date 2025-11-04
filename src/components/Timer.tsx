@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import ProgressRing from './ProgressRing';
 import ProgressGridEditor from './ProgressGridEditor';
+import { BreakDurationMenu } from './BreakDurationMenu';
 import { TimerPhase, Task } from '@/types/task';
 import { Session } from '@/types/session';
 import confetti from 'canvas-confetti';
@@ -21,6 +22,8 @@ import { toast } from 'sonner';
 
 const DEFAULT_FOCUS_DURATION = 25; // minutes
 const DEFAULT_BREAK_DURATION = 5; // minutes
+const DEFAULT_LONG_BREAK_DURATION = 15; // minutes
+const DEFAULT_LONG_BREAK_INTERVAL = 4; // every 4 sessions
 
 interface TimerProps {
   onTick?: (seconds: number) => void;
@@ -34,23 +37,49 @@ interface TimerProps {
 }
 
 const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChange, onUpdateTask, tasks, onSelectTask }: TimerProps) => {
-  // Load durations from localStorage
+  // Load durations and settings from localStorage
   const [focusDuration, setFocusDuration] = useState(() => {
-    const saved = localStorage.getItem('focusDuration');
-    return saved ? parseInt(saved) : DEFAULT_FOCUS_DURATION;
+    const settings = localStorage.getItem('appSettings');
+    if (settings) {
+      return JSON.parse(settings).focusDuration || DEFAULT_FOCUS_DURATION;
+    }
+    return DEFAULT_FOCUS_DURATION;
   });
   const [breakDuration, setBreakDuration] = useState(() => {
-    const saved = localStorage.getItem('breakDuration');
-    return saved ? parseInt(saved) : DEFAULT_BREAK_DURATION;
+    const settings = localStorage.getItem('appSettings');
+    if (settings) {
+      return JSON.parse(settings).breakDuration || DEFAULT_BREAK_DURATION;
+    }
+    return DEFAULT_BREAK_DURATION;
+  });
+  const [longBreakDuration, setLongBreakDuration] = useState(() => {
+    const settings = localStorage.getItem('appSettings');
+    if (settings) {
+      return JSON.parse(settings).longBreakDuration || DEFAULT_LONG_BREAK_DURATION;
+    }
+    return DEFAULT_LONG_BREAK_DURATION;
+  });
+  const [longBreakInterval, setLongBreakInterval] = useState(() => {
+    const settings = localStorage.getItem('appSettings');
+    if (settings) {
+      return JSON.parse(settings).longBreakInterval || DEFAULT_LONG_BREAK_INTERVAL;
+    }
+    return DEFAULT_LONG_BREAK_INTERVAL;
+  });
+  const [completedFocusSessions, setCompletedFocusSessions] = useState(() => {
+    const saved = localStorage.getItem('completedFocusSessions');
+    return saved ? parseInt(saved) : 0;
   });
 
   const FOCUS_DURATION = focusDuration * 60; // convert to seconds
   const BREAK_DURATION = breakDuration * 60; // convert to seconds
+  const LONG_BREAK_DURATION = longBreakDuration * 60; // convert to seconds
 
   const [phase, setPhase] = useState<TimerPhase>('focus');
   const [seconds, setSeconds] = useState(FOCUS_DURATION);
   const [isRunning, setIsRunning] = useState(false);
   const [breakBonus, setBreakBonus] = useState(0);
+  const [customBreakDuration, setCustomBreakDuration] = useState<number | null>(null);
   const [showStartEditor, setShowStartEditor] = useState(false);
   const [showEndEditor, setShowEndEditor] = useState(false);
   const [sessionStartProgress, setSessionStartProgress] = useState(0);
@@ -66,7 +95,9 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const [tempBreakDuration, setTempBreakDuration] = useState(breakDuration);
   const intervalRef = useRef<number>();
 
-  const totalDuration = phase === 'focus' ? FOCUS_DURATION : BREAK_DURATION + breakBonus;
+  const totalDuration = phase === 'focus' 
+    ? FOCUS_DURATION 
+    : (customBreakDuration !== null ? customBreakDuration * 60 : (completedFocusSessions % longBreakInterval === 0 && completedFocusSessions > 0 ? LONG_BREAK_DURATION : BREAK_DURATION)) + breakBonus;
   const progress = ((totalDuration - seconds) / totalDuration) * 100;
 
   // Calculate task progress
@@ -83,6 +114,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
         setPhase(state.phase);
         setSeconds(state.seconds);
         setBreakBonus(state.breakBonus || 0);
+        setCustomBreakDuration(state.customBreakDuration || null);
         if (state.currentSessionStartTime) {
           setCurrentSessionStartTime(new Date(state.currentSessionStartTime));
         }
@@ -102,6 +134,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       phase,
       seconds,
       breakBonus,
+      customBreakDuration,
       currentSessionStartTime: currentSessionStartTime?.toISOString(),
       currentSessionStartSeconds,
       sessionStartProgress,
@@ -109,7 +142,36 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       sessionStartPhase,
     };
     localStorage.setItem('timerState', JSON.stringify(state));
-  }, [phase, seconds, breakBonus, currentSessionStartTime, currentSessionStartSeconds, sessionStartProgress, sessionStartSpentMinutes, sessionStartPhase]);
+  }, [phase, seconds, breakBonus, customBreakDuration, currentSessionStartTime, currentSessionStartSeconds, sessionStartProgress, sessionStartSpentMinutes, sessionStartPhase]);
+
+  // Handle page visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isRunning) {
+        // Page is being hidden - auto pause
+        setIsRunning(false);
+        onRunningChange?.(false);
+        if (activeTask) {
+          setShowEndEditor(true);
+        }
+      }
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isRunning) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isRunning, activeTask, onRunningChange]);
 
   // Auto-start timer when a new task is selected (Study button pressed)
   const prevActiveTaskIdRef = useRef<string | null>(null);
@@ -322,10 +384,27 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
 
   const handlePhaseComplete = (filled: number) => {
     saveSession(filled);
+    
+    // Increment focus session counter if completing focus phase
+    if (phase === 'focus') {
+      const newCount = completedFocusSessions + 1;
+      setCompletedFocusSessions(newCount);
+      localStorage.setItem('completedFocusSessions', newCount.toString());
+    }
+    
     const nextPhase = phase === 'focus' ? 'break' : 'focus';
     setPhase(nextPhase);
-    setSeconds(nextPhase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);
+    
+    // Determine break duration
+    if (nextPhase === 'break') {
+      const shouldBeLongBreak = completedFocusSessions % longBreakInterval === 0 && completedFocusSessions > 0;
+      setSeconds(shouldBeLongBreak ? LONG_BREAK_DURATION : BREAK_DURATION);
+    } else {
+      setSeconds(FOCUS_DURATION);
+    }
+    
     setBreakBonus(0);
+    setCustomBreakDuration(null);
     setCurrentSessionStartTime(null);
   };
 
@@ -386,12 +465,15 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     // Skip to next phase
     if (phase === 'focus') {
       setPhase('break');
-      setSeconds(BREAK_DURATION);
+      const shouldBeLongBreak = completedFocusSessions % longBreakInterval === 0 && completedFocusSessions > 0;
+      setSeconds(shouldBeLongBreak ? LONG_BREAK_DURATION : BREAK_DURATION);
       setBreakBonus(0);
+      setCustomBreakDuration(null);
     } else {
       setPhase('focus');
       setSeconds(FOCUS_DURATION);
       setBreakBonus(0);
+      setCustomBreakDuration(null);
     }
     setCurrentSessionStartTime(null);
   };
@@ -571,6 +653,15 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       </div>
 
       <div className="flex gap-4 flex-wrap justify-center relative z-50">
+        {phase === 'break' && (
+          <BreakDurationMenu
+            onSelectDuration={(minutes) => {
+              setCustomBreakDuration(minutes);
+              setSeconds(minutes * 60);
+              setBreakBonus(0);
+            }}
+          />
+        )}
         <Button
           size="lg"
           onClick={handleStart}

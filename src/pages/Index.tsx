@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Task } from '@/types/task';
 import { Timetable } from '@/types/timetable';
 import { List } from '@/types/list';
+import { Project } from '@/types/project';
 import Timer from '@/components/Timer';
 import TaskCard from '@/components/TaskCard';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
@@ -13,11 +14,13 @@ import { ExportImportButton } from '@/components/ExportImportButton';
 import { exportAllData } from '@/lib/exportImport';
 import { ImportAllButton } from '@/components/ImportAllButton';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download, Briefcase, ChevronDown, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { playTaskCompleteSound } from '@/lib/sounds';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -30,6 +33,8 @@ const Index = () => {
   const [timerRunning, setTimerRunning] = useState(false);
   const [favoriteTimetables, setFavoriteTimetables] = useState<Timetable[]>([]);
   const [favoriteLists, setFavoriteLists] = useState<List[]>([]);
+  const [activeProjects, setActiveProjects] = useState<Project[]>([]);
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
   // Load tasks from localStorage
   useEffect(() => {
@@ -78,6 +83,13 @@ const Index = () => {
       const allLists = JSON.parse(savedLists) as List[];
       const favorites = allLists.filter(l => l.favorite && !l.deletedAt && !l.archivedAt);
       setFavoriteLists(favorites);
+    }
+
+    const savedProjects = localStorage.getItem('projects');
+    if (savedProjects) {
+      const allProjects = JSON.parse(savedProjects) as Project[];
+      const active = allProjects.filter(p => !p.deletedAt && !p.archivedAt);
+      setActiveProjects(active);
     }
   }, []);
 
