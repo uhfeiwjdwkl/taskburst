@@ -5,6 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { List, ListItem } from '@/types/list';
+import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 
 interface AddListDialogProps {
@@ -20,6 +28,7 @@ export const AddListDialog = ({ open, onClose, onAdd }: AddListDialogProps) => {
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<ListItem[]>([]);
   const [currentInput, setCurrentInput] = useState('');
+  const [pasteText, setPasteText] = useState('');
 
   const handleAddItem = () => {
     if (!currentInput.trim()) return;
@@ -58,6 +67,25 @@ export const AddListDialog = ({ open, onClose, onAdd }: AddListDialogProps) => {
     setItems(newItems);
   };
 
+  const handlePasteItems = () => {
+    if (!pasteText.trim()) return;
+    
+    const lines = pasteText.split('\n').filter(line => line.trim());
+    const newItems = lines.map((line, index) => {
+      const cleanedLine = line.replace(/^[•\-*]\s*/, '').trim();
+      return {
+        id: `${Date.now()}-${index}`,
+        title: cleanedLine,
+        priority: 3,
+        completed: false,
+        createdAt: new Date().toISOString(),
+      };
+    });
+    
+    setItems([...items, ...newItems]);
+    setPasteText('');
+  };
+
   const handleSubmit = () => {
     if (!title.trim() || items.length === 0) return;
 
@@ -79,6 +107,7 @@ export const AddListDialog = ({ open, onClose, onAdd }: AddListDialogProps) => {
     setNotes('');
     setItems([]);
     setCurrentInput('');
+    setPasteText('');
     onClose();
   };
 
@@ -145,13 +174,34 @@ export const AddListDialog = ({ open, onClose, onAdd }: AddListDialogProps) => {
             </p>
           </div>
 
+          <div>
+            <Label>Or Paste Multiple Items</Label>
+            <Textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder="Paste text here (one item per line)..."
+              rows={3}
+              className="font-mono text-sm"
+            />
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm" 
+              onClick={handlePasteItems}
+              disabled={!pasteText.trim()}
+              className="mt-2"
+            >
+              Add Pasted Items
+            </Button>
+          </div>
+
           {items.length > 0 && (
             <div className="space-y-2">
               <Label>Items ({items.length})</Label>
               <div className="space-y-2 max-h-[300px] overflow-y-auto">
                 {items.map((item, index) => (
                   <div key={item.id} className="flex items-center gap-2 p-2 border rounded">
-                    <div className="flex gap-1">
+                    <div className="flex flex-col gap-1">
                       <Button
                         type="button"
                         variant="ghost"
@@ -159,7 +209,7 @@ export const AddListDialog = ({ open, onClose, onAdd }: AddListDialogProps) => {
                         disabled={index === 0}
                         onClick={() => moveItem(index, index - 1)}
                       >
-                        ↑
+                        <ChevronUp className="h-4 w-4" />
                       </Button>
                       <Button
                         type="button"
@@ -168,7 +218,7 @@ export const AddListDialog = ({ open, onClose, onAdd }: AddListDialogProps) => {
                         disabled={index === items.length - 1}
                         onClick={() => moveItem(index, index + 1)}
                       >
-                        ↓
+                        <ChevronDown className="h-4 w-4" />
                       </Button>
                     </div>
                     <Input
@@ -176,13 +226,28 @@ export const AddListDialog = ({ open, onClose, onAdd }: AddListDialogProps) => {
                       onChange={(e) => handleUpdateItem(item.id, { title: e.target.value })}
                       className="flex-1"
                     />
+                    <Select
+                      value={item.priority.toString()}
+                      onValueChange={(value) => handleUpdateItem(item.id, { priority: parseInt(value) })}
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">P1</SelectItem>
+                        <SelectItem value="2">P2</SelectItem>
+                        <SelectItem value="3">P3</SelectItem>
+                        <SelectItem value="4">P4</SelectItem>
+                        <SelectItem value="5">P5</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDeleteItem(item.id)}
                     >
-                      ✕
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 ))}

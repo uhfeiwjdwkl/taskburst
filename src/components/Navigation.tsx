@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Home, Calendar, FolderOpen, History as HistoryIcon, Table, Archive, Clock, List } from "lucide-react";
+import { Home, Calendar, FolderOpen, History as HistoryIcon, Table, Archive, Clock, List, Briefcase, Settings } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   DropdownMenu,
@@ -16,6 +16,7 @@ export function Navigation() {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -55,6 +56,24 @@ export function Navigation() {
             >
               Return to kommenszlapf.website
             </a>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="absolute left-0 top-full mt-12 bg-popover text-sm px-3 py-1 rounded-md shadow-lg border border-border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 cursor-pointer">
+                  <Settings className="h-4 w-4 inline mr-1" />
+                  Settings
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => navigate('/')}>
+                  <Home className="h-4 w-4 mr-2" />
+                  Home
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowSettings(true)}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  Open Settings
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div className="px-3 py-1 rounded-md bg-muted border">
             <div className="font-mono text-xs font-bold leading-tight">
@@ -91,6 +110,14 @@ export function Navigation() {
           >
             <List className="h-4 w-4 mr-2" />
             Lists
+          </Button>
+          <Button
+            variant={isActive('/projects') ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => navigate('/projects')}
+          >
+            <Briefcase className="h-4 w-4 mr-2" />
+            Projects
           </Button>
           <Button
             variant={isActive('/calendar') ? 'secondary' : 'ghost'}
@@ -156,6 +183,10 @@ export function Navigation() {
               <DropdownMenuItem onClick={() => navigate('/lists')}>
                 <List className="h-4 w-4 mr-2" />
                 Lists
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/projects')}>
+                <Briefcase className="h-4 w-4 mr-2" />
+                Projects
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate('/calendar')}>
                 <Calendar className="h-4 w-4 mr-2" />

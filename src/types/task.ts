@@ -12,6 +12,8 @@ export interface Task {
   progressGridSize: number; // Total number of squares in the grid
   progressGridFilled: number; // Number of filled squares
   deletedAt?: string; // ISO string - when moved to recently deleted
+  instructions?: string; // Optional instructions/guidelines for the task
+  projectId?: string; // Optional reference to a project
 }
 
 export type TimerPhase = 'focus' | 'break';
