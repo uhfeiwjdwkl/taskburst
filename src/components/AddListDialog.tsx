@@ -230,15 +230,17 @@ export const AddListDialog = ({ open, onClose, onAdd }: AddListDialogProps) => {
                       value={item.priority.toString()}
                       onValueChange={(value) => handleUpdateItem(item.id, { priority: parseInt(value) })}
                     >
-                      <SelectTrigger className="w-24">
-                        <SelectValue />
+                      <SelectTrigger className="w-32">
+                        <SelectValue placeholder={`Priority: ${item.priority}`}>
+                          Priority: {item.priority}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">P1</SelectItem>
-                        <SelectItem value="2">P2</SelectItem>
-                        <SelectItem value="3">P3</SelectItem>
-                        <SelectItem value="4">P4</SelectItem>
-                        <SelectItem value="5">P5</SelectItem>
+                        <SelectItem value="1">1</SelectItem>
+                        <SelectItem value="2">2</SelectItem>
+                        <SelectItem value="3">3</SelectItem>
+                        <SelectItem value="4">4</SelectItem>
+                        <SelectItem value="5">5</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button

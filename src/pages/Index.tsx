@@ -21,6 +21,8 @@ import { toast } from 'sonner';
 import { playTaskCompleteSound } from '@/lib/sounds';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
+import { ListCard } from '@/components/ListCard';
+import { ListDetailsDialog } from '@/components/ListDetailsDialog';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -35,6 +37,8 @@ const Index = () => {
   const [favoriteLists, setFavoriteLists] = useState<List[]>([]);
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [selectedList, setSelectedList] = useState<List | null>(null);
+  const [listDetailsOpen, setListDetailsOpen] = useState(false);
 
   // Load tasks from localStorage
   useEffect(() => {
@@ -303,27 +307,16 @@ const Index = () => {
               </Button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              {favoriteLists.map((list) => {
-                const completedCount = list.items.filter(item => item.completed).length;
-                const totalCount = list.items.length;
-                return (
-                  <Card
-                    key={list.id}
-                    className="p-4 cursor-pointer hover:shadow-lg transition-shadow"
-                    onClick={() => navigate('/lists')}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg mb-1">{list.title}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {completedCount}/{totalCount} completed
-                        </p>
-                      </div>
-                      <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                    </div>
-                  </Card>
-                );
-              })}
+              {favoriteLists.map((list) => (
+                <ListCard 
+                  key={list.id} 
+                  list={list}
+                  onClick={() => {
+                    setSelectedList(list);
+                    setListDetailsOpen(true);
+                  }}
+                />
+              ))}
             </div>
           </section>
         )}
@@ -381,6 +374,60 @@ const Index = () => {
           onClose={() => setAddDialogOpen(false)}
           onAdd={handleAddTask}
         />
+
+        {selectedList && (
+          <ListDetailsDialog
+            list={selectedList}
+            open={listDetailsOpen}
+            onClose={() => setListDetailsOpen(false)}
+            onUpdate={(updatedList) => {
+              const allLists = JSON.parse(localStorage.getItem('lists') || '[]');
+              const updated = allLists.map((l: List) => l.id === updatedList.id ? updatedList : l);
+              localStorage.setItem('lists', JSON.stringify(updated));
+              setFavoriteLists(updated.filter((l: List) => l.favorite && !l.deletedAt && !l.archivedAt));
+              toast.success('List updated!');
+            }}
+            onDelete={() => {
+              if (selectedList) {
+                const deletedList = { ...selectedList, deletedAt: new Date().toISOString() };
+                const allLists = JSON.parse(localStorage.getItem('lists') || '[]');
+                localStorage.setItem('lists', JSON.stringify([...allLists.filter((l: List) => l.id !== selectedList.id), deletedList]));
+                setFavoriteLists(favoriteLists.filter(l => l.id !== selectedList.id));
+                setListDetailsOpen(false);
+                toast.success('List moved to recently deleted');
+              }
+            }}
+            onArchive={() => {
+              if (selectedList) {
+                const archivedList = { ...selectedList, archivedAt: new Date().toISOString() };
+                const allLists = JSON.parse(localStorage.getItem('lists') || '[]');
+                localStorage.setItem('lists', JSON.stringify([...allLists.filter((l: List) => l.id !== selectedList.id), archivedList]));
+                setFavoriteLists(favoriteLists.filter(l => l.id !== selectedList.id));
+                setListDetailsOpen(false);
+                toast.success('List archived!');
+              }
+            }}
+            onDeleteItem={(itemId) => {
+              if (selectedList) {
+                const deletedItem = selectedList.items.find(item => item.id === itemId);
+                if (deletedItem) {
+                  const deletedItems = JSON.parse(localStorage.getItem('deletedListItems') || '[]');
+                  localStorage.setItem('deletedListItems', JSON.stringify([...deletedItems, { ...deletedItem, deletedAt: new Date().toISOString(), listId: selectedList.id }]));
+                  const updatedList = {
+                    ...selectedList,
+                    items: selectedList.items.filter(item => item.id !== itemId),
+                  };
+                  setSelectedList(updatedList);
+                  const allLists = JSON.parse(localStorage.getItem('lists') || '[]');
+                  const updated = allLists.map((l: List) => l.id === updatedList.id ? updatedList : l);
+                  localStorage.setItem('lists', JSON.stringify(updated));
+                  setFavoriteLists(updated.filter((l: List) => l.favorite && !l.deletedAt && !l.archivedAt));
+                  toast.success('Item moved to recently deleted');
+                }
+              }
+            }}
+          />
+        )}
       </div>
     </div>
   );

@@ -252,6 +252,7 @@ const CalendarPage = () => {
               }
             }}
             storageKey="calendarEvents"
+            label="Events"
           />
         </header>
 

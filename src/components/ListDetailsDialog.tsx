@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { List, ListItem } from '@/types/list';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Star, Edit, Trash2, Archive, Info } from 'lucide-react';
+import { Star, Edit, Trash2, Archive, Info, Plus } from 'lucide-react';
 import { ListItemDetailsDialog } from './ListItemDetailsDialog';
 import { EditListDialog } from './EditListDialog';
 import { ExportListButton } from './ExportListButton';
+import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
 
 interface ListDetailsDialogProps {
   list: List | null;
@@ -23,6 +27,11 @@ export const ListDetailsDialog = ({ list, open, onClose, onUpdate, onDelete, onA
   const [selectedItem, setSelectedItem] = useState<ListItem | null>(null);
   const [itemDetailsOpen, setItemDetailsOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [addItemDialogOpen, setAddItemDialogOpen] = useState(false);
+  const [newItemTitle, setNewItemTitle] = useState('');
+  const [newItemPriority, setNewItemPriority] = useState(3);
+  const [newItemDateTime, setNewItemDateTime] = useState('');
+  const [newItemNotes, setNewItemNotes] = useState('');
 
   if (!list) return null;
 
@@ -96,7 +105,7 @@ export const ListDetailsDialog = ({ list, open, onClose, onUpdate, onDelete, onA
               <div className="text-sm">
                 <span className="font-medium">Due: </span>
                 <span className="text-muted-foreground">
-                  {new Date(list.dueDateTime).toLocaleString()}
+                  {formatDateTimeToDDMMYYYY(list.dueDateTime)}
                 </span>
               </div>
             )}
@@ -133,18 +142,9 @@ export const ListDetailsDialog = ({ list, open, onClose, onUpdate, onDelete, onA
                 <Button 
                   size="sm" 
                   variant="outline"
-                  onClick={() => {
-                    const newItem = {
-                      id: Date.now().toString(),
-                      title: 'New Item',
-                      priority: 3,
-                      completed: false,
-                      createdAt: new Date().toISOString(),
-                    };
-                    onUpdate({ ...list, items: [...list.items, newItem] });
-                  }}
+                  onClick={() => setAddItemDialogOpen(true)}
                 >
-                  <Edit className="h-4 w-4 mr-2" />
+                  <Plus className="h-4 w-4 mr-2" />
                   Add Item
                 </Button>
               </div>
@@ -170,7 +170,7 @@ export const ListDetailsDialog = ({ list, open, onClose, onUpdate, onDelete, onA
                       
                       {item.dateTime && (
                         <div className="text-xs text-muted-foreground mt-1">
-                          {new Date(item.dateTime).toLocaleString()}
+                          {formatDateTimeToDDMMYYYY(item.dateTime)}
                         </div>
                       )}
                     </div>
@@ -205,6 +205,102 @@ export const ListDetailsDialog = ({ list, open, onClose, onUpdate, onDelete, onA
         onClose={() => setEditDialogOpen(false)}
         onSave={onUpdate}
       />
+
+      {/* Add Item Dialog */}
+      <Dialog open={addItemDialogOpen} onOpenChange={setAddItemDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add New Item</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="newItemTitle">Title</Label>
+              <Input
+                id="newItemTitle"
+                value={newItemTitle}
+                onChange={(e) => setNewItemTitle(e.target.value)}
+                placeholder="Item title"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="newItemPriority">Priority</Label>
+              <div className="flex gap-2 mt-2">
+                {[1, 2, 3, 4, 5].map((p) => (
+                  <Button
+                    key={p}
+                    variant={newItemPriority === p ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setNewItemPriority(p)}
+                  >
+                    {p}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="newItemDateTime">Date & Time (Optional)</Label>
+              <Input
+                id="newItemDateTime"
+                type="datetime-local"
+                value={newItemDateTime}
+                onChange={(e) => setNewItemDateTime(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="newItemNotes">Notes (Optional)</Label>
+              <Textarea
+                id="newItemNotes"
+                value={newItemNotes}
+                onChange={(e) => setNewItemNotes(e.target.value)}
+                rows={4}
+                placeholder="Add any additional notes..."
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setAddItemDialogOpen(false);
+                  setNewItemTitle('');
+                  setNewItemPriority(3);
+                  setNewItemDateTime('');
+                  setNewItemNotes('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (newItemTitle.trim()) {
+                    const newItem: ListItem = {
+                      id: Date.now().toString(),
+                      title: newItemTitle.trim(),
+                      priority: newItemPriority,
+                      completed: false,
+                      dateTime: newItemDateTime || undefined,
+                      notes: newItemNotes.trim() || undefined,
+                      createdAt: new Date().toISOString(),
+                    };
+                    onUpdate({ ...list, items: [...list.items, newItem] });
+                    setAddItemDialogOpen(false);
+                    setNewItemTitle('');
+                    setNewItemPriority(3);
+                    setNewItemDateTime('');
+                    setNewItemNotes('');
+                  }
+                }}
+                disabled={!newItemTitle.trim()}
+              >
+                Add Item
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

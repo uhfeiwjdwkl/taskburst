@@ -133,6 +133,7 @@ const Lists = () => {
                 }
               }}
               storageKey="lists"
+              label="Lists"
             />
             <ImportListButton onImport={handleAddList} />
             <Button

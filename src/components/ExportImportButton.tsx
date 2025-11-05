@@ -9,9 +9,10 @@ interface ExportImportButtonProps {
   filename: string;
   onImport: (data: any) => void;
   storageKey: string;
+  label?: string;
 }
 
-export const ExportImportButton = ({ data, filename, onImport, storageKey }: ExportImportButtonProps) => {
+export const ExportImportButton = ({ data, filename, onImport, storageKey, label }: ExportImportButtonProps) => {
   const [showOptions, setShowOptions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,7 +56,7 @@ export const ExportImportButton = ({ data, filename, onImport, storageKey }: Exp
         className="gap-2"
       >
         <Download className="h-4 w-4" />
-        Export/Import
+        {label ? `Export/Import ${label}` : 'Export/Import'}
       </Button>
       
       {showOptions && (
