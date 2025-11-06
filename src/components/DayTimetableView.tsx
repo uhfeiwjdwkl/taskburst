@@ -35,6 +35,27 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
       if (active.length > 0 && !selectedTimetableId) {
         setSelectedTimetableId(active[0].id);
       }
+    } else {
+      // Create default 24-hour timetable
+      const defaultTimetable: Timetable = {
+        id: 'default-24hr',
+        name: 'Default 24-Hour Schedule',
+        favorite: false,
+        type: 'weekly',
+        rows: Array.from({ length: 24 }, (_, i) => ({
+          id: `hour-${i}`,
+          label: `${i}:00`,
+          startTime: `${String(i).padStart(2, '0')}:00`,
+          duration: 60,
+        })),
+        columns: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+        fieldsPerCell: 1,
+        cells: {},
+        colorKey: {},
+        createdAt: new Date().toISOString(),
+      };
+      setTimetables([defaultTimetable]);
+      setSelectedTimetableId('default-24hr');
     }
   }, []);
 

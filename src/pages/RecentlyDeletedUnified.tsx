@@ -3,6 +3,7 @@ import { Task } from '@/types/task';
 import { Session } from '@/types/session';
 import { Timetable } from '@/types/timetable';
 import { List, ListItem } from '@/types/list';
+import { Project } from '@/types/project';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +30,7 @@ const RecentlyDeletedUnified = () => {
   const [deletedTimetables, setDeletedTimetables] = useState<Timetable[]>([]);
   const [deletedLists, setDeletedLists] = useState<List[]>([]);
   const [deletedListItems, setDeletedListItems] = useState<(ListItem & { listId: string; deletedAt?: string })[]>([]);
+  const [deletedProjects, setDeletedProjects] = useState<Project[]>([]);
   const [permanentDeleteDialog, setPermanentDeleteDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ type: string; id: string } | null>(null);
 
@@ -72,6 +74,12 @@ const RecentlyDeletedUnified = () => {
     const deletedLI = listItems.filter(item => item.deletedAt && getDaysRemaining(item.deletedAt) > 0)
       .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
     setDeletedListItems(deletedLI);
+
+    // Load deleted projects
+    const projects = JSON.parse(localStorage.getItem('projects') || '[]') as Project[];
+    const deletedP = projects.filter(p => p.deletedAt && getDaysRemaining(p.deletedAt) > 0)
+      .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
+    setDeletedProjects(deletedP);
   };
 
   const getDaysRemaining = (deletedAt: string) => {
@@ -181,6 +189,11 @@ const RecentlyDeletedUnified = () => {
       const updated = deletedListItems.filter(item => item.id !== itemToDelete.id);
       localStorage.setItem('deletedListItems', JSON.stringify(updated));
       setDeletedListItems(updated);
+    } else if (itemToDelete.type === 'project') {
+      const allProjects = JSON.parse(localStorage.getItem('projects') || '[]') as Project[];
+      const updated = allProjects.filter(p => p.id !== itemToDelete.id);
+      localStorage.setItem('projects', JSON.stringify(updated));
+      setDeletedProjects(updated.filter(p => p.deletedAt));
     }
 
     toast.success('Permanently deleted');
@@ -220,6 +233,18 @@ const RecentlyDeletedUnified = () => {
     }
   };
 
+  const handleRestoreProject = (projectId: string) => {
+    const project = deletedProjects.find(p => p.id === projectId);
+    if (project) {
+      const { deletedAt, ...cleanProject } = project;
+      const allProjects = JSON.parse(localStorage.getItem('projects') || '[]') as Project[];
+      const updated = allProjects.map(p => p.id === projectId ? cleanProject : p);
+      localStorage.setItem('projects', JSON.stringify(updated));
+      loadAllDeleted();
+      toast.success('Project restored');
+    }
+  };
+
   const formatDuration = (minutes: number) => {
     const m = Math.floor(minutes);
     const s = Math.round((minutes - m) * 60);
@@ -235,13 +260,14 @@ const RecentlyDeletedUnified = () => {
         </div>
 
         <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="tasks">Tasks ({deletedTasks.length})</TabsTrigger>
             <TabsTrigger value="sessions">Sessions ({deletedSessions.length})</TabsTrigger>
             <TabsTrigger value="archive">Archive ({deletedArchive.length})</TabsTrigger>
             <TabsTrigger value="timetables">Timetables ({deletedTimetables.length})</TabsTrigger>
             <TabsTrigger value="lists">Lists ({deletedLists.length})</TabsTrigger>
             <TabsTrigger value="list-items">List Items ({deletedListItems.length})</TabsTrigger>
+            <TabsTrigger value="projects">Projects ({deletedProjects.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tasks" className="space-y-4 mt-4">
@@ -479,6 +505,49 @@ const RecentlyDeletedUnified = () => {
                         className="text-destructive hover:text-destructive"
                         onClick={() => {
                           setItemToDelete({ type: 'list-item', id: item.id });
+                          setPermanentDeleteDialog(true);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="projects" className="space-y-4 mt-4">
+            {deletedProjects.length === 0 ? (
+              <Card className="p-8 text-center text-muted-foreground">
+                No deleted projects
+              </Card>
+            ) : (
+              deletedProjects.map(project => (
+                <Card key={project.id} className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-1">{project.title}</h3>
+                      {project.description && (
+                        <p className="text-sm text-muted-foreground mb-2">{project.description}</p>
+                      )}
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>{project.taskIds.length} tasks</span>
+                        <span>Deleted {formatDistanceToNow(new Date(project.deletedAt!))} ago</span>
+                        <Badge variant="outline">{getDaysRemaining(project.deletedAt!)} days left</Badge>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" onClick={() => handleRestoreProject(project.id)}>
+                        <Undo2 className="h-4 w-4 mr-1" />
+                        Restore
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => {
+                          setItemToDelete({ type: 'project', id: project.id });
                           setPermanentDeleteDialog(true);
                         }}
                       >

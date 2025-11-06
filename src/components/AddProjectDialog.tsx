@@ -8,6 +8,8 @@ import { Project } from '@/types/project';
 import { Task } from '@/types/task';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
+import { Plus } from 'lucide-react';
+import { AddTaskToProjectDialog } from './AddTaskToProjectDialog';
 
 interface AddProjectDialogProps {
   open: boolean;
@@ -22,6 +24,8 @@ export const AddProjectDialog = ({ open, onClose, onSave, tasks }: AddProjectDia
   const [dueDateTime, setDueDateTime] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [addTaskDialogOpen, setAddTaskDialogOpen] = useState(false);
+  const [localTasks, setLocalTasks] = useState<Task[]>([]);
 
   const handleSubmit = () => {
     if (!title.trim()) {
@@ -56,6 +60,24 @@ export const AddProjectDialog = ({ open, onClose, onSave, tasks }: AddProjectDia
         : [...prev, taskId]
     );
   };
+
+  const handleAddTask = (newTask: Omit<Task, 'id' | 'createdAt'>) => {
+    const task: Task = {
+      ...newTask,
+      id: `temp-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    setLocalTasks([...localTasks, task]);
+    setSelectedTaskIds([...selectedTaskIds, task.id]);
+    
+    // Save to localStorage
+    const allTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+    localStorage.setItem('tasks', JSON.stringify([...allTasks, task]));
+    
+    toast.success('Task created and added to project!');
+  };
+
+  const allAvailableTasks = [...tasks, ...localTasks];
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -108,12 +130,23 @@ export const AddProjectDialog = ({ open, onClose, onSave, tasks }: AddProjectDia
           </div>
 
           <div>
-            <Label>Select Tasks</Label>
+            <div className="flex items-center justify-between mb-2">
+              <Label>Select Tasks</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setAddTaskDialogOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Create New Task
+              </Button>
+            </div>
             <div className="border rounded-md p-4 max-h-[300px] overflow-y-auto space-y-2">
-              {tasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No tasks available</p>
+              {allAvailableTasks.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No tasks available. Create one above!</p>
               ) : (
-                tasks.map((task) => (
+                allAvailableTasks.map((task) => (
                   <div key={task.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`task-${task.id}`}
@@ -142,6 +175,11 @@ export const AddProjectDialog = ({ open, onClose, onSave, tasks }: AddProjectDia
           </Button>
         </DialogFooter>
       </DialogContent>
+      <AddTaskToProjectDialog
+        open={addTaskDialogOpen}
+        onClose={() => setAddTaskDialogOpen(false)}
+        onAdd={handleAddTask}
+      />
     </Dialog>
   );
 };

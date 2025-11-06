@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ImportListButton } from '@/components/ImportListButton';
 
 
 interface AddListDialogProps {
@@ -257,13 +258,24 @@ export const AddListDialog = ({ open, onClose, onAdd }: AddListDialogProps) => {
             </div>
           )}
 
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit} disabled={!title.trim() || items.length === 0}>
-              Create List
-            </Button>
+          <div className="flex justify-between items-center">
+            <ImportListButton 
+              onImport={(importedList) => {
+                if (importedList.title) setTitle(importedList.title);
+                if (importedList.description) setDescription(importedList.description);
+                if (importedList.dueDateTime) setDueDateTime(importedList.dueDateTime);
+                if (importedList.notes) setNotes(importedList.notes);
+                if (importedList.items) setItems(importedList.items);
+              }}
+            />
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button onClick={handleSubmit} disabled={!title.trim() || items.length === 0}>
+                Create List
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

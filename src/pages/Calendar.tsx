@@ -17,6 +17,8 @@ import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
 import TaskCard from '@/components/TaskCard';
 import { DayTimetableView } from '@/components/DayTimetableView';
 import { ExportImportButton } from '@/components/ExportImportButton';
+import { ExportEventButton } from '@/components/ExportEventButton';
+import { ImportEventButton } from '@/components/ImportEventButton';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import {
@@ -261,6 +263,11 @@ const CalendarPage = () => {
           <div className="grid md:grid-cols-2 gap-6">
             {/* Calendar Section */}
             <Card className="p-6">
+              <div className="mb-4 p-3 bg-muted/50 rounded-md">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Legend:</strong> <span className="underline decoration-primary decoration-2">Underlined dates</span> have tasks • <strong className="font-bold">Bold dates</strong> have events
+                </p>
+              </div>
               <div className="flex justify-center">
                 <Calendar
                   mode="single"
