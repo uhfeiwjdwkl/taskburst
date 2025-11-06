@@ -9,7 +9,8 @@ import { Task } from '@/types/task';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
-import { AddTaskToProjectDialog } from './AddTaskToProjectDialog';
+import AddTaskDialog from './AddTaskDialog';
+import { ImportProjectButton } from './ImportProjectButton';
 
 interface AddProjectDialogProps {
   open: boolean;
@@ -83,7 +84,10 @@ export const AddProjectDialog = ({ open, onClose, onSave, tasks }: AddProjectDia
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Project</DialogTitle>
+          <DialogTitle className="flex items-center justify-between">
+            <span>Create New Project</span>
+            <ImportProjectButton onImport={onSave} />
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -175,7 +179,7 @@ export const AddProjectDialog = ({ open, onClose, onSave, tasks }: AddProjectDia
           </Button>
         </DialogFooter>
       </DialogContent>
-      <AddTaskToProjectDialog
+      <AddTaskDialog
         open={addTaskDialogOpen}
         onClose={() => setAddTaskDialogOpen(false)}
         onAdd={handleAddTask}

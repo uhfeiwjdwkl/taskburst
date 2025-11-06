@@ -16,17 +16,23 @@ interface DayTimetableViewProps {
   events: CalendarEvent[];
   selectedDate: Date;
   onEventClick: (event: CalendarEvent) => void;
+  onTimetableUpdate?: () => void;
 }
 
-export function DayTimetableView({ events, selectedDate, onEventClick }: DayTimetableViewProps) {
+export function DayTimetableView({ events, selectedDate, onEventClick, onTimetableUpdate }: DayTimetableViewProps) {
   const [timetables, setTimetables] = useState<Timetable[]>([]);
   const [selectedTimetableId, setSelectedTimetableId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedCell, setSelectedCell] = useState<any>(null);
   const [cellDetailsOpen, setCellDetailsOpen] = useState(false);
+  const [cellRowCol, setCellRowCol] = useState<{ row: number; col: number } | null>(null);
 
   // Load timetables
   useEffect(() => {
+    loadTimetables();
+  }, []);
+
+  const loadTimetables = () => {
     const saved = localStorage.getItem('timetables');
     if (saved) {
       const parsed = JSON.parse(saved) as Timetable[];
@@ -57,7 +63,7 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
       setTimetables([defaultTimetable]);
       setSelectedTimetableId('default-24hr');
     }
-  }, []);
+  };
 
   // Update current time every minute
   useEffect(() => {
@@ -102,10 +108,39 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
         cells.push({
           ...cell,
           timeSlot,
+          rowIndex,
+          colIndex,
         });
       }
     }
     return cells;
+  };
+
+  const handleSaveCell = (updatedCell: any) => {
+    if (!selectedTimetable || !cellRowCol) return;
+
+    const cellKey = `${cellRowCol.row}-${cellRowCol.col}`;
+    const updatedTimetable = {
+      ...selectedTimetable,
+      cells: {
+        ...selectedTimetable.cells,
+        [cellKey]: {
+          ...selectedTimetable.cells[cellKey],
+          ...updatedCell,
+        },
+      },
+    };
+
+    const allTimetables = timetables.map(t => 
+      t.id === selectedTimetable.id ? updatedTimetable : t
+    );
+    
+    localStorage.setItem('timetables', JSON.stringify(allTimetables));
+    loadTimetables();
+    
+    if (onTimetableUpdate) {
+      onTimetableUpdate();
+    }
   };
 
   const timetableCells = getTimetableCells();
@@ -288,6 +323,7 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
                 }}
                 onClick={() => {
                   setSelectedCell(cell);
+                  setCellRowCol({ row: cell.rowIndex, col: cell.colIndex });
                   setCellDetailsOpen(true);
                 }}
               >
@@ -342,7 +378,9 @@ export function DayTimetableView({ events, selectedDate, onEventClick }: DayTime
         onClose={() => {
           setCellDetailsOpen(false);
           setSelectedCell(null);
+          setCellRowCol(null);
         }}
+        onSave={handleSaveCell}
       />
     </Card>
   );

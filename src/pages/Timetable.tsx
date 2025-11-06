@@ -236,7 +236,7 @@ const Timetable = () => {
                 }
               }}
               storageKey="timetables"
-              label="Timetables"
+              label="Export/Import All Timetables"
             />
             <Button onClick={() => setIsImportDialogOpen(true)} variant="outline">
               <Plus className="h-4 w-4 mr-2" />

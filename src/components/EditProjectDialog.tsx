@@ -9,7 +9,7 @@ import { Task } from '@/types/task';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
-import { AddTaskToProjectDialog } from './AddTaskToProjectDialog';
+import AddTaskDialog from './AddTaskDialog';
 
 interface EditProjectDialogProps {
   open: boolean;
@@ -181,7 +181,7 @@ export const EditProjectDialog = ({ open, onClose, onSave, project, tasks }: Edi
           </Button>
         </DialogFooter>
       </DialogContent>
-      <AddTaskToProjectDialog
+      <AddTaskDialog
         open={addTaskDialogOpen}
         onClose={() => setAddTaskDialogOpen(false)}
         onAdd={handleAddTask}

@@ -254,7 +254,7 @@ const CalendarPage = () => {
               }
             }}
             storageKey="calendarEvents"
-            label="Events"
+            label="Export/Import All Events"
           />
         </header>
 

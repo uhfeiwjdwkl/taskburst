@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, ChevronDown, ChevronRight, Star, Edit, Trash2, Archive as ArchiveIcon } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Star, Edit, Trash2, Archive as ArchiveIcon, Info } from 'lucide-react';
 import { Project } from '@/types/project';
 import { Task } from '@/types/task';
 import { ExportImportButton } from '@/components/ExportImportButton';
 import { AddProjectDialog } from '@/components/AddProjectDialog';
 import { EditProjectDialog } from '@/components/EditProjectDialog';
-import { ExportProjectButton } from '@/components/ExportProjectButton';
-import { ImportProjectButton } from '@/components/ImportProjectButton';
+import { ProjectDetailsDialog } from '@/components/ProjectDetailsDialog';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
@@ -19,6 +18,7 @@ const Projects = () => {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   useEffect(() => {
@@ -147,7 +147,7 @@ const Projects = () => {
             filename={`projects-${new Date().toISOString().split('T')[0]}.json`}
             onImport={handleImportProjects}
             storageKey="projects"
-            label="Projects"
+            label="Export/Import All Projects"
           />
           <Button onClick={() => setAddDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -206,11 +206,20 @@ const Projects = () => {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => {
+                            setSelectedProject(project);
+                            setDetailsDialogOpen(true);
+                          }}
+                        >
+                          <Info className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleToggleFavorite(project.id)}
                         >
                           <Star className={`h-4 w-4 ${project.favorite ? 'fill-primary text-primary' : ''}`} />
                         </Button>
-                        <ExportProjectButton project={project} />
                         <Button
                           variant="ghost"
                           size="sm"
@@ -285,6 +294,17 @@ const Projects = () => {
         onSave={handleEditProject}
         project={selectedProject}
         tasks={allTasks}
+      />
+
+      <ProjectDetailsDialog
+        open={detailsDialogOpen}
+        onClose={() => setDetailsDialogOpen(false)}
+        project={selectedProject}
+        tasks={allTasks}
+        onEdit={(project) => {
+          setSelectedProject(project);
+          setEditDialogOpen(true);
+        }}
       />
     </div>
   );
