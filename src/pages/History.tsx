@@ -157,7 +157,7 @@ const History = () => {
               toast.success('History imported successfully!');
             }}
             storageKey="sessions"
-            label="Export/Import All History"
+            label="All History"
           />
         </header>
 

@@ -133,9 +133,8 @@ const Lists = () => {
                 }
               }}
               storageKey="lists"
-              label="Export/Import All Lists"
+              label="All Lists"
             />
-            <ImportListButton onImport={handleAddList} />
             <Button
               onClick={() => setAddDialogOpen(true)}
               className="bg-gradient-primary hover:opacity-90 shadow-glow"

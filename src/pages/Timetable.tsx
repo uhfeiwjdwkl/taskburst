@@ -236,12 +236,8 @@ const Timetable = () => {
                 }
               }}
               storageKey="timetables"
-              label="Export/Import All Timetables"
+              label="All Timetables"
             />
-            <Button onClick={() => setIsImportDialogOpen(true)} variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
-              Import from Excel
-            </Button>
             <Button onClick={() => setIsCreateDialogOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               New Timetable

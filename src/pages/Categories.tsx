@@ -165,6 +165,7 @@ const Categories = () => {
               toast.success('Tasks imported successfully!');
             }}
             storageKey="tasks"
+            label="All Tasks"
           />
         </header>
 

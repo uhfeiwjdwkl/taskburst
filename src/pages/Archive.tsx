@@ -165,6 +165,7 @@ const Archive = () => {
               toast.success('Archive data imported successfully!');
             }}
             storageKey="archivedTasks"
+            label="All Archived"
           />
         </header>
 
