@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 import AddTaskDialog from './AddTaskDialog';
+import { saveTextBackup, createFieldId } from '@/lib/textBackup';
 
 interface EditProjectDialogProps {
   open: boolean;
@@ -27,6 +28,7 @@ export const EditProjectDialog = ({ open, onClose, onSave, project, tasks }: Edi
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [addTaskDialogOpen, setAddTaskDialogOpen] = useState(false);
   const [localTasks, setLocalTasks] = useState<Task[]>([]);
+  const originalProjectRef = useRef<Project | null>(null);
 
   useEffect(() => {
     if (project) {
@@ -35,6 +37,7 @@ export const EditProjectDialog = ({ open, onClose, onSave, project, tasks }: Edi
       setDueDateTime(project.dueDateTime || '');
       setNotes(project.notes || '');
       setSelectedTaskIds(project.taskIds);
+      originalProjectRef.current = { ...project };
     }
   }, [project]);
 
@@ -43,6 +46,40 @@ export const EditProjectDialog = ({ open, onClose, onSave, project, tasks }: Edi
     if (!title.trim()) {
       toast.error('Please enter a project title');
       return;
+    }
+
+    const original = originalProjectRef.current;
+    if (original) {
+      if (original.title !== title.trim()) {
+        saveTextBackup({
+          fieldId: createFieldId('project', project.id, 'title'),
+          fieldLabel: 'Title',
+          previousContent: original.title,
+          sourceType: 'project',
+          sourceId: project.id,
+          sourceName: original.title,
+        });
+      }
+      if ((original.description || '') !== description.trim()) {
+        saveTextBackup({
+          fieldId: createFieldId('project', project.id, 'description'),
+          fieldLabel: 'Description',
+          previousContent: original.description || '',
+          sourceType: 'project',
+          sourceId: project.id,
+          sourceName: title.trim(),
+        });
+      }
+      if ((original.notes || '') !== notes.trim()) {
+        saveTextBackup({
+          fieldId: createFieldId('project', project.id, 'notes'),
+          fieldLabel: 'Notes',
+          previousContent: original.notes || '',
+          sourceType: 'project',
+          sourceId: project.id,
+          sourceName: title.trim(),
+        });
+      }
     }
 
     onSave({

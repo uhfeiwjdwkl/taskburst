@@ -147,7 +147,7 @@ const Projects = () => {
             filename={`projects-${new Date().toISOString().split('T')[0]}.json`}
             onImport={handleImportProjects}
             storageKey="projects"
-            label="Export/Import All Projects"
+            label="All Projects"
           />
           <Button onClick={() => setAddDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />

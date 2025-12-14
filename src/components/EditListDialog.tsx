@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { List, ListItem } from '@/types/list';
 import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { saveTextBackup, createFieldId } from '@/lib/textBackup';
 import {
   Select,
   SelectContent,
@@ -30,6 +31,7 @@ export const EditListDialog = ({ list, open, onClose, onSave }: EditListDialogPr
   const [items, setItems] = useState<ListItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [pasteText, setPasteText] = useState('');
+  const originalListRef = useRef<List | null>(null);
 
   useEffect(() => {
     if (list) {
@@ -40,6 +42,7 @@ export const EditListDialog = ({ list, open, onClose, onSave }: EditListDialogPr
       setItems(list.items);
       setSelectedItems(new Set());
       setPasteText('');
+      originalListRef.current = { ...list };
     }
   }, [list]);
 
@@ -123,6 +126,40 @@ export const EditListDialog = ({ list, open, onClose, onSave }: EditListDialogPr
 
   const handleSave = () => {
     if (!title.trim()) return;
+
+    const original = originalListRef.current;
+    if (original) {
+      if (original.title !== title.trim()) {
+        saveTextBackup({
+          fieldId: createFieldId('list', list.id, 'title'),
+          fieldLabel: 'Title',
+          previousContent: original.title,
+          sourceType: 'list',
+          sourceId: list.id,
+          sourceName: original.title,
+        });
+      }
+      if ((original.description || '') !== description.trim()) {
+        saveTextBackup({
+          fieldId: createFieldId('list', list.id, 'description'),
+          fieldLabel: 'Description',
+          previousContent: original.description || '',
+          sourceType: 'list',
+          sourceId: list.id,
+          sourceName: title.trim(),
+        });
+      }
+      if ((original.notes || '') !== notes.trim()) {
+        saveTextBackup({
+          fieldId: createFieldId('list', list.id, 'notes'),
+          fieldLabel: 'Notes',
+          previousContent: original.notes || '',
+          sourceType: 'list',
+          sourceId: list.id,
+          sourceName: title.trim(),
+        });
+      }
+    }
 
     const updatedList: List = {
       ...list,

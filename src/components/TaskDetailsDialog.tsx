@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Task } from '@/types/task';
+import { saveTextBackup, createFieldId } from '@/lib/textBackup';
 import {
   Dialog,
   DialogContent,
@@ -32,10 +33,12 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState('');
   const [showAddCategory, setShowAddCategory] = useState(false);
+  const originalTaskRef = useRef<Task | null>(null);
 
   useEffect(() => {
     if (task) {
       setEditedTask({ ...task });
+      originalTaskRef.current = { ...task };
     }
   }, [task]);
 
@@ -53,6 +56,40 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
   if (!editedTask) return null;
 
   const handleSave = () => {
+    const original = originalTaskRef.current;
+    if (original) {
+      // Save text backups for changed fields
+      if (original.name !== editedTask.name) {
+        saveTextBackup({
+          fieldId: createFieldId('task', editedTask.id, 'name'),
+          fieldLabel: 'Name',
+          previousContent: original.name,
+          sourceType: 'task',
+          sourceId: editedTask.id,
+          sourceName: original.name,
+        });
+      }
+      if (original.description !== editedTask.description) {
+        saveTextBackup({
+          fieldId: createFieldId('task', editedTask.id, 'description'),
+          fieldLabel: 'Description',
+          previousContent: original.description || '',
+          sourceType: 'task',
+          sourceId: editedTask.id,
+          sourceName: editedTask.name,
+        });
+      }
+      if (original.instructions !== editedTask.instructions) {
+        saveTextBackup({
+          fieldId: createFieldId('task', editedTask.id, 'instructions'),
+          fieldLabel: 'Instructions',
+          previousContent: original.instructions || '',
+          sourceType: 'task',
+          sourceId: editedTask.id,
+          sourceName: editedTask.name,
+        });
+      }
+    }
     onSave(editedTask);
     onClose();
   };

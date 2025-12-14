@@ -4,11 +4,12 @@ import { Session } from '@/types/session';
 import { Timetable } from '@/types/timetable';
 import { List, ListItem } from '@/types/list';
 import { Project } from '@/types/project';
+import { TextBackup, getTextBackups, deleteTextBackup } from '@/lib/textBackup';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Undo2, Trash2 } from 'lucide-react';
+import { Undo2, Trash2, Copy, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns/formatDistanceToNow';
 import { ExportImportRecentlyDeletedButton } from '@/components/ExportImportRecentlyDeletedButton';
@@ -31,6 +32,7 @@ const RecentlyDeletedUnified = () => {
   const [deletedLists, setDeletedLists] = useState<List[]>([]);
   const [deletedListItems, setDeletedListItems] = useState<(ListItem & { listId: string; deletedAt?: string })[]>([]);
   const [deletedProjects, setDeletedProjects] = useState<Project[]>([]);
+  const [textBackups, setTextBackups] = useState<TextBackup[]>([]);
   const [permanentDeleteDialog, setPermanentDeleteDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ type: string; id: string } | null>(null);
 
@@ -80,6 +82,10 @@ const RecentlyDeletedUnified = () => {
     const deletedP = projects.filter(p => p.deletedAt && getDaysRemaining(p.deletedAt) > 0)
       .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
     setDeletedProjects(deletedP);
+
+    // Load text backups
+    const backups = getTextBackups();
+    setTextBackups(backups.sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()));
   };
 
   const getDaysRemaining = (deletedAt: string) => {
@@ -251,6 +257,17 @@ const RecentlyDeletedUnified = () => {
     return `${m}m ${s}s`;
   };
 
+  const handleCopyTextBackup = (content: string) => {
+    navigator.clipboard.writeText(content);
+    toast.success('Text copied to clipboard');
+  };
+
+  const handleDeleteTextBackup = (backupId: string) => {
+    deleteTextBackup(backupId);
+    setTextBackups(textBackups.filter(b => b.id !== backupId));
+    toast.success('Text backup deleted');
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-6xl mx-auto">
@@ -260,7 +277,7 @@ const RecentlyDeletedUnified = () => {
         </div>
 
         <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="tasks">Tasks ({deletedTasks.length})</TabsTrigger>
             <TabsTrigger value="sessions">Sessions ({deletedSessions.length})</TabsTrigger>
             <TabsTrigger value="archive">Archive ({deletedArchive.length})</TabsTrigger>
@@ -268,6 +285,10 @@ const RecentlyDeletedUnified = () => {
             <TabsTrigger value="lists">Lists ({deletedLists.length})</TabsTrigger>
             <TabsTrigger value="list-items">List Items ({deletedListItems.length})</TabsTrigger>
             <TabsTrigger value="projects">Projects ({deletedProjects.length})</TabsTrigger>
+            <TabsTrigger value="text-backups" className="flex items-center gap-1">
+              <FileText className="h-3 w-3" />
+              Text ({textBackups.length})
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="tasks" className="space-y-4 mt-4">
@@ -550,6 +571,52 @@ const RecentlyDeletedUnified = () => {
                           setItemToDelete({ type: 'project', id: project.id });
                           setPermanentDeleteDialog(true);
                         }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="text-backups" className="space-y-4 mt-4">
+            {textBackups.length === 0 ? (
+              <Card className="p-8 text-center text-muted-foreground">
+                No text backups. Text backups are created when you edit and save text fields.
+              </Card>
+            ) : (
+              textBackups.map(backup => (
+                <Card key={backup.id} className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold">{backup.sourceName}</h3>
+                        <Badge variant="outline">{backup.sourceType}</Badge>
+                        <Badge variant="secondary">{backup.fieldLabel}</Badge>
+                      </div>
+                      <div className="text-sm bg-muted p-3 rounded-md max-h-32 overflow-y-auto whitespace-pre-wrap">
+                        {backup.previousContent || <span className="italic text-muted-foreground">(empty)</span>}
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+                        <span>Saved {formatDistanceToNow(new Date(backup.savedAt))} ago</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => handleCopyTextBackup(backup.previousContent)}
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        Copy
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteTextBackup(backup.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

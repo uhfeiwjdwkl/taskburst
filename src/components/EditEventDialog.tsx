@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { saveTextBackup, createFieldId } from '@/lib/textBackup';
 import {
   Dialog,
   DialogContent,
@@ -24,22 +25,28 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [isMultiDay, setIsMultiDay] = useState(false);
   const [time, setTime] = useState('');
   const [duration, setDuration] = useState('60');
   const [location, setLocation] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringDays, setRecurringDays] = useState('7');
+  const originalEventRef = useRef<CalendarEvent | null>(null);
 
   useEffect(() => {
     if (event) {
       setTitle(event.title);
       setDescription(event.description || '');
       setDate(event.date);
+      setEndDate(event.endDate || '');
+      setIsMultiDay(!!event.endDate);
       setTime(event.time || '');
       setDuration(event.duration?.toString() || '60');
       setLocation(event.location || '');
       setIsRecurring(event.recurring?.enabled || false);
       setRecurringDays(event.recurring?.intervalDays?.toString() || '7');
+      originalEventRef.current = { ...event };
     }
   }, [event]);
 
@@ -52,11 +59,46 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       return;
     }
 
+    const original = originalEventRef.current;
+    if (original) {
+      if (original.title !== title.trim()) {
+        saveTextBackup({
+          fieldId: createFieldId('event', event.id, 'title'),
+          fieldLabel: 'Title',
+          previousContent: original.title,
+          sourceType: 'event',
+          sourceId: event.id,
+          sourceName: original.title,
+        });
+      }
+      if ((original.description || '') !== description.trim()) {
+        saveTextBackup({
+          fieldId: createFieldId('event', event.id, 'description'),
+          fieldLabel: 'Description',
+          previousContent: original.description || '',
+          sourceType: 'event',
+          sourceId: event.id,
+          sourceName: title.trim(),
+        });
+      }
+      if ((original.location || '') !== location.trim()) {
+        saveTextBackup({
+          fieldId: createFieldId('event', event.id, 'location'),
+          fieldLabel: 'Location',
+          previousContent: original.location || '',
+          sourceType: 'event',
+          sourceId: event.id,
+          sourceName: title.trim(),
+        });
+      }
+    }
+
     onSave({
       ...event,
       title: title.trim(),
       description: description.trim() || undefined,
       date,
+      endDate: isMultiDay && endDate ? endDate : undefined,
       time: time || undefined,
       duration: time ? parseInt(duration) || 60 : undefined,
       location: location.trim() || undefined,
@@ -100,7 +142,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="date">Date *</Label>
+              <Label htmlFor="date">{isMultiDay ? 'Start Date *' : 'Date *'}</Label>
               <Input
                 id="date"
                 type="date"
@@ -109,6 +151,31 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
                 required
               />
             </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="multiDay"
+                checked={isMultiDay}
+                onCheckedChange={(checked) => setIsMultiDay(checked as boolean)}
+              />
+              <Label htmlFor="multiDay" className="cursor-pointer">
+                Multi-day event (e.g., trip)
+              </Label>
+            </div>
+
+            {isMultiDay && (
+              <div className="space-y-2">
+                <Label htmlFor="endDate">End Date *</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  min={date}
+                  required={isMultiDay}
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
