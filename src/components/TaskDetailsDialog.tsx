@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Task } from '@/types/task';
+import { Subtask } from '@/types/subtask';
 import { saveTextBackup, createFieldId } from '@/lib/textBackup';
 import {
   Dialog,
@@ -19,7 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Calendar } from 'lucide-react';
+import { SubtaskList } from './SubtaskList';
+import { TaskScheduleDialog } from './TaskScheduleDialog';
 
 interface TaskDetailsDialogProps {
   task: Task | null;
@@ -33,6 +36,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState('');
   const [showAddCategory, setShowAddCategory] = useState(false);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const originalTaskRef = useRef<Task | null>(null);
 
   useEffect(() => {
@@ -259,7 +263,26 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
             />
           </div>
 
+          <div className="border-t pt-4">
+            <SubtaskList
+              subtasks={editedTask.subtasks || []}
+              taskId={editedTask.id}
+              progressGridSize={editedTask.progressGridSize}
+              progressGridFilled={editedTask.progressGridFilled}
+              onSubtasksChange={(subtasks: Subtask[]) => setEditedTask({ ...editedTask, subtasks })}
+              onProgressGridChange={(filled: number) => setEditedTask({ ...editedTask, progressGridFilled: filled })}
+            />
+          </div>
+
           <div className="pt-4 flex gap-2 justify-end">
+            <Button 
+              variant="outline" 
+              onClick={() => setScheduleDialogOpen(true)}
+              className="mr-auto"
+            >
+              <Calendar className="h-4 w-4 mr-2" />
+              Schedule
+            </Button>
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
@@ -269,6 +292,16 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
           </div>
         </div>
       </DialogContent>
+
+      <TaskScheduleDialog
+        task={editedTask}
+        open={scheduleDialogOpen}
+        onClose={() => setScheduleDialogOpen(false)}
+        onSave={(updatedTask) => {
+          setEditedTask(updatedTask);
+          setScheduleDialogOpen(false);
+        }}
+      />
     </Dialog>
   );
 };

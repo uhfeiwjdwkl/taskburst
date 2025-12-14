@@ -10,6 +10,7 @@ import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import AddTaskDialog from '@/components/AddTaskDialog';
 import { TimetableCurrentBlock } from '@/components/TimetableCurrentBlock';
 import { CurrentEventDisplay } from '@/components/CurrentEventDisplay';
+import { CurrentScheduledTask } from '@/components/CurrentScheduledTask';
 import { ExportImportButton } from '@/components/ExportImportButton';
 import { exportAllData } from '@/lib/exportImport';
 import { ImportAllButton } from '@/components/ImportAllButton';
@@ -260,6 +261,7 @@ const Index = () => {
 
         {/* Timer Section */}
         <section className="bg-card rounded-2xl shadow-lg p-8 mb-8 border border-border relative z-50 pointer-events-auto">
+          <CurrentScheduledTask tasks={tasks} />
           <CurrentEventDisplay />
           <Timer
             onTick={handleTimerTick} 
