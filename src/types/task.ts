@@ -1,3 +1,5 @@
+import { Subtask } from './subtask';
+
 export interface Task {
   id: string;
   name: string;
@@ -14,6 +16,7 @@ export interface Task {
   deletedAt?: string; // ISO string - when moved to recently deleted
   instructions?: string; // Optional instructions/guidelines for the task
   projectId?: string; // Optional reference to a project
+  subtasks?: Subtask[]; // Array of subtasks
 }
 
 export type TimerPhase = 'focus' | 'break';
