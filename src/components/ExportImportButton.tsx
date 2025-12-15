@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Upload } from 'lucide-react';
 import { exportData, importData } from '@/lib/exportImport';
@@ -15,6 +15,23 @@ interface ExportImportButtonProps {
 export const ExportImportButton = ({ data, filename, onImport, storageKey, label }: ExportImportButtonProps) => {
   const [showOptions, setShowOptions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowOptions(false);
+      }
+    };
+
+    if (showOptions) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showOptions]);
 
   const handleExport = () => {
     exportData(data, filename);
@@ -47,12 +64,11 @@ export const ExportImportButton = ({ data, filename, onImport, storageKey, label
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <Button
         variant="outline"
         size="sm"
-        onMouseEnter={() => setShowOptions(true)}
-        onMouseLeave={() => setShowOptions(false)}
+        onClick={() => setShowOptions(!showOptions)}
         className="gap-2"
       >
         <Download className="h-4 w-4" />
@@ -60,11 +76,7 @@ export const ExportImportButton = ({ data, filename, onImport, storageKey, label
       </Button>
       
       {showOptions && (
-        <div 
-          className="absolute top-full right-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-50 min-w-[140px]"
-          onMouseEnter={() => setShowOptions(true)}
-          onMouseLeave={() => setShowOptions(false)}
-        >
+        <div className="absolute top-full right-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-50 min-w-[140px]">
           <button
             onClick={handleExport}
             className="w-full px-4 py-2 text-left text-sm hover:bg-accent flex items-center gap-2 rounded-t-md"
