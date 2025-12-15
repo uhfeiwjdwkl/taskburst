@@ -28,6 +28,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
   const [endDate, setEndDate] = useState('');
   const [isMultiDay, setIsMultiDay] = useState(false);
   const [time, setTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [duration, setDuration] = useState('60');
   const [location, setLocation] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
@@ -42,6 +43,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       setEndDate(event.endDate || '');
       setIsMultiDay(!!event.endDate);
       setTime(event.time || '');
+      setEndTime(event.endTime || '');
       setDuration(event.duration?.toString() || '60');
       setLocation(event.location || '');
       setIsRecurring(event.recurring?.enabled || false);
@@ -100,7 +102,8 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       date,
       endDate: isMultiDay && endDate ? endDate : undefined,
       time: time || undefined,
-      duration: time ? parseInt(duration) || 60 : undefined,
+      endTime: isMultiDay && endTime ? endTime : undefined,
+      duration: !isMultiDay && time ? parseInt(duration) || 60 : undefined,
       location: location.trim() || undefined,
       recurring: isRecurring ? {
         enabled: true,
@@ -113,7 +116,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Event</DialogTitle>
         </DialogHeader>
@@ -156,10 +159,15 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
               <Checkbox
                 id="multiDay"
                 checked={isMultiDay}
-                onCheckedChange={(checked) => setIsMultiDay(checked as boolean)}
+                onCheckedChange={(checked) => {
+                  setIsMultiDay(checked as boolean);
+                  if (checked) {
+                    setDuration(''); // Disable duration for multi-day
+                  }
+                }}
               />
               <Label htmlFor="multiDay" className="cursor-pointer">
-                Multi-day event (e.g., trip)
+                Multi-day event
               </Label>
             </div>
 
@@ -177,31 +185,53 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="time">Time</Label>
-                <Input
-                  id="time"
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                />
+            {isMultiDay ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="time">Start Time (optional)</Label>
+                  <Input
+                    id="time"
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endTime">End Time (optional)</Label>
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                  />
+                </div>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="duration">Duration (minutes)</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  min="15"
-                  step="15"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  disabled={!time}
-                  placeholder="60"
-                />
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="time">Time</Label>
+                  <Input
+                    id="time"
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="duration">Duration (minutes)</Label>
+                  <Input
+                    id="duration"
+                    type="number"
+                    min="15"
+                    step="15"
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    disabled={!time}
+                    placeholder="60"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="location">Location</Label>

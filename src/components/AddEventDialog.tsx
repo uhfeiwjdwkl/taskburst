@@ -28,6 +28,7 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
   const [endDate, setEndDate] = useState('');
   const [isMultiDay, setIsMultiDay] = useState(false);
   const [time, setTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [duration, setDuration] = useState('60');
   const [location, setLocation] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
@@ -46,7 +47,8 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
       date,
       endDate: isMultiDay && endDate ? endDate : undefined,
       time: time || undefined,
-      duration: time ? parseInt(duration) || 60 : undefined,
+      endTime: isMultiDay && endTime ? endTime : undefined,
+      duration: !isMultiDay && time ? parseInt(duration) || 60 : undefined,
       location: location.trim() || undefined,
       recurring: isRecurring ? {
         enabled: true,
@@ -61,6 +63,7 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
     setEndDate('');
     setIsMultiDay(false);
     setTime('');
+    setEndTime('');
     setDuration('60');
     setLocation('');
     setIsRecurring(false);
@@ -116,10 +119,15 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
               <Checkbox
                 id="multiDay"
                 checked={isMultiDay}
-                onCheckedChange={(checked) => setIsMultiDay(checked as boolean)}
+                onCheckedChange={(checked) => {
+                  setIsMultiDay(checked as boolean);
+                  if (checked) {
+                    setDuration(''); // Disable duration for multi-day
+                  }
+                }}
               />
               <Label htmlFor="multiDay" className="cursor-pointer">
-                Multi-day event (e.g., trip)
+                Multi-day event
               </Label>
             </div>
 
@@ -137,31 +145,53 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="time">Time</Label>
-                <Input
-                  id="time"
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                />
+            {isMultiDay ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="time">Start Time (optional)</Label>
+                  <Input
+                    id="time"
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endTime">End Time (optional)</Label>
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                  />
+                </div>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="duration">Duration (minutes)</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  min="15"
-                  step="15"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  disabled={!time}
-                  placeholder="60"
-                />
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="time">Time</Label>
+                  <Input
+                    id="time"
+                    type="time"
+                    value={time}
+                    onChange={(e) => setTime(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="duration">Duration (minutes)</Label>
+                  <Input
+                    id="duration"
+                    type="number"
+                    min="15"
+                    step="15"
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    disabled={!time}
+                    placeholder="60"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="location">Location</Label>
