@@ -4,12 +4,13 @@ import { Session } from '@/types/session';
 import { Timetable } from '@/types/timetable';
 import { List, ListItem } from '@/types/list';
 import { Project } from '@/types/project';
-import { TextBackup, getTextBackups, deleteTextBackup } from '@/lib/textBackup';
+import { TextBackup, getTextBackups, deleteTextBackup, clearTextBackups } from '@/lib/textBackup';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Undo2, Trash2, Copy, FileText } from 'lucide-react';
+import { Undo2, Trash2, Copy, FileText, CheckSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns/formatDistanceToNow';
 import { ExportImportRecentlyDeletedButton } from '@/components/ExportImportRecentlyDeletedButton';
@@ -33,6 +34,7 @@ const RecentlyDeletedUnified = () => {
   const [deletedListItems, setDeletedListItems] = useState<(ListItem & { listId: string; deletedAt?: string })[]>([]);
   const [deletedProjects, setDeletedProjects] = useState<Project[]>([]);
   const [textBackups, setTextBackups] = useState<TextBackup[]>([]);
+  const [selectedTextBackups, setSelectedTextBackups] = useState<Set<string>>(new Set());
   const [permanentDeleteDialog, setPermanentDeleteDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ type: string; id: string } | null>(null);
 
@@ -265,8 +267,49 @@ const RecentlyDeletedUnified = () => {
   const handleDeleteTextBackup = (backupId: string) => {
     deleteTextBackup(backupId);
     setTextBackups(textBackups.filter(b => b.id !== backupId));
+    setSelectedTextBackups(prev => {
+      const next = new Set(prev);
+      next.delete(backupId);
+      return next;
+    });
     toast.success('Text backup deleted');
   };
+
+  const handleToggleTextBackupSelection = (backupId: string) => {
+    setSelectedTextBackups(prev => {
+      const next = new Set(prev);
+      if (next.has(backupId)) {
+        next.delete(backupId);
+      } else {
+        next.add(backupId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllTextBackups = () => {
+    if (selectedTextBackups.size === textBackups.length) {
+      setSelectedTextBackups(new Set());
+    } else {
+      setSelectedTextBackups(new Set(textBackups.map(b => b.id)));
+    }
+  };
+
+  const handleBulkDeleteTextBackups = () => {
+    selectedTextBackups.forEach(id => deleteTextBackup(id));
+    setTextBackups(textBackups.filter(b => !selectedTextBackups.has(b.id)));
+    setSelectedTextBackups(new Set());
+    toast.success(`Deleted ${selectedTextBackups.size} text backups`);
+  };
+
+  const handleBulkCopyTextBackups = () => {
+    const selectedBackups = textBackups.filter(b => selectedTextBackups.has(b.id));
+    const content = selectedBackups.map(b => `[${b.sourceName} - ${b.fieldLabel}]\n${b.previousContent}`).join('\n\n---\n\n');
+    navigator.clipboard.writeText(content);
+    toast.success(`Copied ${selectedTextBackups.size} text backups to clipboard`);
+  };
+
+import { cn } from '@/lib/utils';
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -582,25 +625,65 @@ const RecentlyDeletedUnified = () => {
           </TabsContent>
 
           <TabsContent value="text-backups" className="space-y-4 mt-4">
+            {textBackups.length > 0 && (
+              <div className="flex items-center gap-2 mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAllTextBackups}
+                >
+                  <CheckSquare className="h-4 w-4 mr-1" />
+                  {selectedTextBackups.size === textBackups.length ? 'Deselect All' : 'Select All'}
+                </Button>
+                {selectedTextBackups.size > 0 && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBulkCopyTextBackups}
+                    >
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copy Selected ({selectedTextBackups.size})
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleBulkDeleteTextBackups}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete Selected ({selectedTextBackups.size})
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
             {textBackups.length === 0 ? (
               <Card className="p-8 text-center text-muted-foreground">
                 No text backups. Text backups are created when you edit and save text fields.
               </Card>
             ) : (
               textBackups.map(backup => (
-                <Card key={backup.id} className="p-4">
+                <Card key={backup.id} className={cn("p-4", selectedTextBackups.has(backup.id) && "ring-2 ring-primary")}>
                   <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold">{backup.sourceName}</h3>
-                        <Badge variant="outline">{backup.sourceType}</Badge>
-                        <Badge variant="secondary">{backup.fieldLabel}</Badge>
-                      </div>
-                      <div className="text-sm bg-muted p-3 rounded-md max-h-32 overflow-y-auto whitespace-pre-wrap">
-                        {backup.previousContent || <span className="italic text-muted-foreground">(empty)</span>}
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
-                        <span>Saved {formatDistanceToNow(new Date(backup.savedAt))} ago</span>
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedTextBackups.has(backup.id)}
+                        onChange={() => handleToggleTextBackupSelection(backup.id)}
+                        className="mt-1.5 h-4 w-4 rounded border-border"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold">{backup.sourceName}</h3>
+                          <Badge variant="outline">{backup.sourceType}</Badge>
+                          <Badge variant="secondary">{backup.fieldLabel}</Badge>
+                        </div>
+                        <div className="text-sm bg-muted p-3 rounded-md max-h-32 overflow-y-auto whitespace-pre-wrap">
+                          {backup.previousContent || <span className="italic text-muted-foreground">(empty)</span>}
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+                          <span>Saved {formatDistanceToNow(new Date(backup.savedAt))} ago</span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-2">

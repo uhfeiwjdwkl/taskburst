@@ -68,14 +68,45 @@ export const exportAllData = async () => {
   URL.revokeObjectURL(url);
 };
 
-export const importAllData = async (file: File): Promise<void> => {
+export const importAllData = async (file: File, merge = true): Promise<void> => {
   const zip = await JSZip.loadAsync(file);
   
   const filePromises = Object.keys(zip.files).map(async (filename) => {
     const content = await zip.files[filename].async('string');
     const key = filename.replace('.json', '');
+    
+    if (merge) {
+      // Merge with existing data instead of replacing
+      const existingData = localStorage.getItem(key);
+      if (existingData) {
+        try {
+          const existing = JSON.parse(existingData);
+          const incoming = JSON.parse(content);
+          
+          if (Array.isArray(existing) && Array.isArray(incoming)) {
+            // Merge arrays, avoiding duplicates by ID
+            const existingIds = new Set(existing.map((item: any) => item.id));
+            const merged = [...existing, ...incoming.filter((item: any) => !existingIds.has(item.id))];
+            localStorage.setItem(key, JSON.stringify(merged));
+            return;
+          }
+        } catch {
+          // If parsing fails, just set the new content
+        }
+      }
+    }
+    
     localStorage.setItem(key, content);
   });
   
   await Promise.all(filePromises);
+};
+
+// Helper function to merge imported data with existing data
+export const mergeImportedData = <T extends { id: string }>(
+  existing: T[],
+  incoming: T[]
+): T[] => {
+  const existingIds = new Set(existing.map(item => item.id));
+  return [...existing, ...incoming.filter(item => !existingIds.has(item.id))];
 };

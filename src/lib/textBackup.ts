@@ -7,13 +7,31 @@ export interface TextBackup {
   sourceType: 'task' | 'project' | 'list' | 'event' | 'list-item' | 'timetable';
   sourceId: string;
   sourceName: string;
+  hidden?: boolean; // Hidden when parent item is deleted (recoverable)
 }
 
 const STORAGE_KEY = 'textBackups';
 
-export function getTextBackups(): TextBackup[] {
+export function getTextBackups(includeHidden = false): TextBackup[] {
   const stored = localStorage.getItem(STORAGE_KEY);
-  return stored ? JSON.parse(stored) : [];
+  const backups: TextBackup[] = stored ? JSON.parse(stored) : [];
+  return includeHidden ? backups : backups.filter(b => !b.hidden);
+}
+
+export function hideTextBackupsForSource(sourceId: string): void {
+  const backups = getTextBackups(true);
+  const updated = backups.map(b => 
+    b.sourceId === sourceId ? { ...b, hidden: true } : b
+  );
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+}
+
+export function restoreTextBackupsForSource(sourceId: string): void {
+  const backups = getTextBackups(true);
+  const updated = backups.map(b => 
+    b.sourceId === sourceId ? { ...b, hidden: false } : b
+  );
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 }
 
 export function saveTextBackup(backup: Omit<TextBackup, 'id' | 'savedAt'>): void {
