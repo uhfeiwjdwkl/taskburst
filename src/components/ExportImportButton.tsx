@@ -1,8 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Download, Upload } from 'lucide-react';
+import { Download, Upload, X } from 'lucide-react';
 import { exportData, importData, mergeImportedData } from '@/lib/exportImport';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface ExportImportButtonProps {
   data: any;
@@ -15,10 +21,10 @@ interface ExportImportButtonProps {
 
 export const ExportImportButton = ({ data, filename, onImport, storageKey, label, mergeOnImport = true }: ExportImportButtonProps) => {
   const [showOptions, setShowOptions] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const dropZoneRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -43,8 +49,8 @@ export const ExportImportButton = ({ data, filename, onImport, storageKey, label
   };
 
   const handleImportClick = () => {
-    fileInputRef.current?.click();
     setShowOptions(false);
+    setShowImportDialog(true);
   };
 
   const processImportedFile = async (file: File) => {
@@ -63,6 +69,7 @@ export const ExportImportButton = ({ data, filename, onImport, storageKey, label
         onImport(importedData);
         toast.success('Data imported successfully!');
       }
+      setShowImportDialog(false);
     } catch (error) {
       toast.error('Failed to import data. Please check the file format.');
     }
@@ -80,7 +87,7 @@ export const ExportImportButton = ({ data, filename, onImport, storageKey, label
     }
   };
 
-  // Drag and drop handlers
+  // Drag and drop handlers for the dialog drop zone
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -90,8 +97,10 @@ export const ExportImportButton = ({ data, filename, onImport, storageKey, label
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only set dragging to false if leaving the drop zone entirely
-    if (!dropZoneRef.current?.contains(e.relatedTarget as Node)) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
       setIsDragging(false);
     }
   }, []);
@@ -118,63 +127,74 @@ export const ExportImportButton = ({ data, filename, onImport, storageKey, label
   }, [storageKey, onImport, mergeOnImport]);
 
   return (
-    <div 
-      className="relative" 
-      ref={dropdownRef}
-      onDragEnter={handleDragEnter}
-    >
-      {isDragging && (
-        <div
-          ref={dropZoneRef}
-          className="fixed inset-0 bg-primary/10 border-2 border-dashed border-primary z-50 flex items-center justify-center"
-          onDragLeave={handleDragLeave}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
+    <>
+      <div className="relative" ref={dropdownRef}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowOptions(!showOptions)}
+          className="gap-2"
         >
-          <div className="bg-background p-8 rounded-lg shadow-lg text-center">
-            <Upload className="h-12 w-12 mx-auto text-primary mb-4" />
-            <p className="text-lg font-medium">Drop JSON file to import</p>
-            <p className="text-sm text-muted-foreground">Will merge with existing data</p>
+          <Download className="h-4 w-4" />
+          {label ? `Export/Import ${label}` : 'Export/Import'}
+        </Button>
+        
+        {showOptions && (
+          <div className="absolute top-full right-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-50 min-w-[140px]">
+            <button
+              onClick={handleExport}
+              className="w-full px-4 py-2 text-left text-sm hover:bg-accent flex items-center gap-2 rounded-t-md"
+            >
+              <Download className="h-4 w-4" />
+              Export
+            </button>
+            <button
+              onClick={handleImportClick}
+              className="w-full px-4 py-2 text-left text-sm hover:bg-accent flex items-center gap-2 rounded-b-md"
+            >
+              <Upload className="h-4 w-4" />
+              Import
+            </button>
           </div>
-        </div>
-      )}
-      
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setShowOptions(!showOptions)}
-        className="gap-2"
-      >
-        <Download className="h-4 w-4" />
-        {label ? `Export/Import ${label}` : 'Export/Import'}
-      </Button>
-      
-      {showOptions && (
-        <div className="absolute top-full right-0 mt-1 bg-popover border border-border rounded-md shadow-lg z-50 min-w-[140px]">
-          <button
-            onClick={handleExport}
-            className="w-full px-4 py-2 text-left text-sm hover:bg-accent flex items-center gap-2 rounded-t-md"
+        )}
+        
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+      </div>
+
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Import {label || 'Data'}</DialogTitle>
+          </DialogHeader>
+          <div
+            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              isDragging ? 'border-primary bg-primary/10' : 'border-border'
+            }`}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
           >
-            <Download className="h-4 w-4" />
-            Export
-          </button>
-          <button
-            onClick={handleImportClick}
-            className="w-full px-4 py-2 text-left text-sm hover:bg-accent flex items-center gap-2 rounded-b-md"
-          >
-            <Upload className="h-4 w-4" />
-            Import
-          </button>
-        </div>
-      )}
-      
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".json"
-        onChange={handleFileChange}
-        className="hidden"
-      />
-    </div>
+            <Upload className={`h-12 w-12 mx-auto mb-4 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
+            <p className="text-lg font-medium mb-2">
+              {isDragging ? 'Drop file here' : 'Drag and drop JSON file'}
+            </p>
+            <p className="text-sm text-muted-foreground mb-4">or</p>
+            <Button onClick={() => fileInputRef.current?.click()}>
+              Browse Files
+            </Button>
+            <p className="text-xs text-muted-foreground mt-4">
+              Data will be merged with existing items
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };

@@ -309,8 +309,6 @@ const RecentlyDeletedUnified = () => {
     toast.success(`Copied ${selectedTextBackups.size} text backups to clipboard`);
   };
 
-import { cn } from '@/lib/utils';
-
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-6xl mx-auto">
