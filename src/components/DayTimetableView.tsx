@@ -48,6 +48,7 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
         name: 'Default 24-Hour Schedule',
         favorite: false,
         type: 'weekly',
+        mode: 'rigid',
         rows: Array.from({ length: 24 }, (_, i) => ({
           id: `hour-${i}`,
           label: `${i}:00`,

@@ -17,6 +17,7 @@ interface CreateTimetableDialogProps {
 export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTimetableDialogProps) {
   const [name, setName] = useState("");
   const [type, setType] = useState<'weekly' | 'fortnightly'>('weekly');
+  const [mode, setMode] = useState<'rigid' | 'flexible'>('rigid');
   const [fieldsPerCell, setFieldsPerCell] = useState<1 | 2 | 3>(1);
   const [fortnightStartDate, setFortnightStartDate] = useState("");
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([
@@ -89,6 +90,7 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
       name: name.trim(),
       favorite: false,
       type,
+      mode,
       fortnightStartDate: type === 'fortnightly' ? fortnightStartDate : undefined,
       rows: timeSlots,
       columns: selectedDays,
@@ -103,6 +105,7 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
     // Reset form
     setName("");
     setType('weekly');
+    setMode('rigid');
     setFieldsPerCell(1);
     setFortnightStartDate("");
     setTimeSlots([{ id: '1', label: '9:00 AM', startTime: '09:00', duration: 60 }]);
@@ -128,7 +131,7 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="type">Schedule Type</Label>
               <Select value={type} onValueChange={(v) => setType(v as 'weekly' | 'fortnightly')}>
@@ -138,6 +141,19 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
                 <SelectContent>
                   <SelectItem value="weekly">Weekly</SelectItem>
                   <SelectItem value="fortnightly">Fortnightly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="mode">Timetable Mode</Label>
+              <Select value={mode} onValueChange={(v) => setMode(v as 'rigid' | 'flexible')}>
+                <SelectTrigger id="mode">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="rigid">Rigid (Fixed slots)</SelectItem>
+                  <SelectItem value="flexible">Flexible (Scalable events)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
