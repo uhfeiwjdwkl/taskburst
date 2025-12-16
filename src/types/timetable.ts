@@ -22,6 +22,7 @@ export interface Timetable {
   name: string;
   favorite: boolean;
   type: 'weekly' | 'fortnightly';
+  mode: 'rigid' | 'flexible'; // rigid = fixed time slots, flexible = scalable events
   fortnightStartDate?: string; // ISO date for week 1 start (Monday)
   rows: TimeSlot[];
   columns: string[]; // day names (user can choose which days)
@@ -31,4 +32,16 @@ export interface Timetable {
   customColors?: string[]; // custom hex colors saved by user
   createdAt: string;
   deletedAt?: string; // ISO string - when moved to recently deleted
+}
+
+// For flexible timetables
+export interface FlexibleEvent {
+  id: string;
+  timetableId: string;
+  dayIndex: number; // which column/day
+  startTime: string; // "09:00" format
+  endTime: string; // "10:30" format
+  fields: string[];
+  color?: string;
+  week?: 1 | 2; // for fortnightly
 }

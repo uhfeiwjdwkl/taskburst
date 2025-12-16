@@ -3,13 +3,14 @@ import { Task } from '@/types/task';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, FolderOpen } from 'lucide-react';
+import { ArrowLeft, FolderOpen, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import TaskCard from '@/components/TaskCard';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
 import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import { ExportImportButton } from '@/components/ExportImportButton';
 import { toast } from 'sonner';
+import { exportData } from '@/lib/exportImport';
 
 const Categories = () => {
   const navigate = useNavigate();
@@ -100,6 +101,12 @@ const Categories = () => {
     ? categoryGroups[selectedCategory]?.sort((a, b) => b.importance - a.importance) || []
     : [];
 
+  const handleExportCategory = (category: string) => {
+    const categoryTasks = categoryGroups[category] || [];
+    exportData(categoryTasks, `category-${category}-${new Date().toISOString().split('T')[0]}.json`);
+    toast.success(`Exported ${categoryTasks.length} tasks from "${category}"`);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-6xl mx-auto px-4 py-8">
@@ -144,22 +151,40 @@ const Categories = () => {
             ) : (
               <div className="space-y-2">
                 {categories.map((category) => (
-                  <button
+                  <div
                     key={category}
-                    onClick={() => setSelectedCategory(category)}
-                    className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    className={`w-full p-3 rounded-lg transition-colors ${
                       selectedCategory === category
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-secondary hover:bg-secondary/80'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-medium">{category}</span>
-                      <Badge variant={selectedCategory === category ? "secondary" : "outline"}>
-                        {categoryGroups[category].length}
-                      </Badge>
+                      <button
+                        onClick={() => setSelectedCategory(category)}
+                        className="flex-1 text-left font-medium"
+                      >
+                        {category}
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={selectedCategory === category ? "secondary" : "outline"}>
+                          {categoryGroups[category].length}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleExportCategory(category);
+                          }}
+                          title={`Export ${category}`}
+                        >
+                          <Download className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}

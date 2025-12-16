@@ -95,6 +95,7 @@ export const ImportTimetableDialog = ({ open, onClose, onCreate }: ImportTimetab
         name: file.name.replace('.xlsx', '').replace('.xls', ''),
         favorite: false,
         type: 'weekly',
+        mode: 'rigid',
         rows,
         columns,
         fieldsPerCell: 1,

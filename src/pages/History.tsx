@@ -26,14 +26,18 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { ExportImportButton } from '@/components/ExportImportButton';
+import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 
 const History = () => {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [newDescription, setNewDescription] = useState('');
+  const [taskDetailsOpen, setTaskDetailsOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   useEffect(() => {
     const savedSessions = localStorage.getItem('sessions');
@@ -43,6 +47,11 @@ const History = () => {
         new Date(b.dateEnded).getTime() - new Date(a.dateEnded).getTime()
       ));
     }
+    
+    // Load all tasks (active + archived)
+    const tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
+    const archivedTasks = JSON.parse(localStorage.getItem('archivedTasks') || '[]');
+    setAllTasks([...tasks, ...archivedTasks]);
   }, []);
 
   const saveSessions = (updatedSessions: Session[]) => {
@@ -102,6 +111,14 @@ const History = () => {
       setEditDialogOpen(false);
       setSelectedSession(null);
       setNewDescription('');
+    }
+  };
+
+  const handleTaskNameClick = (taskId: string) => {
+    const task = allTasks.find(t => t.id === taskId);
+    if (task) {
+      setSelectedTask(task);
+      setTaskDetailsOpen(true);
     }
   };
 
@@ -191,11 +208,17 @@ const History = () => {
                           <div className="flex-1">
                             <div className="flex items-start justify-between gap-2 mb-2">
                               <div>
-                                <h3 className="font-semibold text-lg">
+                              <h3 className="font-semibold text-lg">
                                   {session.description || 'Untitled Session'}
                                 </h3>
                                 <p className="text-sm text-muted-foreground">
-                                  Task: {session.taskName}
+                                  Task:{' '}
+                                  <button
+                                    className="underline hover:text-primary transition-colors"
+                                    onClick={() => handleTaskNameClick(session.taskId)}
+                                  >
+                                    {session.taskName}
+                                  </button>
                                 </p>
                               </div>
                               <div className="flex gap-1">
@@ -344,6 +367,13 @@ const History = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Task Details Dialog */}
+        <TaskDetailsViewDialog
+          task={selectedTask}
+          open={taskDetailsOpen}
+          onClose={() => setTaskDetailsOpen(false)}
+        />
       </div>
     </div>
   );

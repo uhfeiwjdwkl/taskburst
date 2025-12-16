@@ -1,11 +1,14 @@
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Project } from '@/types/project';
 import { Task } from '@/types/task';
+import { CalendarEvent } from '@/types/event';
 import { ExportProjectButton } from './ExportProjectButton';
 import { Card } from '@/components/ui/card';
-import { Calendar, Clock, FileText, ListTodo } from 'lucide-react';
+import { Calendar, Clock, FileText, ListTodo, CalendarDays } from 'lucide-react';
 import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
+import { ProjectCalendarDialog } from './ProjectCalendarDialog';
 
 interface ProjectDetailsDialogProps {
   open: boolean;
@@ -16,12 +19,31 @@ interface ProjectDetailsDialogProps {
 }
 
 export const ProjectDetailsDialog = ({ open, onClose, project, tasks, onEdit }: ProjectDetailsDialogProps) => {
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+
+  useEffect(() => {
+    const savedEvents = localStorage.getItem('events');
+    if (savedEvents) {
+      setEvents(JSON.parse(savedEvents));
+    }
+  }, [open]);
+
   if (!project) return null;
 
   const projectTasks = tasks.filter(t => project.taskIds.includes(t.id));
   const completedTasks = projectTasks.filter(t => t.completed).length;
 
   return (
+    <>
+    <ProjectCalendarDialog
+      open={calendarOpen}
+      onClose={() => setCalendarOpen(false)}
+      project={project}
+      tasks={tasks}
+      events={events}
+      onSave={() => {}}
+    />
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -95,6 +117,10 @@ export const ProjectDetailsDialog = ({ open, onClose, project, tasks, onEdit }: 
 
           <div className="flex gap-2 justify-end pt-4">
             <ExportProjectButton project={project} />
+            <Button variant="outline" onClick={() => setCalendarOpen(true)}>
+              <CalendarDays className="h-4 w-4 mr-2" />
+              Schedule
+            </Button>
             <Button onClick={() => {
               onEdit(project);
               onClose();
@@ -105,5 +131,6 @@ export const ProjectDetailsDialog = ({ open, onClose, project, tasks, onEdit }: 
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 };
