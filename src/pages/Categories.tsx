@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Task } from '@/types/task';
-import { Project } from '@/types/project';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ArrowLeft, FolderOpen, ChevronDown, ChevronRight, Briefcase } from 'lucide-react';
+import { ArrowLeft, FolderOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import TaskCard from '@/components/TaskCard';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
@@ -16,23 +14,15 @@ import { toast } from 'sonner';
 const Categories = () => {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const savedTasks = localStorage.getItem('tasks');
     if (savedTasks) {
       setTasks(JSON.parse(savedTasks));
-    }
-    
-    const savedProjects = localStorage.getItem('projects');
-    if (savedProjects) {
-      const allProjects = JSON.parse(savedProjects) as Project[];
-      setProjects(allProjects.filter(p => !p.deletedAt && !p.archivedAt));
     }
   }, []);
 
@@ -100,36 +90,7 @@ const Categories = () => {
       groups[category].push(task);
     });
 
-    // Add projects as separate entries
-    projects.forEach(project => {
-      const category = 'Projects';
-      if (!groups[category]) {
-        groups[category] = [];
-      }
-    });
-
     return groups;
-  };
-
-  const getProjectTasks = (project: Project): Task[] => {
-    const allTasks = [...tasks];
-    const archived = localStorage.getItem('archivedTasks');
-    if (archived) {
-      allTasks.push(...JSON.parse(archived));
-    }
-    return allTasks.filter(t => project.taskIds.includes(t.id) && !t.deletedAt);
-  };
-
-  const toggleProjectExpanded = (projectId: string) => {
-    setExpandedProjects(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(projectId)) {
-        newSet.delete(projectId);
-      } else {
-        newSet.add(projectId);
-      }
-      return newSet;
-    });
   };
 
   const categoryGroups = getCategoryGroups();
@@ -214,68 +175,6 @@ const Categories = () => {
                   Choose a category from the list to view its tasks
                 </p>
               </Card>
-            ) : selectedCategory === 'Projects' ? (
-              <div className="space-y-4">
-                <Card className="p-4">
-                  <h2 className="text-2xl font-semibold mb-1 flex items-center gap-2">
-                    <Briefcase className="h-6 w-6" />
-                    Projects
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {projects.length} {projects.length === 1 ? 'project' : 'projects'}
-                  </p>
-                </Card>
-
-                {projects.length === 0 ? (
-                  <Card className="p-8 text-center">
-                    <p className="text-muted-foreground">
-                      No projects yet
-                    </p>
-                  </Card>
-                ) : (
-                  <div className="space-y-4">
-                    {projects.map((project) => {
-                      const projectTasks = getProjectTasks(project);
-                      const isExpanded = expandedProjects.has(project.id);
-
-                      return (
-                        <Card key={project.id}>
-                          <Collapsible open={isExpanded} onOpenChange={() => toggleProjectExpanded(project.id)}>
-                            <div className="p-4 cursor-pointer" onClick={() => toggleProjectExpanded(project.id)}>
-                              <div className="flex items-center gap-2">
-                                <CollapsibleTrigger asChild>
-                                  <Button variant="ghost" size="sm">
-                                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                  </Button>
-                                </CollapsibleTrigger>
-                                <div>
-                                  <h3 className="font-semibold">{project.title}</h3>
-                                  <p className="text-sm text-muted-foreground">
-                                    {projectTasks.length} tasks • {projectTasks.filter(t => t.completed).length} completed
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                            <CollapsibleContent>
-                              <div className="px-4 pb-4 space-y-2">
-                                {projectTasks.map((task) => (
-                                  <div
-                                    key={task.id}
-                                    className={`p-3 border rounded-md ${task.completed ? 'line-through opacity-70' : ''}`}
-                                  >
-                                    <div className="font-medium">{task.name}</div>
-                                    <div className="text-sm text-muted-foreground">{task.description}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
             ) : (
               <div className="space-y-4">
                 <Card className="p-4">
