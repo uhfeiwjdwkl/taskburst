@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
+import { X } from 'lucide-react';
 
 interface SubtaskDialogProps {
   subtask: Subtask | null;
@@ -23,6 +24,17 @@ interface SubtaskDialogProps {
   taskId: string;
   availableGridIndices?: number[]; // Available progress grid indices to link to
 }
+
+const SUBTASK_COLORS = [
+  '#ef4444', // red
+  '#f97316', // orange
+  '#eab308', // yellow
+  '#22c55e', // green
+  '#06b6d4', // cyan
+  '#3b82f6', // blue
+  '#8b5cf6', // violet
+  '#ec4899', // pink
+];
 
 export const SubtaskDialog = ({ 
   subtask, 
@@ -35,32 +47,38 @@ export const SubtaskDialog = ({
 }: SubtaskDialogProps) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [estimatedMinutes, setEstimatedMinutes] = useState<number | undefined>(undefined);
+  const [abbreviation, setAbbreviation] = useState('');
+  const [estimatedMinutes, setEstimatedMinutes] = useState<number | undefined>(60);
   const [priority, setPriority] = useState<number | undefined>(undefined);
   const [dueDate, setDueDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
   const [linkedToProgressGrid, setLinkedToProgressGrid] = useState(false);
   const [progressGridIndex, setProgressGridIndex] = useState<number | undefined>(undefined);
+  const [color, setColor] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (subtask) {
       setTitle(subtask.title);
       setDescription(subtask.description || '');
-      setEstimatedMinutes(subtask.estimatedMinutes);
+      setAbbreviation(subtask.abbreviation || '');
+      setEstimatedMinutes(subtask.estimatedMinutes || 60);
       setPriority(subtask.priority);
       setDueDate(subtask.dueDate || '');
       setScheduledTime(subtask.scheduledTime || '');
       setLinkedToProgressGrid(subtask.linkedToProgressGrid);
       setProgressGridIndex(subtask.progressGridIndex);
+      setColor(subtask.color);
     } else {
       setTitle('');
       setDescription('');
-      setEstimatedMinutes(undefined);
+      setAbbreviation('');
+      setEstimatedMinutes(60);
       setPriority(undefined);
       setDueDate('');
       setScheduledTime('');
       setLinkedToProgressGrid(false);
       setProgressGridIndex(undefined);
+      setColor(undefined);
     }
   }, [subtask, open]);
 
@@ -72,6 +90,7 @@ export const SubtaskDialog = ({
       taskId,
       title: title.trim(),
       description: description.trim() || undefined,
+      abbreviation: abbreviation.trim() || undefined,
       estimatedMinutes: estimatedMinutes || undefined,
       priority: priority || undefined,
       dueDate: dueDate || undefined,
@@ -80,6 +99,7 @@ export const SubtaskDialog = ({
       linkedToProgressGrid,
       progressGridIndex: linkedToProgressGrid ? progressGridIndex : undefined,
       createdAt: subtask?.createdAt || new Date().toISOString(),
+      color: color || undefined,
     };
 
     onSave(savedSubtask);
@@ -89,23 +109,17 @@ export const SubtaskDialog = ({
   const priorityLabels = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
-      if (!isOpen) {
-        // Auto-save when closing
-        if (title.trim()) {
-          handleSave();
-        } else {
-          onClose();
-        }
-      }
-    }}>
+    <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent 
         className="max-w-md max-h-[90vh] overflow-y-auto"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader>
+        <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle>{isNew ? 'Add Subtask' : 'Edit Subtask'}</DialogTitle>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+            <X className="h-4 w-4" />
+          </Button>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -118,6 +132,38 @@ export const SubtaskDialog = ({
               placeholder="Subtask title"
               className="mt-1"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="abbreviation">Abbreviation (for grid)</Label>
+              <Input
+                id="abbreviation"
+                value={abbreviation}
+                onChange={(e) => setAbbreviation(e.target.value.slice(0, 3))}
+                placeholder="e.g. ABC"
+                maxLength={3}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Color</Label>
+              <div className="flex flex-wrap gap-1 mt-1">
+                <button
+                  onClick={() => setColor(undefined)}
+                  className={`w-6 h-6 rounded border-2 ${!color ? 'border-primary' : 'border-transparent'} bg-muted`}
+                  title="Default"
+                />
+                {SUBTASK_COLORS.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setColor(c)}
+                    className={`w-6 h-6 rounded border-2 ${color === c ? 'border-primary' : 'border-transparent'}`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
 
           <div>
@@ -144,7 +190,7 @@ export const SubtaskDialog = ({
               />
             </div>
             <div>
-              <Label htmlFor="scheduledTime">Scheduled Time</Label>
+              <Label htmlFor="scheduledTime">Time</Label>
               <Input
                 id="scheduledTime"
                 type="time"
@@ -156,15 +202,16 @@ export const SubtaskDialog = ({
           </div>
 
           <div>
-            <Label htmlFor="estimatedMinutes">Estimated Time (minutes)</Label>
+            <Label htmlFor="estimatedMinutes">Duration (minutes)</Label>
             <Input
               id="estimatedMinutes"
               type="number"
               value={estimatedMinutes || ''}
               onChange={(e) => setEstimatedMinutes(parseInt(e.target.value) || undefined)}
-              placeholder="Optional"
+              placeholder="60"
               className="mt-1"
-              min="0"
+              min="5"
+              step="5"
             />
           </div>
 

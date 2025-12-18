@@ -11,13 +11,14 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Check, X } from 'lucide-react';
+import { X } from 'lucide-react';
+import { SubtaskDetailsPopup } from './SubtaskDetailsPopup';
 
 interface ProgressGridEditorProps {
   task: Task;
   open: boolean;
   onClose: () => void;
-  onSave: (filled: number) => void;
+  onSave: (filled: number, filledIndices: number[]) => void;
   onCompleteSubtask?: (subtaskId: string) => void;
   title: string;
   description: string;
@@ -79,9 +80,8 @@ const ProgressGridEditor = ({ task, open, onClose, onSave, onCompleteSubtask, ti
   const handleSave = () => {
     // Store the indices for this task
     storeFilledIndices(task.id, filledIndices);
-    // Return the count for backwards compatibility with progressGridFilled
-    onSave(filledIndices.length);
-    onClose();
+    // Return both count and indices
+    onSave(filledIndices.length, filledIndices);
   };
 
   const filledCount = filledIndices.length;
@@ -90,15 +90,20 @@ const ProgressGridEditor = ({ task, open, onClose, onSave, onCompleteSubtask, ti
     : 0;
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent 
         className="max-w-md"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <div>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+            <X className="h-4 w-4" />
+          </Button>
         </DialogHeader>
         
         <div className="py-4">
@@ -112,6 +117,9 @@ const ProgressGridEditor = ({ task, open, onClose, onSave, onCompleteSubtask, ti
                 const subtask = getSubtaskForIndex(index);
                 const isFilled = filledIndices.includes(index);
                 const isSelected = selectedBox === index;
+                const displayText = subtask && !isFilled 
+                  ? (subtask.abbreviation || subtask.title.charAt(0).toUpperCase())
+                  : null;
                 
                 return (
                   <div key={index} className="relative">
@@ -125,41 +133,30 @@ const ProgressGridEditor = ({ task, open, onClose, onSave, onCompleteSubtask, ti
                         subtask && !subtask.completed && !isFilled && "ring-2 ring-primary/50",
                         isSelected && "ring-2 ring-primary"
                       )}
+                      style={{
+                        backgroundColor: subtask?.color && !isFilled ? `${subtask.color}40` : undefined,
+                        borderColor: subtask?.color && !isFilled ? subtask.color : undefined,
+                      }}
                       aria-label={`Toggle progress square ${index + 1}${subtask ? ` - ${subtask.title}` : ''}`}
                       title={subtask ? subtask.title : undefined}
                     >
-                      {subtask && !isFilled ? (
-                        <span className="truncate px-0.5">{subtask.title.charAt(0).toUpperCase()}</span>
-                      ) : null}
+                      {displayText && (
+                        <span 
+                          className="truncate px-0.5"
+                          style={{ color: subtask?.color || undefined }}
+                        >
+                          {displayText}
+                        </span>
+                      )}
                     </button>
                     
                     {/* Subtask popup */}
                     {isSelected && subtask && !subtask.completed && (
-                      <div className="absolute z-10 bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-popover border border-border rounded-lg shadow-lg p-3">
-                        <p className="font-medium text-sm mb-2">{subtask.title}</p>
-                        {subtask.description && (
-                          <p className="text-xs text-muted-foreground mb-2">{subtask.description}</p>
-                        )}
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleCompleteSubtask(subtask.id, index)}
-                            className="flex-1 h-7 text-xs"
-                          >
-                            <Check className="h-3 w-3 mr-1" />
-                            Complete
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setSelectedBox(null)}
-                            className="h-7 text-xs px-2"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
+                      <SubtaskDetailsPopup
+                        subtask={subtask}
+                        onComplete={() => handleCompleteSubtask(subtask.id, index)}
+                        onClose={() => setSelectedBox(null)}
+                      />
                     )}
                   </div>
                 );

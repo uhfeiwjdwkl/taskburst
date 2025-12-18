@@ -3,6 +3,7 @@ export interface Subtask {
   taskId: string;
   title: string;
   description?: string;
+  abbreviation?: string; // Optional abbreviation for display on progress grid
   estimatedMinutes?: number;
   priority?: number; // 1-5, optional
   dueDate?: string; // ISO date string
@@ -11,6 +12,7 @@ export interface Subtask {
   linkedToProgressGrid: boolean; // Whether this subtask corresponds to a progress grid box
   progressGridIndex?: number; // Which grid box this subtask is linked to
   createdAt: string;
+  color?: string; // Optional color for the subtask on progress grid
 }
 
 export interface ScheduledItem {

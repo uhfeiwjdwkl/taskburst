@@ -11,16 +11,18 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Clock, Calendar as CalendarIcon, Tag, Grid3X3, Check, X } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, Tag, Grid3X3, X } from 'lucide-react';
 import ProgressRing from '@/components/ProgressRing';
 import { ExportTaskButton } from '@/components/ExportTaskButton';
 import { cn } from '@/lib/utils';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
+import { SubtaskDetailsPopup } from './SubtaskDetailsPopup';
 
 interface TaskDetailsViewDialogProps {
   task: Task | null;
   open: boolean;
   onClose: () => void;
+  onUpdateTask?: (task: Task) => void;
 }
 
 // Helper to get stored filled indices
@@ -31,8 +33,24 @@ const getStoredFilledIndices = (taskId: string): number[] | null => {
   return data[taskId] || null;
 };
 
-const TaskDetailsViewDialog = ({ task, open, onClose }: TaskDetailsViewDialogProps) => {
+const storeFilledIndices = (taskId: string, indices: number[]): void => {
+  const stored = localStorage.getItem('progressGridFilledIndices');
+  const data = stored ? JSON.parse(stored) : {};
+  data[taskId] = indices;
+  localStorage.setItem('progressGridFilledIndices', JSON.stringify(data));
+};
+
+const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask }: TaskDetailsViewDialogProps) => {
   const [selectedBox, setSelectedBox] = useState<number | null>(null);
+  const [filledIndices, setFilledIndices] = useState<number[]>([]);
+
+  // Initialize filled indices when task changes
+  useState(() => {
+    if (task) {
+      const stored = getStoredFilledIndices(task.id);
+      setFilledIndices(stored || Array.from({ length: task.progressGridFilled }, (_, i) => i));
+    }
+  });
 
   if (!task) return null;
 
@@ -70,7 +88,7 @@ const TaskDetailsViewDialog = ({ task, open, onClose }: TaskDetailsViewDialogPro
   };
 
   // Get filled indices from localStorage
-  const filledIndices = getStoredFilledIndices(task.id) || 
+  const currentFilledIndices = getStoredFilledIndices(task.id) || 
     Array.from({ length: task.progressGridFilled }, (_, i) => i);
 
   // Get subtask for a specific grid index
@@ -78,13 +96,63 @@ const TaskDetailsViewDialog = ({ task, open, onClose }: TaskDetailsViewDialogPro
     return task.subtasks?.find(s => s.linkedToProgressGrid && s.progressGridIndex === index);
   };
 
+  const handleGridClick = (index: number) => {
+    const subtask = getSubtaskForIndex(index);
+    
+    if (subtask && !subtask.completed) {
+      setSelectedBox(selectedBox === index ? null : index);
+    } else {
+      // Toggle the box (non-sequential)
+      const newIndices = currentFilledIndices.includes(index)
+        ? currentFilledIndices.filter(i => i !== index)
+        : [...currentFilledIndices, index].sort((a, b) => a - b);
+      
+      storeFilledIndices(task.id, newIndices);
+      
+      if (onUpdateTask) {
+        onUpdateTask({ ...task, progressGridFilled: newIndices.length });
+      }
+    }
+  };
+
+  const handleCompleteSubtask = (subtaskId: string, index: number) => {
+    if (!onUpdateTask) return;
+    
+    // Mark subtask as completed
+    const updatedSubtasks = (task.subtasks || []).map(s =>
+      s.id === subtaskId ? { ...s, completed: true } : s
+    );
+    
+    // Fill the grid box
+    const newIndices = currentFilledIndices.includes(index)
+      ? currentFilledIndices
+      : [...currentFilledIndices, index].sort((a, b) => a - b);
+    
+    storeFilledIndices(task.id, newIndices);
+    
+    onUpdateTask({
+      ...task,
+      subtasks: updatedSubtasks,
+      progressGridFilled: newIndices.length,
+    });
+    
+    setSelectedBox(null);
+  };
+
   const subtasks = task.subtasks || [];
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+    <Dialog open={open} onOpenChange={() => {}}>
+      <DialogContent 
+        className="max-w-md max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
+        <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle>Task Details</DialogTitle>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+            <X className="h-4 w-4" />
+          </Button>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -151,68 +219,69 @@ const TaskDetailsViewDialog = ({ task, open, onClose }: TaskDetailsViewDialogPro
             </div>
           </div>
 
-          {/* Progress Grid Display */}
+          {/* Progress Grid Display - Non-sequential with subtask colors */}
           <div>
             <Label className="text-muted-foreground text-sm flex items-center gap-1">
               <Grid3X3 className="h-3 w-3" />
-              Progress Grid
+              Progress Grid (click to toggle)
             </Label>
             <div className="mt-2 flex flex-wrap gap-1 justify-center">
               {Array.from({ length: task.progressGridSize }).map((_, index) => {
                 const subtask = getSubtaskForIndex(index);
-                const isFilled = filledIndices.includes(index);
+                const isFilled = currentFilledIndices.includes(index);
                 const isSelected = selectedBox === index;
+                const displayText = subtask && !isFilled 
+                  ? (subtask.abbreviation || subtask.title.charAt(0).toUpperCase())
+                  : null;
                 
                 return (
                   <div key={index} className="relative">
                     <button
-                      onClick={() => {
-                        if (subtask && !subtask.completed) {
-                          setSelectedBox(isSelected ? null : index);
-                        }
-                      }}
+                      onClick={() => handleGridClick(index)}
                       className={cn(
-                        "w-7 h-7 border border-border rounded-sm transition-all flex items-center justify-center text-xs font-medium",
+                        "w-7 h-7 border border-border rounded-sm transition-all flex items-center justify-center text-xs font-medium hover:scale-105",
                         isFilled
                           ? "bg-gradient-primary text-primary-foreground"
                           : "bg-secondary",
                         subtask && !subtask.completed && !isFilled && "ring-2 ring-primary/50",
                         isSelected && "ring-2 ring-primary"
                       )}
+                      style={{
+                        backgroundColor: subtask?.color && !isFilled ? `${subtask.color}40` : undefined,
+                        borderColor: subtask?.color && !isFilled ? subtask.color : undefined,
+                      }}
                       title={subtask ? subtask.title : `Box ${index + 1}`}
                     >
-                      {subtask && !isFilled ? (
-                        <span className="truncate px-0.5">{subtask.title.charAt(0).toUpperCase()}</span>
-                      ) : null}
+                      {displayText && (
+                        <span 
+                          className="truncate px-0.5"
+                          style={{ color: subtask?.color || undefined }}
+                        >
+                          {displayText}
+                        </span>
+                      )}
                     </button>
                     
                     {/* Subtask popup */}
                     {isSelected && subtask && !subtask.completed && (
-                      <div className="absolute z-10 bottom-full left-1/2 -translate-x-1/2 mb-2 w-40 bg-popover border border-border rounded-lg shadow-lg p-2">
-                        <p className="font-medium text-xs mb-1">{subtask.title}</p>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setSelectedBox(null)}
-                          className="h-6 text-xs w-full"
-                        >
-                          <X className="h-3 w-3 mr-1" />
-                          Close
-                        </Button>
-                      </div>
+                      <SubtaskDetailsPopup
+                        subtask={subtask}
+                        onComplete={() => handleCompleteSubtask(subtask.id, index)}
+                        onClose={() => setSelectedBox(null)}
+                      />
                     )}
                   </div>
                 );
               })}
             </div>
             <p className="text-xs text-muted-foreground text-center mt-2">
-              {filledIndices.length} / {task.progressGridSize} boxes filled
+              {currentFilledIndices.length} / {task.progressGridSize} boxes filled
             </p>
           </div>
 
           <div className="flex justify-center">
             <ProgressRing
-              progress={(task.progressGridFilled / task.progressGridSize) * 100}
+              progress={(currentFilledIndices.length / task.progressGridSize) * 100}
               size={80}
               strokeWidth={8}
             />
@@ -226,20 +295,30 @@ const TaskDetailsViewDialog = ({ task, open, onClose }: TaskDetailsViewDialogPro
                 {subtasks.map((subtask) => (
                   <div
                     key={subtask.id}
-                    className={`flex items-start gap-2 p-2 border rounded-lg text-sm ${
+                    className={cn(
+                      "flex items-start gap-2 p-2 border rounded-lg text-sm cursor-pointer hover:bg-muted/50",
                       subtask.completed ? 'bg-muted/50' : 'bg-background'
-                    }`}
+                    )}
+                    onClick={() => {
+                      if (subtask.linkedToProgressGrid && subtask.progressGridIndex !== undefined) {
+                        setSelectedBox(subtask.progressGridIndex);
+                      }
+                    }}
                   >
-                    <Checkbox
-                      checked={subtask.completed}
-                      disabled
-                      className="mt-0.5"
+                    <div 
+                      className="w-3 h-3 rounded-full mt-1 flex-shrink-0"
+                      style={{ backgroundColor: subtask.color || 'var(--primary)' }}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1 flex-wrap">
                         <span className={subtask.completed ? 'line-through text-muted-foreground' : ''}>
                           {subtask.title}
                         </span>
+                        {subtask.abbreviation && (
+                          <Badge variant="secondary" className="text-xs h-4">
+                            {subtask.abbreviation}
+                          </Badge>
+                        )}
                         {subtask.priority && (
                           <Badge className={`${priorityColors[subtask.priority]} text-white text-xs h-4`}>
                             P{subtask.priority}
@@ -269,7 +348,10 @@ const TaskDetailsViewDialog = ({ task, open, onClose }: TaskDetailsViewDialogPro
                           </span>
                         )}
                         {subtask.estimatedMinutes && (
-                          <span>{subtask.estimatedMinutes}min</span>
+                          <span className="flex items-center gap-0.5">
+                            <Clock className="h-2 w-2" />
+                            {subtask.estimatedMinutes}m
+                          </span>
                         )}
                       </div>
                     </div>
