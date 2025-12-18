@@ -506,7 +506,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
             task={activeTask}
             open={showStartEditor}
             onClose={() => setShowStartEditor(false)}
-            onSave={(filled) => {
+            onSave={(filled, filledIndices) => {
               // Update task's progressGridFilled when starting
               if (onUpdateTask && activeTask) {
                 onUpdateTask({ ...activeTask, progressGridFilled: filled });
@@ -530,8 +530,8 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
                 setCurrentSessionStartTime(null);
               }
             }}
-            onSave={(filled) => {
-              // Update task's progressGridFilled when ending session
+            onSave={(filled, filledIndices) => {
+              // Update task's progressGridFilled when ending session - synced with task
               if (onUpdateTask && activeTask) {
                 onUpdateTask({ ...activeTask, progressGridFilled: filled });
               }
