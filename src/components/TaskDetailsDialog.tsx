@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import { saveTextBackup, createFieldId } from '@/lib/textBackup';
@@ -121,8 +121,17 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
   const importanceLabels = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) {
+        // Auto-save on close
+        handleSave();
+      }
+    }}>
+      <DialogContent 
+        className="max-w-md max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Edit Task</DialogTitle>
         </DialogHeader>

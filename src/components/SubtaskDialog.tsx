@@ -89,8 +89,21 @@ export const SubtaskDialog = ({
   const priorityLabels = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) {
+        // Auto-save when closing
+        if (title.trim()) {
+          handleSave();
+        } else {
+          onClose();
+        }
+      }
+    }}>
+      <DialogContent 
+        className="max-w-md max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{isNew ? 'Add Subtask' : 'Edit Subtask'}</DialogTitle>
         </DialogHeader>
