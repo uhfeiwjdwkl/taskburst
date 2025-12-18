@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Calendar as CalendarIcon, Edit, MapPin, Repeat, CalendarRange } from 'lucide-react';
 import { ExportEventButton } from '@/components/ExportEventButton';
-import { differenceInDays, format, parseISO } from 'date-fns';
+import { differenceInDays, format, parseISO, eachDayOfInterval, addDays, startOfWeek, endOfWeek } from 'date-fns';
 
 interface EventDetailsViewDialogProps {
   event: CalendarEvent | null;
@@ -33,6 +33,25 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit }: EventDetailsVi
     const displayHours = hours % 12 || 12;
     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
+
+  // Generate mini calendar for multi-day events
+  const eventStartDate = parseISO(event.date);
+  const eventEndDate = event.endDate ? parseISO(event.endDate) : eventStartDate;
+  const calendarStart = startOfWeek(eventStartDate, { weekStartsOn: 1 });
+  const calendarEnd = endOfWeek(eventEndDate, { weekStartsOn: 1 });
+  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
+  // Generate time slots for single-day timetable view
+  const generateTimeSlots = () => {
+    if (!event.time) return [];
+    const [startHour] = event.time.split(':').map(Number);
+    const duration = event.duration || 60;
+    const endHour = Math.min(startHour + Math.ceil(duration / 60) + 1, 24);
+    const startDisplay = Math.max(startHour - 1, 0);
+    return Array.from({ length: endHour - startDisplay + 1 }, (_, i) => startDisplay + i);
+  };
+
+  const timeSlots = generateTimeSlots();
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -60,6 +79,81 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit }: EventDetailsVi
               <p className="mt-1 text-sm whitespace-pre-wrap">{event.description}</p>
             </div>
           )}
+
+          {/* Visual Calendar/Timetable Snapshot */}
+          <div>
+            <Label className="text-muted-foreground text-sm flex items-center gap-1 mb-2">
+              {isMultiDay ? <CalendarRange className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+              {isMultiDay ? 'Calendar View' : 'Time View'}
+            </Label>
+            
+            {isMultiDay ? (
+              // Mini calendar for multi-day events
+              <div className="border rounded-lg p-2 bg-muted/30">
+                <div className="grid grid-cols-7 gap-0.5 text-center">
+                  {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                    <div key={i} className="text-xs text-muted-foreground font-medium py-1">{d}</div>
+                  ))}
+                  {calendarDays.map((day, i) => {
+                    const dateStr = format(day, 'yyyy-MM-dd');
+                    const isInEvent = dateStr >= event.date && dateStr <= (event.endDate || event.date);
+                    const isStart = dateStr === event.date;
+                    const isEnd = dateStr === event.endDate;
+                    
+                    return (
+                      <div
+                        key={i}
+                        className={`text-xs py-1.5 rounded-sm ${
+                          isInEvent 
+                            ? `bg-primary text-primary-foreground ${isStart ? 'rounded-l-md' : ''} ${isEnd ? 'rounded-r-md' : ''}`
+                            : 'text-muted-foreground'
+                        }`}
+                      >
+                        {format(day, 'd')}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : event.time ? (
+              // Mini timetable for single-day events
+              <div className="border rounded-lg p-2 bg-muted/30 relative">
+                <div className="space-y-0">
+                  {timeSlots.map((hour) => {
+                    const [eventHour, eventMin] = event.time!.split(':').map(Number);
+                    const duration = event.duration || 60;
+                    const isEventStart = hour === eventHour;
+                    const eventEndHour = eventHour + Math.floor((eventMin + duration) / 60);
+                    const isInEvent = hour >= eventHour && hour < eventEndHour;
+                    
+                    return (
+                      <div key={hour} className="flex items-center gap-2 h-6">
+                        <span className="text-xs text-muted-foreground w-12">
+                          {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                        </span>
+                        <div className={`flex-1 h-full border-t border-border relative ${
+                          isInEvent ? 'bg-primary/20' : ''
+                        }`}>
+                          {isEventStart && (
+                            <div 
+                              className="absolute left-0 right-0 bg-primary text-primary-foreground text-xs px-1 rounded z-10 truncate"
+                              style={{ 
+                                top: `${(eventMin / 60) * 100}%`,
+                                height: `${Math.min(duration / 60, eventEndHour - hour) * 100}%`,
+                                minHeight: '20px'
+                              }}
+                            >
+                              {event.title}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+          </div>
 
           {isMultiDay ? (
             <div className="space-y-3">

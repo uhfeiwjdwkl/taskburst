@@ -115,8 +115,19 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen && title.trim() && date) {
+        // Auto-save on close
+        handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+      } else if (!isOpen) {
+        onClose();
+      }
+    }}>
+      <DialogContent 
+        className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Edit Event</DialogTitle>
         </DialogHeader>
@@ -207,30 +218,60 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="time">Time</Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                  />
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="time">Time</Label>
+                    <Input
+                      id="time"
+                      type="time"
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="duration">Duration (minutes)</Label>
+                    <Input
+                      id="duration"
+                      type="number"
+                      min="15"
+                      step="15"
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value)}
+                      disabled={!time}
+                      placeholder="60"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="duration">Duration (minutes)</Label>
-                  <Input
-                    id="duration"
-                    type="number"
-                    min="15"
-                    step="15"
-                    value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
-                    disabled={!time}
-                    placeholder="60"
-                  />
-                </div>
-              </div>
+
+                {/* Visual Duration Preview */}
+                {time && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Duration Preview (drag to adjust)</Label>
+                    <div className="border rounded-lg p-2 bg-muted/30 relative h-16 overflow-hidden">
+                      <div className="relative h-full">
+                        <div className="absolute inset-0 flex">
+                          {[0, 6, 12, 18].map(h => (
+                            <div key={h} className="flex-1 border-r border-border text-xs text-muted-foreground">
+                              <span className="pl-0.5">{h === 0 ? '12a' : h < 12 ? `${h}a` : `${h-12}p`}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div
+                          className="absolute top-3 h-8 bg-primary/80 text-primary-foreground rounded text-xs flex items-center justify-center cursor-ew-resize"
+                          style={{ 
+                            left: `${((parseInt(time.split(':')[0]) * 60 + parseInt(time.split(':')[1])) / (24 * 60)) * 100}%`, 
+                            width: `${Math.max(((parseInt(duration) || 60) / (24 * 60)) * 100, 3)}%`,
+                            minWidth: '30px'
+                          }}
+                        >
+                          {parseInt(duration) || 60}min
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             <div className="space-y-2">
