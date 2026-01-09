@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import {
@@ -45,12 +45,12 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask }: TaskDetail
   const [filledIndices, setFilledIndices] = useState<number[]>([]);
 
   // Initialize filled indices when task changes
-  useState(() => {
+  useEffect(() => {
     if (task) {
       const stored = getStoredFilledIndices(task.id);
       setFilledIndices(stored || Array.from({ length: task.progressGridFilled }, (_, i) => i));
     }
-  });
+  }, [task]);
 
   if (!task) return null;
 
