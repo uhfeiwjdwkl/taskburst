@@ -1,5 +1,18 @@
 import { Subtask } from './subtask';
 
+export interface TaskResultPart {
+  name: string;
+  score: number | null;
+  maxScore: number;
+  notes?: string;
+}
+
+export interface TaskResult {
+  totalScore: number | null;
+  totalMaxScore: number;
+  parts: TaskResultPart[];
+}
+
 export interface Task {
   id: string;
   name: string;
@@ -17,6 +30,10 @@ export interface Task {
   instructions?: string; // Optional instructions/guidelines for the task
   projectId?: string; // Optional reference to a project
   subtasks?: Subtask[]; // Array of subtasks
+  // Results fields
+  showInResults?: boolean;
+  resultShortName?: string;
+  result?: TaskResult;
 }
 
 export type TimerPhase = 'focus' | 'break';

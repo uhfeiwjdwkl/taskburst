@@ -14,9 +14,10 @@ export const DEFAULT_PAGES: PageConfig[] = [
   { id: 'projects', name: 'Projects', icon: 'Briefcase', path: '/projects', visible: true, order: 3 },
   { id: 'calendar', name: 'Calendar', icon: 'Calendar', path: '/calendar', visible: true, order: 4 },
   { id: 'timetable', name: 'Timetable', icon: 'Table', path: '/timetable', visible: true, order: 5 },
-  { id: 'history', name: 'History', icon: 'HistoryIcon', path: '/history', visible: true, order: 6 },
-  { id: 'archive', name: 'Archive', icon: 'Archive', path: '/archive', visible: true, order: 7 },
-  { id: 'recently-deleted', name: 'Recently Deleted', icon: 'Clock', path: '/recently-deleted', visible: true, order: 8 },
+  { id: 'results', name: 'Results', icon: 'Award', path: '/results', visible: true, order: 6 },
+  { id: 'history', name: 'History', icon: 'HistoryIcon', path: '/history', visible: true, order: 7 },
+  { id: 'archive', name: 'Archive', icon: 'Archive', path: '/archive', visible: true, order: 8 },
+  { id: 'recently-deleted', name: 'Recently Deleted', icon: 'Clock', path: '/recently-deleted', visible: true, order: 9 },
 ];
 
 export interface AppSettings {

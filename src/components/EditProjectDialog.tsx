@@ -28,6 +28,8 @@ export const EditProjectDialog = ({ open, onClose, onSave, project, tasks }: Edi
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [addTaskDialogOpen, setAddTaskDialogOpen] = useState(false);
   const [localTasks, setLocalTasks] = useState<Task[]>([]);
+  const [showInResults, setShowInResults] = useState(false);
+  const [resultShortName, setResultShortName] = useState('');
   const originalProjectRef = useRef<Project | null>(null);
 
   useEffect(() => {
@@ -37,6 +39,8 @@ export const EditProjectDialog = ({ open, onClose, onSave, project, tasks }: Edi
       setDueDateTime(project.dueDateTime || '');
       setNotes(project.notes || '');
       setSelectedTaskIds(project.taskIds);
+      setShowInResults(project.showInResults || false);
+      setResultShortName(project.resultShortName || '');
       originalProjectRef.current = { ...project };
     }
   }, [project]);
@@ -89,6 +93,8 @@ export const EditProjectDialog = ({ open, onClose, onSave, project, tasks }: Edi
       dueDateTime: dueDateTime || undefined,
       notes: notes.trim(),
       taskIds: selectedTaskIds,
+      showInResults,
+      resultShortName: resultShortName.trim() || undefined,
     });
 
     onClose();
@@ -111,7 +117,6 @@ export const EditProjectDialog = ({ open, onClose, onSave, project, tasks }: Edi
     setLocalTasks([...localTasks, task]);
     setSelectedTaskIds([...selectedTaskIds, task.id]);
     
-    // Save to localStorage
     const allTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
     localStorage.setItem('tasks', JSON.stringify([...allTasks, task]));
     
@@ -170,6 +175,30 @@ export const EditProjectDialog = ({ open, onClose, onSave, project, tasks }: Edi
               placeholder="Additional notes or details"
               rows={3}
             />
+          </div>
+
+          {/* Results Section */}
+          <div className="border-t pt-4 space-y-3">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="showInResults"
+                checked={showInResults}
+                onCheckedChange={(checked) => setShowInResults(!!checked)}
+              />
+              <Label htmlFor="showInResults">Show in Results page</Label>
+            </div>
+
+            {showInResults && (
+              <div>
+                <Label htmlFor="resultShortName">Short Name (for Results display)</Label>
+                <Input
+                  id="resultShortName"
+                  value={resultShortName}
+                  onChange={(e) => setResultShortName(e.target.value)}
+                  placeholder="Optional short name"
+                />
+              </div>
+            )}
           </div>
 
           <div>
