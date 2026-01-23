@@ -4,9 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { AppSettings, DEFAULT_SETTINGS } from '@/types/settings';
+import { Slider } from '@/components/ui/slider';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AppSettings, DEFAULT_SETTINGS, PageConfig, DEFAULT_PAGES } from '@/types/settings';
 import { toast } from 'sonner';
-import { Download, Upload } from 'lucide-react';
+import { Download, Upload, GripVertical, Eye, EyeOff } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { PinProtectionDialog } from './PinProtectionDialog';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -15,13 +19,21 @@ interface SettingsDialogProps {
 
 export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
 
   useEffect(() => {
     const saved = localStorage.getItem('appSettings');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
+        // Merge with defaults to ensure all pages exist
+        const mergedPages = DEFAULT_PAGES.map(defaultPage => {
+          const savedPage = parsed.pages?.find((p: PageConfig) => p.id === defaultPage.id);
+          return savedPage || defaultPage;
+        });
+        setSettings({ ...DEFAULT_SETTINGS, ...parsed, pages: mergedPages });
       } catch (e) {
         console.error('Failed to load settings:', e);
       }
@@ -35,7 +47,10 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, [settings.darkMode]);
+    
+    // Apply brightness
+    document.documentElement.style.filter = `brightness(${settings.brightness / 100})`;
+  }, [settings.darkMode, settings.brightness]);
 
   const handleSave = () => {
     localStorage.setItem('appSettings', JSON.stringify(settings));
@@ -69,7 +84,6 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
         const text = await file.text();
         const imported = JSON.parse(text);
         
-        // Validate it's settings
         if (typeof imported.darkMode === 'boolean') {
           setSettings({ ...DEFAULT_SETTINGS, ...imported });
           localStorage.setItem('appSettings', JSON.stringify({ ...DEFAULT_SETTINGS, ...imported }));
@@ -84,6 +98,45 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
     input.click();
   };
 
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+
+    const items = Array.from(settings.pages);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    // Update order property
+    const updatedItems = items.map((item, index) => ({ ...item, order: index }));
+    setSettings({ ...settings, pages: updatedItems });
+  };
+
+  const togglePageVisibility = (pageId: string) => {
+    const updatedPages = settings.pages.map(page =>
+      page.id === pageId ? { ...page, visible: !page.visible } : page
+    );
+    setSettings({ ...settings, pages: updatedPages });
+  };
+
+  const handleSetPin = () => {
+    if (newPin.length < 4) {
+      toast.error('PIN must be at least 4 characters');
+      return;
+    }
+    if (newPin !== confirmPin) {
+      toast.error('PINs do not match');
+      return;
+    }
+    setSettings({ ...settings, pinProtection: true, pin: newPin });
+    setNewPin('');
+    setConfirmPin('');
+    toast.success('PIN protection enabled');
+  };
+
+  const handleRemovePin = () => {
+    setSettings({ ...settings, pinProtection: false, pin: undefined });
+    toast.success('PIN protection disabled');
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -92,6 +145,7 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Appearance Section */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Appearance</h3>
             
@@ -103,11 +157,33 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                 onCheckedChange={(checked) => setSettings({ ...settings, darkMode: checked })}
               />
             </div>
+
+            <div>
+              <Label>Brightness: {settings.brightness}%</Label>
+              <Slider
+                value={[settings.brightness]}
+                onValueChange={([value]) => setSettings({ ...settings, brightness: value })}
+                min={50}
+                max={150}
+                step={5}
+                className="mt-2"
+              />
+            </div>
           </div>
 
+          {/* Timer Settings */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Timer Settings</h3>
             
+            <div className="flex items-center justify-between">
+              <Label htmlFor="soundEnabled">Play Sound on Timer End</Label>
+              <Switch
+                id="soundEnabled"
+                checked={settings.soundEnabled}
+                onCheckedChange={(checked) => setSettings({ ...settings, soundEnabled: checked })}
+              />
+            </div>
+
             <div>
               <Label htmlFor="focusDuration">Focus Duration (minutes)</Label>
               <Input
@@ -158,17 +234,111 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                 Long break occurs after every {settings.longBreakInterval} focus sessions
               </p>
             </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="soundEnabled">Play Sound on Timer End</Label>
-              <Switch
-                id="soundEnabled"
-                checked={settings.soundEnabled}
-                onCheckedChange={(checked) => setSettings({ ...settings, soundEnabled: checked })}
-              />
-            </div>
           </div>
 
+          {/* Page Visibility & Order */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Navigation Pages</h3>
+            <p className="text-sm text-muted-foreground">
+              Drag to reorder, click eye icon to show/hide pages
+            </p>
+            
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <Droppable droppableId="pages">
+                {(provided) => (
+                  <div
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                    className="space-y-2"
+                  >
+                    {settings.pages
+                      .sort((a, b) => a.order - b.order)
+                      .map((page, index) => (
+                        <Draggable key={page.id} draggableId={page.id} index={index}>
+                          {(provided) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              className={`flex items-center gap-2 p-2 border rounded-md ${
+                                !page.visible ? 'opacity-50' : ''
+                              }`}
+                            >
+                              <div {...provided.dragHandleProps}>
+                                <GripVertical className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                              <span className="flex-1">{page.name}</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => togglePageVisibility(page.id)}
+                              >
+                                {page.visible ? (
+                                  <Eye className="h-4 w-4" />
+                                ) : (
+                                  <EyeOff className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
+          </div>
+
+          {/* PIN Protection */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Security</h3>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>PIN Protection</Label>
+                <p className="text-xs text-muted-foreground">
+                  Require PIN when opening TaskBurst
+                </p>
+              </div>
+              {settings.pinProtection ? (
+                <Button variant="destructive" size="sm" onClick={handleRemovePin}>
+                  Remove PIN
+                </Button>
+              ) : null}
+            </div>
+
+            {!settings.pinProtection && (
+              <div className="space-y-2 p-4 border rounded-md">
+                <div>
+                  <Label htmlFor="newPin">Set PIN</Label>
+                  <Input
+                    id="newPin"
+                    type="password"
+                    value={newPin}
+                    onChange={(e) => setNewPin(e.target.value)}
+                    placeholder="Enter new PIN"
+                    maxLength={8}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="confirmPin">Confirm PIN</Label>
+                  <Input
+                    id="confirmPin"
+                    type="password"
+                    value={confirmPin}
+                    onChange={(e) => setConfirmPin(e.target.value)}
+                    placeholder="Confirm PIN"
+                    maxLength={8}
+                  />
+                </div>
+                <Button onClick={handleSetPin} size="sm">
+                  Enable PIN Protection
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Export/Import */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold">Export/Import Settings</h3>
             <div className="flex gap-2">

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Task } from '@/types/task';
+import { useState, useEffect, useRef } from 'react';
+import { Task, TaskResult, TaskResultPart } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import { saveTextBackup, createFieldId } from '@/lib/textBackup';
 import {
@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -62,7 +63,6 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
   const handleSave = () => {
     const original = originalTaskRef.current;
     if (original) {
-      // Save text backups for changed fields
       if (original.name !== editedTask.name) {
         saveTextBackup({
           fieldId: createFieldId('task', editedTask.id, 'name'),
@@ -123,7 +123,6 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
       if (!isOpen) {
-        // Auto-save on close
         handleSave();
       }
     }}>
@@ -270,6 +269,31 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
               min="1"
               max="100"
             />
+          </div>
+
+          {/* Results Section */}
+          <div className="border-t pt-4 space-y-3">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="showInResults"
+                checked={editedTask.showInResults || false}
+                onCheckedChange={(checked) => setEditedTask({ ...editedTask, showInResults: !!checked })}
+              />
+              <Label htmlFor="showInResults">Show in Results page</Label>
+            </div>
+
+            {editedTask.showInResults && (
+              <div>
+                <Label htmlFor="resultShortName">Short Name (for Results display)</Label>
+                <Input
+                  id="resultShortName"
+                  value={editedTask.resultShortName || ''}
+                  onChange={(e) => setEditedTask({ ...editedTask, resultShortName: e.target.value })}
+                  className="mt-1"
+                  placeholder="Optional short name"
+                />
+              </div>
+            )}
           </div>
 
           <div className="border-t pt-4">

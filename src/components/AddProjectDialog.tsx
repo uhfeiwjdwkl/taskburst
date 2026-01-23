@@ -27,6 +27,8 @@ export const AddProjectDialog = ({ open, onClose, onSave, tasks }: AddProjectDia
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [addTaskDialogOpen, setAddTaskDialogOpen] = useState(false);
   const [localTasks, setLocalTasks] = useState<Task[]>([]);
+  const [showInResults, setShowInResults] = useState(false);
+  const [resultShortName, setResultShortName] = useState('');
 
   const handleSubmit = () => {
     if (!title.trim()) {
@@ -43,6 +45,8 @@ export const AddProjectDialog = ({ open, onClose, onSave, tasks }: AddProjectDia
       taskIds: selectedTaskIds,
       totalEstimatedMinutes: 0,
       totalSpentMinutes: 0,
+      showInResults,
+      resultShortName: resultShortName.trim() || undefined,
     });
 
     // Reset form
@@ -51,6 +55,8 @@ export const AddProjectDialog = ({ open, onClose, onSave, tasks }: AddProjectDia
     setDueDateTime('');
     setNotes('');
     setSelectedTaskIds([]);
+    setShowInResults(false);
+    setResultShortName('');
     onClose();
   };
 
@@ -131,6 +137,30 @@ export const AddProjectDialog = ({ open, onClose, onSave, tasks }: AddProjectDia
               placeholder="Additional notes or details"
               rows={3}
             />
+          </div>
+
+          {/* Results Section */}
+          <div className="border-t pt-4 space-y-3">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="showInResults"
+                checked={showInResults}
+                onCheckedChange={(checked) => setShowInResults(!!checked)}
+              />
+              <Label htmlFor="showInResults">Show in Results page</Label>
+            </div>
+
+            {showInResults && (
+              <div>
+                <Label htmlFor="resultShortName">Short Name (for Results display)</Label>
+                <Input
+                  id="resultShortName"
+                  value={resultShortName}
+                  onChange={(e) => setResultShortName(e.target.value)}
+                  placeholder="Optional short name"
+                />
+              </div>
+            )}
           </div>
 
           <div>
