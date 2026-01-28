@@ -32,6 +32,7 @@ export interface AppSettings {
   pages: PageConfig[];
   pinProtection: boolean;
   pin?: string;
+  useDropdownNav: boolean; // Force dropdown navigation instead of rows
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -46,4 +47,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   pages: DEFAULT_PAGES,
   pinProtection: false,
   pin: undefined,
+  useDropdownNav: false,
 };

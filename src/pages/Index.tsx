@@ -16,7 +16,7 @@ import { exportAllData } from '@/lib/exportImport';
 import { ImportAllButton } from '@/components/ImportAllButton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download, Briefcase, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download, Briefcase, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { playTaskCompleteSound } from '@/lib/sounds';
@@ -24,6 +24,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
 import { ListCard } from '@/components/ListCard';
 import { ListDetailsDialog } from '@/components/ListDetailsDialog';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -46,11 +47,12 @@ const Index = () => {
     const savedTasks = localStorage.getItem('tasks');
     if (savedTasks) {
       const loadedTasks = JSON.parse(savedTasks);
-      // Migrate tasks to include progress grid properties
-      const migratedTasks = loadedTasks.map((task: Task) => ({
+      // Migrate tasks to include progress grid properties and order
+      const migratedTasks = loadedTasks.map((task: Task, index: number) => ({
         ...task,
         progressGridSize: task.progressGridSize ?? 10,
         progressGridFilled: task.progressGridFilled ?? 0,
+        order: task.order ?? index,
       }));
       setTasks(migratedTasks);
     } else {
@@ -68,6 +70,7 @@ const Index = () => {
         createdAt: new Date().toISOString(),
         progressGridSize: 10,
         progressGridFilled: 0,
+        order: 0,
       };
       setTasks([sampleTask]);
       localStorage.setItem('tasks', JSON.stringify([sampleTask]));
@@ -118,6 +121,7 @@ const Index = () => {
       ...newTask,
       id: Date.now().toString(),
       createdAt: new Date().toISOString(),
+      order: tasks.length,
     };
     setTasks([...tasks, task]);
     toast.success('Task added successfully!');
@@ -212,8 +216,26 @@ const Index = () => {
     }
   };
 
-  // Sort tasks by importance (highest first), then by due date
+  // Handle drag and drop reordering
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    
+    const items = Array.from(sortedTasks);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    
+    // Update order property for all tasks
+    const updatedTasks = items.map((task, index) => ({ ...task, order: index }));
+    setTasks(updatedTasks);
+  };
+
+  // Sort tasks by manual order first, then by importance and due date
   const sortedTasks = [...tasks].sort((a, b) => {
+    // If both have order, use that
+    if (a.order !== undefined && b.order !== undefined) {
+      return a.order - b.order;
+    }
+    // Otherwise fall back to importance and due date
     if (b.importance !== a.importance) {
       return b.importance - a.importance;
     }
@@ -275,25 +297,58 @@ const Index = () => {
           />
         </section>
 
-        {/* Tasks Section */}
+        {/* Tasks Section with Drag & Drop */}
         <section>
           <h2 className="text-2xl font-semibold mb-4">
             Your Tasks ({sortedTasks.length})
+            <span className="text-sm font-normal text-muted-foreground ml-2">
+              Drag to reorder
+            </span>
           </h2>
-          <div className="space-y-4">
-            {sortedTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onStartFocus={handleStartFocus}
-                onShowDetails={handleShowDetails}
-                onEdit={handleEdit}
-                onComplete={handleCompleteTask}
-                onDelete={handleDeleteTask}
-                onUpdateTask={handleUpdateTask}
-              />
-            ))}
-          </div>
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="tasks">
+              {(provided) => (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className="space-y-4"
+                >
+                  {sortedTasks.map((task, index) => (
+                    <Draggable key={task.id} draggableId={task.id} index={index}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          className={snapshot.isDragging ? 'opacity-80' : ''}
+                        >
+                          <div className="flex gap-2 items-start">
+                            <div
+                              {...provided.dragHandleProps}
+                              className="mt-4 p-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+                            >
+                              <GripVertical className="h-5 w-5" />
+                            </div>
+                            <div className="flex-1">
+                              <TaskCard
+                                task={task}
+                                onStartFocus={handleStartFocus}
+                                onShowDetails={handleShowDetails}
+                                onEdit={handleEdit}
+                                onComplete={handleCompleteTask}
+                                onDelete={handleDeleteTask}
+                                onUpdateTask={handleUpdateTask}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
         </section>
 
         {/* Favorite Lists Section */}
@@ -369,6 +424,8 @@ const Index = () => {
           task={selectedTask}
           open={detailsDialogOpen}
           onClose={() => setDetailsDialogOpen(false)}
+          onUpdateTask={handleUpdateTask}
+          onEdit={handleEdit}
         />
 
         <AddTaskDialog

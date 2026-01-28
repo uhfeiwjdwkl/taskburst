@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -21,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { X, Plus, Calendar } from 'lucide-react';
+import { X, Plus, Calendar, Trash2 } from 'lucide-react';
 import { SubtaskList } from './SubtaskList';
 import { TaskScheduleDialog } from './TaskScheduleDialog';
 
@@ -42,7 +44,22 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
 
   useEffect(() => {
     if (task) {
-      setEditedTask({ ...task });
+      // Ensure result has default structure
+      const defaultResult: TaskResult = {
+        totalScore: null,
+        totalMaxScore: 100,
+        totalMode: 'marks',
+        parts: [
+          { name: 'Part 1', score: null, maxScore: 25, notes: '' },
+          { name: 'Part 2', score: null, maxScore: 25, notes: '' },
+          { name: 'Part 3', score: null, maxScore: 25, notes: '' },
+          { name: 'Part 4', score: null, maxScore: 25, notes: '' },
+        ]
+      };
+      setEditedTask({ 
+        ...task, 
+        result: task.result || (task.showInResults ? defaultResult : undefined)
+      });
       originalTaskRef.current = { ...task };
     }
   }, [task]);
@@ -118,21 +135,87 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
     }
   };
 
+  const handleToggleShowInResults = (checked: boolean) => {
+    if (checked && !editedTask.result) {
+      // Initialize result when enabling
+      const defaultResult: TaskResult = {
+        totalScore: null,
+        totalMaxScore: 100,
+        totalMode: 'marks',
+        parts: [
+          { name: 'Part 1', score: null, maxScore: 25, notes: '' },
+          { name: 'Part 2', score: null, maxScore: 25, notes: '' },
+          { name: 'Part 3', score: null, maxScore: 25, notes: '' },
+          { name: 'Part 4', score: null, maxScore: 25, notes: '' },
+        ]
+      };
+      setEditedTask({ ...editedTask, showInResults: true, result: defaultResult });
+    } else {
+      setEditedTask({ ...editedTask, showInResults: checked });
+    }
+  };
+
+  const handlePartChange = (index: number, field: keyof TaskResultPart, value: string | number | null) => {
+    if (!editedTask.result) return;
+    
+    const updatedParts = [...editedTask.result.parts];
+    if (field === 'score') {
+      updatedParts[index] = { ...updatedParts[index], score: value === '' ? null : Number(value) };
+    } else if (field === 'maxScore') {
+      updatedParts[index] = { ...updatedParts[index], maxScore: Number(value) || 25 };
+    } else if (field === 'name') {
+      updatedParts[index] = { ...updatedParts[index], name: String(value) };
+    }
+    
+    setEditedTask({
+      ...editedTask,
+      result: { ...editedTask.result, parts: updatedParts }
+    });
+  };
+
+  const handleAddPart = () => {
+    if (!editedTask.result) return;
+    
+    const newPart: TaskResultPart = {
+      name: `Part ${editedTask.result.parts.length + 1}`,
+      score: null,
+      maxScore: 25,
+      notes: ''
+    };
+    
+    setEditedTask({
+      ...editedTask,
+      result: { ...editedTask.result, parts: [...editedTask.result.parts, newPart] }
+    });
+  };
+
+  const handleRemovePart = (index: number) => {
+    if (!editedTask.result || editedTask.result.parts.length <= 1) return;
+    
+    const updatedParts = editedTask.result.parts.filter((_, i) => i !== index);
+    setEditedTask({
+      ...editedTask,
+      result: { ...editedTask.result, parts: updatedParts }
+    });
+  };
+
   const importanceLabels = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
-      if (!isOpen) {
-        handleSave();
-      }
-    }}>
+    <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent 
-        className="max-w-md max-h-[90vh] overflow-y-auto"
+        className="max-w-lg max-h-[90vh] overflow-y-auto"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader>
-          <DialogTitle>Edit Task</DialogTitle>
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <div>
+            <DialogTitle>Edit Task</DialogTitle>
+            <DialogDescription>Modify task details and settings</DialogDescription>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+            <X className="h-4 w-4" />
+          </Button>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -277,22 +360,102 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
               <Checkbox
                 id="showInResults"
                 checked={editedTask.showInResults || false}
-                onCheckedChange={(checked) => setEditedTask({ ...editedTask, showInResults: !!checked })}
+                onCheckedChange={handleToggleShowInResults}
               />
               <Label htmlFor="showInResults">Show in Results page</Label>
             </div>
 
             {editedTask.showInResults && (
-              <div>
-                <Label htmlFor="resultShortName">Short Name (for Results display)</Label>
-                <Input
-                  id="resultShortName"
-                  value={editedTask.resultShortName || ''}
-                  onChange={(e) => setEditedTask({ ...editedTask, resultShortName: e.target.value })}
-                  className="mt-1"
-                  placeholder="Optional short name"
-                />
-              </div>
+              <>
+                <div>
+                  <Label htmlFor="resultShortName">Short Name (for Results display)</Label>
+                  <Input
+                    id="resultShortName"
+                    value={editedTask.resultShortName || ''}
+                    onChange={(e) => setEditedTask({ ...editedTask, resultShortName: e.target.value })}
+                    className="mt-1"
+                    placeholder="Optional short name"
+                  />
+                </div>
+
+                {/* Total Mode Toggle */}
+                <div className="flex items-center gap-2">
+                  <Label>Total Mode:</Label>
+                  <Button
+                    type="button"
+                    variant={editedTask.result?.totalMode === 'marks' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setEditedTask({
+                      ...editedTask,
+                      result: { ...editedTask.result!, totalMode: 'marks' }
+                    })}
+                  >
+                    Sum
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={editedTask.result?.totalMode === 'average' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setEditedTask({
+                      ...editedTask,
+                      result: { ...editedTask.result!, totalMode: 'average' }
+                    })}
+                  >
+                    Average
+                  </Button>
+                </div>
+
+                {/* Parts Editor */}
+                {editedTask.result && (
+                  <div className="space-y-2">
+                    <Label>Result Parts</Label>
+                    {editedTask.result.parts.map((part, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
+                        <Input
+                          value={part.name}
+                          onChange={(e) => handlePartChange(index, 'name', e.target.value)}
+                          placeholder="Part name"
+                          className="flex-1 h-8 text-sm"
+                        />
+                        <Input
+                          type="number"
+                          value={part.score ?? ''}
+                          onChange={(e) => handlePartChange(index, 'score', e.target.value)}
+                          placeholder="Score"
+                          className="w-20 h-8 text-sm"
+                        />
+                        <span className="text-muted-foreground">/</span>
+                        <Input
+                          type="number"
+                          value={part.maxScore}
+                          onChange={(e) => handlePartChange(index, 'maxScore', e.target.value)}
+                          className="w-16 h-8 text-sm"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleRemovePart(index)}
+                          disabled={editedTask.result!.parts.length <= 1}
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddPart}
+                      className="w-full"
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Add Part
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
