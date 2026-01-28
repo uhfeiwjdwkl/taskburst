@@ -117,4 +117,44 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Fix number input spinner buttons in dark mode */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  /* Custom number input with visible spinners */
+  .number-input-with-spinners {
+    position: relative;
+  }
+
+  .number-input-with-spinners input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  .number-input-with-spinners input[type="number"]::-webkit-inner-spin-button,
+  .number-input-with-spinners input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: inner-spin-button;
+    appearance: auto;
+    opacity: 1;
+  }
+
+  .dark input[type="number"]::-webkit-inner-spin-button,
+  .dark input[type="number"]::-webkit-outer-spin-button {
+    filter: invert(1);
+  }
+}
+
+/* PIN blur overlay */
+.pin-blur-overlay {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }

@@ -1,4 +1,5 @@
 import { Task } from '@/types/task';
+import { Subtask } from '@/types/subtask';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Clock, Info, Play, CheckCircle2, Edit, Trash2 } from 'lucide-react';
@@ -14,6 +15,21 @@ interface TaskCardProps {
   onDelete: (taskId: string) => void;
   onUpdateTask: (task: Task) => void;
 }
+
+// Helper to get stored filled indices for non-sequential grid
+const getStoredFilledIndices = (taskId: string): number[] | null => {
+  const stored = localStorage.getItem('progressGridFilledIndices');
+  if (!stored) return null;
+  const data = JSON.parse(stored);
+  return data[taskId] || null;
+};
+
+const storeFilledIndices = (taskId: string, indices: number[]): void => {
+  const stored = localStorage.getItem('progressGridFilledIndices');
+  const data = stored ? JSON.parse(stored) : {};
+  data[taskId] = indices;
+  localStorage.setItem('progressGridFilledIndices', JSON.stringify(data));
+};
 
 const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDelete, onUpdateTask }: TaskCardProps) => {
   const remainingMinutes = Math.max(task.estimatedMinutes - task.spentMinutes, 0);
@@ -40,15 +56,45 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
     return labels[importance] || 'None';
   };
 
+  // Get non-sequential filled indices
+  const currentFilledIndices = getStoredFilledIndices(task.id) || 
+    Array.from({ length: task.progressGridFilled }, (_, i) => i);
+
   const progressPercentage = task.progressGridSize > 0
-    ? Math.round((task.progressGridFilled / task.progressGridSize) * 100)
+    ? Math.round((currentFilledIndices.length / task.progressGridSize) * 100)
     : 0;
 
+  // Get subtask for a specific grid index
+  const getSubtaskForIndex = (index: number): Subtask | undefined => {
+    return task.subtasks?.find(s => s.linkedToProgressGrid && s.progressGridIndex === index);
+  };
+
   const handleGridClick = (index: number) => {
-    const newFilled = index < task.progressGridFilled ? index : index + 1;
+    const subtask = getSubtaskForIndex(index);
+    
+    // Toggle the box (non-sequential)
+    let newIndices: number[];
+    if (currentFilledIndices.includes(index)) {
+      newIndices = currentFilledIndices.filter(i => i !== index);
+    } else {
+      newIndices = [...currentFilledIndices, index].sort((a, b) => a - b);
+    }
+    
+    // Store the indices
+    storeFilledIndices(task.id, newIndices);
+    
+    // If there's a linked subtask, also toggle its completion
+    let updatedSubtasks = task.subtasks;
+    if (subtask) {
+      updatedSubtasks = (task.subtasks || []).map(s =>
+        s.id === subtask.id ? { ...s, completed: !currentFilledIndices.includes(index) } : s
+      );
+    }
+    
     onUpdateTask({
       ...task,
-      progressGridFilled: newFilled
+      progressGridFilled: newIndices.length,
+      subtasks: updatedSubtasks
     });
   };
 
@@ -80,23 +126,46 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
             )}
           </div>
 
-          {/* Progress Grid */}
+          {/* Progress Grid - Non-sequential with subtask display */}
           <div className="mb-3">
             <div className="flex items-center gap-3 mb-2">
               <div className="flex flex-wrap gap-1">
-                {Array.from({ length: task.progressGridSize }).map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleGridClick(index)}
-                    className={cn(
-                      "w-4 h-4 border border-border rounded-sm transition-all hover:scale-110",
-                      index < task.progressGridFilled
-                        ? "bg-gradient-primary"
-                        : "bg-secondary"
-                    )}
-                    aria-label={`Toggle progress square ${index + 1}`}
-                  />
-                ))}
+                {Array.from({ length: task.progressGridSize }).map((_, index) => {
+                  const subtask = getSubtaskForIndex(index);
+                  const isFilled = currentFilledIndices.includes(index);
+                  const displayText = subtask && !isFilled 
+                    ? (subtask.abbreviation || subtask.title.charAt(0).toUpperCase())
+                    : null;
+                  
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => handleGridClick(index)}
+                      className={cn(
+                        "w-4 h-4 border border-border rounded-sm transition-all hover:scale-110 flex items-center justify-center text-[8px] font-medium",
+                        isFilled
+                          ? "bg-gradient-primary"
+                          : "bg-secondary",
+                        subtask && !subtask.completed && !isFilled && "ring-1 ring-primary/50"
+                      )}
+                      style={{
+                        backgroundColor: subtask?.color && !isFilled ? `${subtask.color}40` : undefined,
+                        borderColor: subtask?.color && !isFilled ? subtask.color : undefined,
+                      }}
+                      aria-label={`Toggle progress square ${index + 1}${subtask ? ` - ${subtask.title}` : ''}`}
+                      title={subtask ? subtask.title : `Box ${index + 1}`}
+                    >
+                      {displayText && (
+                        <span 
+                          className="truncate"
+                          style={{ color: subtask?.color || undefined }}
+                        >
+                          {displayText}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
               <div className="text-sm font-semibold bg-gradient-primary bg-clip-text text-transparent">
                 {progressPercentage}%

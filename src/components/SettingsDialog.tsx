@@ -1,16 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import { Checkbox } from '@/components/ui/checkbox';
 import { AppSettings, DEFAULT_SETTINGS, PageConfig, DEFAULT_PAGES } from '@/types/settings';
 import { toast } from 'sonner';
-import { Download, Upload, GripVertical, Eye, EyeOff } from 'lucide-react';
+import { Download, Upload, GripVertical, Eye, EyeOff, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { PinProtectionDialog } from './PinProtectionDialog';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -19,7 +17,6 @@ interface SettingsDialogProps {
 
 export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
-  const [pinDialogOpen, setPinDialogOpen] = useState(false);
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
 
@@ -138,10 +135,20 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
+    <Dialog open={open} onOpenChange={() => {}}>
+      <DialogContent 
+        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <div>
+            <DialogTitle>Settings</DialogTitle>
+            <DialogDescription>Configure your TaskBurst preferences</DialogDescription>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+            <X className="h-4 w-4" />
+          </Button>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -242,6 +249,15 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
             <p className="text-sm text-muted-foreground">
               Drag to reorder, click eye icon to show/hide pages
             </p>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="useDropdownNav">Always use dropdown navigation</Label>
+              <Switch
+                id="useDropdownNav"
+                checked={settings.useDropdownNav}
+                onCheckedChange={(checked) => setSettings({ ...settings, useDropdownNav: checked })}
+              />
+            </div>
             
             <DragDropContext onDragEnd={handleDragEnd}>
               <Droppable droppableId="pages">
@@ -259,7 +275,7 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                             <div
                               ref={provided.innerRef}
                               {...provided.draggableProps}
-                              className={`flex items-center gap-2 p-2 border rounded-md ${
+                              className={`flex items-center gap-2 p-2 border rounded-md bg-background ${
                                 !page.visible ? 'opacity-50' : ''
                               }`}
                             >

@@ -11,6 +11,7 @@ export interface TaskResult {
   totalScore: number | null;
   totalMaxScore: number;
   parts: TaskResultPart[];
+  totalMode?: 'marks' | 'average'; // marks = sum of parts, average = avg of part percentages
 }
 
 export interface Task {
@@ -18,6 +19,7 @@ export interface Task {
   name: string;
   description: string;
   category: string;
+  subcategory?: string; // Optional subcategory within category
   importance: number; // 1-5 scale
   estimatedMinutes: number;
   spentMinutes: number;
@@ -34,6 +36,8 @@ export interface Task {
   showInResults?: boolean;
   resultShortName?: string;
   result?: TaskResult;
+  // Manual ordering
+  order?: number;
 }
 
 export type TimerPhase = 'focus' | 'break';

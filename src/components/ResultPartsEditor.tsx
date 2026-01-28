@@ -5,11 +5,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 
 interface Part {
   name: string;
@@ -70,10 +71,20 @@ export function ResultPartsEditor({ open, onClose, onSave, parts, itemName }: Re
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit Parts - {itemName}</DialogTitle>
+    <Dialog open={open} onOpenChange={() => {}}>
+      <DialogContent 
+        className="max-w-lg max-h-[80vh] overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <div>
+            <DialogTitle>Edit Parts - {itemName}</DialogTitle>
+            <DialogDescription>Customize the parts for this result</DialogDescription>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+            <X className="h-4 w-4" />
+          </Button>
         </DialogHeader>
         
         <div className="space-y-4 py-4">

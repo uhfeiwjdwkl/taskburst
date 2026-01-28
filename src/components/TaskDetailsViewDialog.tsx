@@ -6,12 +6,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Clock, Calendar as CalendarIcon, Tag, Grid3X3, X } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, Tag, Grid3X3, X, Edit } from 'lucide-react';
 import ProgressRing from '@/components/ProgressRing';
 import { ExportTaskButton } from '@/components/ExportTaskButton';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,7 @@ interface TaskDetailsViewDialogProps {
   open: boolean;
   onClose: () => void;
   onUpdateTask?: (task: Task) => void;
+  onEdit?: (taskId: string) => void;
 }
 
 // Helper to get stored filled indices
@@ -40,7 +41,7 @@ const storeFilledIndices = (taskId: string, indices: number[]): void => {
   localStorage.setItem('progressGridFilledIndices', JSON.stringify(data));
 };
 
-const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask }: TaskDetailsViewDialogProps) => {
+const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: TaskDetailsViewDialogProps) => {
   const [selectedBox, setSelectedBox] = useState<number | null>(null);
   const [filledIndices, setFilledIndices] = useState<number[]>([]);
 
@@ -141,6 +142,25 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask }: TaskDetail
 
   const subtasks = task.subtasks || [];
 
+  // Calculate result display
+  const hasResult = task.showInResults && task.result;
+  const resultTotal = hasResult ? (() => {
+    const mode = task.result?.totalMode || 'marks';
+    const parts = task.result?.parts || [];
+    const scoredParts = parts.filter(p => p.score !== null);
+    
+    if (scoredParts.length === 0) return null;
+    
+    if (mode === 'average') {
+      const avgPercentage = scoredParts.reduce((sum, p) => sum + ((p.score || 0) / p.maxScore) * 100, 0) / scoredParts.length;
+      return { percentage: avgPercentage.toFixed(2), label: 'Average' };
+    } else {
+      const totalScore = scoredParts.reduce((sum, p) => sum + (p.score || 0), 0);
+      const totalMax = parts.reduce((sum, p) => sum + p.maxScore, 0);
+      return { score: totalScore, max: totalMax, percentage: ((totalScore / totalMax) * 100).toFixed(2), label: 'Total' };
+    }
+  })() : null;
+
   return (
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent 
@@ -149,10 +169,20 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask }: TaskDetail
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle>Task Details</DialogTitle>
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
-            <X className="h-4 w-4" />
-          </Button>
+          <div>
+            <DialogTitle>Task Details</DialogTitle>
+            <DialogDescription>View task information and progress</DialogDescription>
+          </div>
+          <div className="flex items-center gap-1">
+            {onEdit && (
+              <Button variant="ghost" size="sm" onClick={() => { onClose(); onEdit(task.id); }} className="h-8 w-8 p-0">
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -287,6 +317,27 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask }: TaskDetail
             />
           </div>
 
+          {/* Result Display */}
+          {hasResult && resultTotal && (
+            <div className="border-t pt-4">
+              <Label className="text-muted-foreground text-sm">Result</Label>
+              <div className="mt-2 p-3 bg-muted rounded-md text-center">
+                <div className="text-lg font-bold">
+                  {resultTotal.label}: {resultTotal.score !== undefined ? `${resultTotal.score}/${resultTotal.max}` : ''} ({resultTotal.percentage}%)
+                </div>
+                {task.result?.parts && task.result.parts.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2 justify-center">
+                    {task.result.parts.map((part, i) => (
+                      <Badge key={i} variant="outline" className="text-xs">
+                        {part.name}: {part.score !== null ? `${part.score}/${part.maxScore}` : '-'}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Subtasks List */}
           {subtasks.length > 0 && (
             <div>
@@ -378,6 +429,12 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask }: TaskDetail
 
           <div className="pt-4 flex gap-2 justify-end">
             <ExportTaskButton task={task} />
+            {onEdit && (
+              <Button variant="outline" onClick={() => { onClose(); onEdit(task.id); }}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            )}
             <Button onClick={onClose}>
               Close
             </Button>

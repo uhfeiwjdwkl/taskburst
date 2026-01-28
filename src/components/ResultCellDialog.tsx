@@ -5,11 +5,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { X } from 'lucide-react';
 
 interface ResultCellDialogProps {
   open: boolean;
@@ -43,10 +45,20 @@ export function ResultCellDialog({ open, onClose, onSave, initialData }: ResultC
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Edit Score - {initialData?.name || 'Part'}</DialogTitle>
+    <Dialog open={open} onOpenChange={() => {}}>
+      <DialogContent 
+        className="max-w-md"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <div>
+            <DialogTitle>Edit Score - {initialData?.name || 'Part'}</DialogTitle>
+            <DialogDescription>Enter the score and any notes</DialogDescription>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+            <X className="h-4 w-4" />
+          </Button>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
