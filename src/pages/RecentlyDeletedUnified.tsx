@@ -9,8 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Undo2, Trash2, Copy, FileText, CheckSquare } from 'lucide-react';
+import { Undo2, Trash2, Copy, FileText, CheckSquare, Menu, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns/formatDistanceToNow';
 import { ExportImportRecentlyDeletedButton } from '@/components/ExportImportRecentlyDeletedButton';
@@ -24,8 +23,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+// Tab configuration
+const TABS = [
+  { id: 'tasks', label: 'Tasks' },
+  { id: 'sessions', label: 'Sessions' },
+  { id: 'archive', label: 'Archive' },
+  { id: 'timetables', label: 'Timetables' },
+  { id: 'lists', label: 'Lists' },
+  { id: 'list-items', label: 'List Items' },
+  { id: 'projects', label: 'Projects' },
+  { id: 'text-backups', label: 'Text', icon: FileText },
+] as const;
+
+type TabId = typeof TABS[number]['id'];
 
 const RecentlyDeletedUnified = () => {
+  const [activeTab, setActiveTab] = useState<TabId>('tasks');
   const [deletedTasks, setDeletedTasks] = useState<Task[]>([]);
   const [deletedSessions, setDeletedSessions] = useState<Session[]>([]);
   const [deletedArchive, setDeletedArchive] = useState<Task[]>([]);
@@ -37,55 +57,56 @@ const RecentlyDeletedUnified = () => {
   const [selectedTextBackups, setSelectedTextBackups] = useState<Set<string>>(new Set());
   const [permanentDeleteDialog, setPermanentDeleteDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ type: string; id: string } | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     loadAllDeleted();
+    
+    // Check width for responsive tabs
+    const checkWidth = () => {
+      setIsCollapsed(window.innerWidth < 768);
+    };
+    checkWidth();
+    window.addEventListener('resize', checkWidth);
+    return () => window.removeEventListener('resize', checkWidth);
   }, []);
 
   const loadAllDeleted = () => {
-    // Load deleted tasks
     const tasks = JSON.parse(localStorage.getItem('deletedTasks') || '[]') as Task[];
     setDeletedTasks(tasks.filter(t => getDaysRemaining(t.deletedAt!) > 0).sort((a, b) => 
       new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime()
     ));
 
-    // Load deleted sessions
     const sessions = JSON.parse(localStorage.getItem('deletedSessions') || '[]') as Session[];
     setDeletedSessions(sessions.filter(s => getDaysRemaining(s.deletedAt!) > 0).sort((a, b) => 
       new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime()
     ));
 
-    // Load deleted archive items
     const archive = JSON.parse(localStorage.getItem('deletedArchive') || '[]') as Task[];
     setDeletedArchive(archive.filter(t => getDaysRemaining(t.deletedAt!) > 0).sort((a, b) => 
       new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime()
     ));
 
-    // Load deleted timetables
     const timetables = JSON.parse(localStorage.getItem('timetables') || '[]') as Timetable[];
     const deletedTT = timetables.filter(t => t.deletedAt && getDaysRemaining(t.deletedAt) > 0)
       .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
     setDeletedTimetables(deletedTT);
 
-    // Load deleted lists
     const lists = JSON.parse(localStorage.getItem('lists') || '[]') as List[];
     const deletedL = lists.filter(l => l.deletedAt && getDaysRemaining(l.deletedAt) > 0)
       .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
     setDeletedLists(deletedL);
 
-    // Load deleted list items
     const listItems = JSON.parse(localStorage.getItem('deletedListItems') || '[]') as (ListItem & { listId: string; deletedAt?: string })[];
     const deletedLI = listItems.filter(item => item.deletedAt && getDaysRemaining(item.deletedAt) > 0)
       .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
     setDeletedListItems(deletedLI);
 
-    // Load deleted projects
     const projects = JSON.parse(localStorage.getItem('projects') || '[]') as Project[];
     const deletedP = projects.filter(p => p.deletedAt && getDaysRemaining(p.deletedAt) > 0)
       .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
     setDeletedProjects(deletedP);
 
-    // Load text backups
     const backups = getTextBackups();
     setTextBackups(backups.sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()));
   };
@@ -95,6 +116,20 @@ const RecentlyDeletedUnified = () => {
     const expiryDate = new Date(deleted.getTime() + 30 * 24 * 60 * 60 * 1000);
     const now = new Date();
     return Math.max(0, Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+  };
+
+  const getTabCount = (tabId: TabId): number => {
+    switch (tabId) {
+      case 'tasks': return deletedTasks.length;
+      case 'sessions': return deletedSessions.length;
+      case 'archive': return deletedArchive.length;
+      case 'timetables': return deletedTimetables.length;
+      case 'lists': return deletedLists.length;
+      case 'list-items': return deletedListItems.length;
+      case 'projects': return deletedProjects.length;
+      case 'text-backups': return textBackups.length;
+      default: return 0;
+    }
   };
 
   // Task handlers
@@ -122,7 +157,6 @@ const RecentlyDeletedUnified = () => {
       const updated = deletedSessions.filter(s => s.id !== sessionId);
       localStorage.setItem('deletedSessions', JSON.stringify(updated));
       
-      // Restore task progress
       const tasks = JSON.parse(localStorage.getItem('tasks') || '[]') as Task[];
       const updatedTasks = tasks.map(task => {
         if (task.id === session.taskId) {
@@ -309,322 +343,282 @@ const RecentlyDeletedUnified = () => {
     toast.success(`Copied ${selectedTextBackups.size} text backups to clipboard`);
   };
 
-  return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold mb-2">Recently Deleted</h1>
-          <p className="text-muted-foreground">Items are permanently deleted after 30 days</p>
-        </div>
-
-        <Tabs defaultValue="tasks" className="w-full">
-          <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="tasks">Tasks ({deletedTasks.length})</TabsTrigger>
-            <TabsTrigger value="sessions">Sessions ({deletedSessions.length})</TabsTrigger>
-            <TabsTrigger value="archive">Archive ({deletedArchive.length})</TabsTrigger>
-            <TabsTrigger value="timetables">Timetables ({deletedTimetables.length})</TabsTrigger>
-            <TabsTrigger value="lists">Lists ({deletedLists.length})</TabsTrigger>
-            <TabsTrigger value="list-items">List Items ({deletedListItems.length})</TabsTrigger>
-            <TabsTrigger value="projects">Projects ({deletedProjects.length})</TabsTrigger>
-            <TabsTrigger value="text-backups" className="flex items-center gap-1">
-              <FileText className="h-3 w-3" />
-              Text ({textBackups.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="tasks" className="space-y-4 mt-4">
-            {deletedTasks.length === 0 ? (
-              <Card className="p-8 text-center text-muted-foreground">
-                No deleted tasks
-              </Card>
-            ) : (
-              deletedTasks.map(task => (
-                <Card key={task.id} className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="font-semibold mb-1">{task.name}</h3>
-                      <p className="text-sm text-muted-foreground mb-2">{task.description}</p>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>Deleted {formatDistanceToNow(new Date(task.deletedAt!))} ago</span>
-                        <Badge variant="outline">{getDaysRemaining(task.deletedAt!)} days left</Badge>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleRestoreTask(task.id)}>
-                        <Undo2 className="h-4 w-4 mr-1" />
-                        Restore
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => {
-                          setItemToDelete({ type: 'task', id: task.id });
-                          setPermanentDeleteDialog(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'tasks':
+        return deletedTasks.length === 0 ? (
+          <Card className="p-8 text-center text-muted-foreground">No deleted tasks</Card>
+        ) : (
+          deletedTasks.map(task => (
+            <Card key={task.id} className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">{task.name}</h3>
+                  <p className="text-sm text-muted-foreground mb-2">{task.description}</p>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>Deleted {formatDistanceToNow(new Date(task.deletedAt!))} ago</span>
+                    <Badge variant="outline">{getDaysRemaining(task.deletedAt!)} days left</Badge>
                   </div>
-                </Card>
-              ))
-            )}
-          </TabsContent>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => handleRestoreTask(task.id)}>
+                    <Undo2 className="h-4 w-4 mr-1" />
+                    Restore
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setItemToDelete({ type: 'task', id: task.id });
+                      setPermanentDeleteDialog(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))
+        );
 
-          <TabsContent value="sessions" className="space-y-4 mt-4">
-            {deletedSessions.length === 0 ? (
-              <Card className="p-8 text-center text-muted-foreground">
-                No deleted sessions
-              </Card>
-            ) : (
-              deletedSessions.map(session => (
-                <Card key={session.id} className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="font-semibold mb-1">{session.taskName}</h3>
-                      {session.description && (
-                        <p className="text-sm text-muted-foreground mb-2">{session.description}</p>
-                      )}
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>{formatDuration(session.duration)}</span>
-                        <span>{new Date(session.dateEnded).toLocaleDateString('en-GB')}</span>
-                        <span>Deleted {formatDistanceToNow(new Date(session.deletedAt!))} ago</span>
-                        <Badge variant="outline">{getDaysRemaining(session.deletedAt!)} days left</Badge>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleRestoreSession(session.id)}>
-                        <Undo2 className="h-4 w-4 mr-1" />
-                        Restore
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => {
-                          setItemToDelete({ type: 'session', id: session.id });
-                          setPermanentDeleteDialog(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+      case 'sessions':
+        return deletedSessions.length === 0 ? (
+          <Card className="p-8 text-center text-muted-foreground">No deleted sessions</Card>
+        ) : (
+          deletedSessions.map(session => (
+            <Card key={session.id} className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">{session.taskName}</h3>
+                  {session.description && (
+                    <p className="text-sm text-muted-foreground mb-2">{session.description}</p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>{formatDuration(session.duration)}</span>
+                    <span>{new Date(session.dateEnded).toLocaleDateString('en-GB')}</span>
+                    <span>Deleted {formatDistanceToNow(new Date(session.deletedAt!))} ago</span>
+                    <Badge variant="outline">{getDaysRemaining(session.deletedAt!)} days left</Badge>
                   </div>
-                </Card>
-              ))
-            )}
-          </TabsContent>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => handleRestoreSession(session.id)}>
+                    <Undo2 className="h-4 w-4 mr-1" />
+                    Restore
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setItemToDelete({ type: 'session', id: session.id });
+                      setPermanentDeleteDialog(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))
+        );
 
-          <TabsContent value="archive" className="space-y-4 mt-4">
-            {deletedArchive.length === 0 ? (
-              <Card className="p-8 text-center text-muted-foreground">
-                No deleted archive items
-              </Card>
-            ) : (
-              deletedArchive.map(task => (
-                <Card key={task.id} className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="font-semibold mb-1 line-through">{task.name}</h3>
-                      <p className="text-sm text-muted-foreground mb-2">{task.description}</p>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>{Math.round(task.spentMinutes)}m spent</span>
-                        <span>Deleted {formatDistanceToNow(new Date(task.deletedAt!))} ago</span>
-                        <Badge variant="outline">{getDaysRemaining(task.deletedAt!)} days left</Badge>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleRestoreArchive(task.id)}>
-                        <Undo2 className="h-4 w-4 mr-1" />
-                        Restore
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => {
-                          setItemToDelete({ type: 'archive', id: task.id });
-                          setPermanentDeleteDialog(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+      case 'archive':
+        return deletedArchive.length === 0 ? (
+          <Card className="p-8 text-center text-muted-foreground">No deleted archive items</Card>
+        ) : (
+          deletedArchive.map(task => (
+            <Card key={task.id} className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1 line-through">{task.name}</h3>
+                  <p className="text-sm text-muted-foreground mb-2">{task.description}</p>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>{Math.round(task.spentMinutes)}m spent</span>
+                    <span>Deleted {formatDistanceToNow(new Date(task.deletedAt!))} ago</span>
+                    <Badge variant="outline">{getDaysRemaining(task.deletedAt!)} days left</Badge>
                   </div>
-                </Card>
-              ))
-            )}
-          </TabsContent>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => handleRestoreArchive(task.id)}>
+                    <Undo2 className="h-4 w-4 mr-1" />
+                    Restore
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setItemToDelete({ type: 'archive', id: task.id });
+                      setPermanentDeleteDialog(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))
+        );
 
-          <TabsContent value="timetables" className="space-y-4 mt-4">
-            {deletedTimetables.length === 0 ? (
-              <Card className="p-8 text-center text-muted-foreground">
-                No deleted timetables
-              </Card>
-            ) : (
-              deletedTimetables.map(timetable => (
-                <Card key={timetable.id} className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="font-semibold mb-1">{timetable.name}</h3>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {timetable.type === 'weekly' ? 'Weekly' : 'Fortnightly'} • {timetable.rows.length} periods
-                      </p>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>Deleted {formatDistanceToNow(new Date(timetable.deletedAt!))} ago</span>
-                        <Badge variant="outline">{getDaysRemaining(timetable.deletedAt!)} days left</Badge>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleRestoreTimetable(timetable.id)}>
-                        <Undo2 className="h-4 w-4 mr-1" />
-                        Restore
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => {
-                          setItemToDelete({ type: 'timetable', id: timetable.id });
-                          setPermanentDeleteDialog(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+      case 'timetables':
+        return deletedTimetables.length === 0 ? (
+          <Card className="p-8 text-center text-muted-foreground">No deleted timetables</Card>
+        ) : (
+          deletedTimetables.map(timetable => (
+            <Card key={timetable.id} className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">{timetable.name}</h3>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {timetable.type === 'weekly' ? 'Weekly' : 'Fortnightly'} • {timetable.rows.length} periods
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>Deleted {formatDistanceToNow(new Date(timetable.deletedAt!))} ago</span>
+                    <Badge variant="outline">{getDaysRemaining(timetable.deletedAt!)} days left</Badge>
                   </div>
-                </Card>
-              ))
-            )}
-          </TabsContent>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => handleRestoreTimetable(timetable.id)}>
+                    <Undo2 className="h-4 w-4 mr-1" />
+                    Restore
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setItemToDelete({ type: 'timetable', id: timetable.id });
+                      setPermanentDeleteDialog(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))
+        );
 
-          <TabsContent value="lists" className="space-y-4 mt-4">
-            {deletedLists.length === 0 ? (
-              <Card className="p-8 text-center text-muted-foreground">
-                No deleted lists
-              </Card>
-            ) : (
-              deletedLists.map(list => (
-                <Card key={list.id} className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="font-semibold mb-1">{list.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-2">{list.items.length} items</p>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>Deleted {formatDistanceToNow(new Date(list.deletedAt!))} ago</span>
-                        <Badge variant="outline">{getDaysRemaining(list.deletedAt!)} days left</Badge>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleRestoreList(list.id)}>
-                        <Undo2 className="h-4 w-4 mr-1" />
-                        Restore
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => {
-                          setItemToDelete({ type: 'list', id: list.id });
-                          setPermanentDeleteDialog(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+      case 'lists':
+        return deletedLists.length === 0 ? (
+          <Card className="p-8 text-center text-muted-foreground">No deleted lists</Card>
+        ) : (
+          deletedLists.map(list => (
+            <Card key={list.id} className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">{list.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-2">{list.items.length} items</p>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>Deleted {formatDistanceToNow(new Date(list.deletedAt!))} ago</span>
+                    <Badge variant="outline">{getDaysRemaining(list.deletedAt!)} days left</Badge>
                   </div>
-                </Card>
-              ))
-            )}
-          </TabsContent>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => handleRestoreList(list.id)}>
+                    <Undo2 className="h-4 w-4 mr-1" />
+                    Restore
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setItemToDelete({ type: 'list', id: list.id });
+                      setPermanentDeleteDialog(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))
+        );
 
-          <TabsContent value="list-items" className="space-y-4 mt-4">
-            {deletedListItems.length === 0 ? (
-              <Card className="p-8 text-center text-muted-foreground">
-                No deleted list items
-              </Card>
-            ) : (
-              deletedListItems.map(item => (
-                <Card key={item.id} className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="font-semibold mb-1">{item.title}</h3>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>Priority: {item.priority}</span>
-                        <span>Deleted {formatDistanceToNow(new Date(item.deletedAt!))} ago</span>
-                        <Badge variant="outline">{getDaysRemaining(item.deletedAt!)} days left</Badge>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleRestoreListItem(item.id)}>
-                        <Undo2 className="h-4 w-4 mr-1" />
-                        Restore
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => {
-                          setItemToDelete({ type: 'list-item', id: item.id });
-                          setPermanentDeleteDialog(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+      case 'list-items':
+        return deletedListItems.length === 0 ? (
+          <Card className="p-8 text-center text-muted-foreground">No deleted list items</Card>
+        ) : (
+          deletedListItems.map(item => (
+            <Card key={item.id} className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">{item.title}</h3>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>Priority: {item.priority}</span>
+                    <span>Deleted {formatDistanceToNow(new Date(item.deletedAt!))} ago</span>
+                    <Badge variant="outline">{getDaysRemaining(item.deletedAt!)} days left</Badge>
                   </div>
-                </Card>
-              ))
-            )}
-          </TabsContent>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => handleRestoreListItem(item.id)}>
+                    <Undo2 className="h-4 w-4 mr-1" />
+                    Restore
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setItemToDelete({ type: 'list-item', id: item.id });
+                      setPermanentDeleteDialog(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))
+        );
 
-          <TabsContent value="projects" className="space-y-4 mt-4">
-            {deletedProjects.length === 0 ? (
-              <Card className="p-8 text-center text-muted-foreground">
-                No deleted projects
-              </Card>
-            ) : (
-              deletedProjects.map(project => (
-                <Card key={project.id} className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="font-semibold mb-1">{project.title}</h3>
-                      {project.description && (
-                        <p className="text-sm text-muted-foreground mb-2">{project.description}</p>
-                      )}
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>{project.taskIds.length} tasks</span>
-                        <span>Deleted {formatDistanceToNow(new Date(project.deletedAt!))} ago</span>
-                        <Badge variant="outline">{getDaysRemaining(project.deletedAt!)} days left</Badge>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleRestoreProject(project.id)}>
-                        <Undo2 className="h-4 w-4 mr-1" />
-                        Restore
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => {
-                          setItemToDelete({ type: 'project', id: project.id });
-                          setPermanentDeleteDialog(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+      case 'projects':
+        return deletedProjects.length === 0 ? (
+          <Card className="p-8 text-center text-muted-foreground">No deleted projects</Card>
+        ) : (
+          deletedProjects.map(project => (
+            <Card key={project.id} className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">{project.title}</h3>
+                  {project.description && (
+                    <p className="text-sm text-muted-foreground mb-2">{project.description}</p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>{project.taskIds.length} tasks</span>
+                    <span>Deleted {formatDistanceToNow(new Date(project.deletedAt!))} ago</span>
+                    <Badge variant="outline">{getDaysRemaining(project.deletedAt!)} days left</Badge>
                   </div>
-                </Card>
-              ))
-            )}
-          </TabsContent>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => handleRestoreProject(project.id)}>
+                    <Undo2 className="h-4 w-4 mr-1" />
+                    Restore
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setItemToDelete({ type: 'project', id: project.id });
+                      setPermanentDeleteDialog(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))
+        );
 
-          <TabsContent value="text-backups" className="space-y-4 mt-4">
+      case 'text-backups':
+        return (
+          <>
             {textBackups.length > 0 && (
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex flex-wrap items-center gap-2 mb-4">
                 <Button
                   variant="outline"
                   size="sm"
@@ -641,7 +635,7 @@ const RecentlyDeletedUnified = () => {
                       onClick={handleBulkCopyTextBackups}
                     >
                       <Copy className="h-4 w-4 mr-1" />
-                      Copy Selected ({selectedTextBackups.size})
+                      Copy ({selectedTextBackups.size})
                     </Button>
                     <Button
                       variant="destructive"
@@ -649,7 +643,7 @@ const RecentlyDeletedUnified = () => {
                       onClick={handleBulkDeleteTextBackups}
                     >
                       <Trash2 className="h-4 w-4 mr-1" />
-                      Delete Selected ({selectedTextBackups.size})
+                      Delete ({selectedTextBackups.size})
                     </Button>
                   </>
                 )}
@@ -671,7 +665,7 @@ const RecentlyDeletedUnified = () => {
                         className="mt-1.5 h-4 w-4 rounded border-border"
                       />
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
                           <h3 className="font-semibold">{backup.sourceName}</h3>
                           <Badge variant="outline">{backup.sourceType}</Badge>
                           <Badge variant="secondary">{backup.fieldLabel}</Badge>
@@ -684,7 +678,7 @@ const RecentlyDeletedUnified = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-shrink-0">
                       <Button 
                         size="sm" 
                         variant="outline" 
@@ -706,8 +700,78 @@ const RecentlyDeletedUnified = () => {
                 </Card>
               ))
             )}
-          </TabsContent>
-        </Tabs>
+          </>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background p-4 md:p-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold mb-2">Recently Deleted</h1>
+          <p className="text-muted-foreground">Items are permanently deleted after 30 days</p>
+        </div>
+
+        {/* Responsive Tab Navigation */}
+        <div className="mb-6">
+          {isCollapsed ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                  <span className="flex items-center gap-2">
+                    <Menu className="h-4 w-4" />
+                    {TABS.find(t => t.id === activeTab)?.label} ({getTabCount(activeTab)})
+                  </span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 bg-background">
+                {TABS.map((tab) => (
+                  <DropdownMenuItem
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={activeTab === tab.id ? 'bg-secondary' : ''}
+                  >
+                    <span className="flex items-center gap-2 w-full">
+                      {'icon' in tab && tab.icon && <tab.icon className="h-4 w-4" />}
+                      {tab.label}
+                      <Badge variant="outline" className="ml-auto text-xs">
+                        {getTabCount(tab.id)}
+                      </Badge>
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {TABS.map((tab) => (
+                <Button
+                  key={tab.id}
+                  variant={activeTab === tab.id ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setActiveTab(tab.id)}
+                  className="gap-2"
+                >
+                  {'icon' in tab && tab.icon && <tab.icon className="h-4 w-4" />}
+                  {tab.label}
+                  <Badge variant={activeTab === tab.id ? 'secondary' : 'outline'} className="text-xs">
+                    {getTabCount(tab.id)}
+                  </Badge>
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Tab Content */}
+        <div className="space-y-4">
+          {renderTabContent()}
+        </div>
 
         <AlertDialog open={permanentDeleteDialog} onOpenChange={setPermanentDeleteDialog}>
           <AlertDialogContent>

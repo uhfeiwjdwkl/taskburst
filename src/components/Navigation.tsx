@@ -136,9 +136,9 @@ export function Navigation() {
                 </a>
               </div>
               <div className="px-3 py-1 rounded-md bg-muted border">
-                <div className="font-mono text-xs font-bold leading-tight">
+                <div className="font-mono text-xs font-bold leading-tight text-center">
                   <div>{currentTime.getHours().toString().padStart(2, '0')}:{currentTime.getMinutes().toString().padStart(2, '0')}:{currentTime.getSeconds().toString().padStart(2, '0')}</div>
-                  <div className="text-[10px]">
+                  <div className="text-[10px] whitespace-nowrap">
                     {currentTime.toLocaleDateString('en-GB', { weekday: 'short' })} {currentTime.getDate().toString().padStart(2, '0')}/{(currentTime.getMonth() + 1).toString().padStart(2, '0')}/{currentTime.getFullYear()}
                   </div>
                 </div>

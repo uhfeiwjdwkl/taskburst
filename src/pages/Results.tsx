@@ -3,6 +3,7 @@ import { Task, TaskResultPart } from '@/types/task';
 import { Project, ProjectResultPart } from '@/types/project';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -22,7 +23,7 @@ import { ResultCellDialog } from '@/components/ResultCellDialog';
 import { ResultPartsEditor } from '@/components/ResultPartsEditor';
 import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
-import { Settings2, Plus, Minus, Eye } from 'lucide-react';
+import { Settings2, Plus, Minus, Eye, Edit2, Check, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
@@ -32,6 +33,7 @@ type ResultItem = {
   name: string;
   shortName?: string;
   category: string;
+  subcategory?: string;
   result: {
     totalScore: number | null;
     totalMaxScore: number;
@@ -42,12 +44,15 @@ type ResultItem = {
   originalProject?: Project;
 };
 
+// Column names storage key
+const COLUMN_NAMES_KEY = 'resultsColumnNames';
+
 export default function Results() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
-  const [groupBy, setGroupBy] = useState<'none' | 'category'>('none');
+  const [groupBy, setGroupBy] = useState<'none' | 'category' | 'subcategory'>('none');
   const [editingCell, setEditingCell] = useState<{
     itemId: string;
     itemType: 'task' | 'project';
@@ -62,8 +67,22 @@ export default function Results() {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
+  // Column name editing
+  const [columnNames, setColumnNames] = useState<Record<number, string>>({});
+  const [editingColumnIndex, setEditingColumnIndex] = useState<number | null>(null);
+  const [editingColumnName, setEditingColumnName] = useState('');
+  const [editingTotalColumn, setEditingTotalColumn] = useState(false);
+  const [totalColumnName, setTotalColumnName] = useState('Total');
+
   useEffect(() => {
     loadData();
+    // Load column names
+    const savedColumnNames = localStorage.getItem(COLUMN_NAMES_KEY);
+    if (savedColumnNames) {
+      const parsed = JSON.parse(savedColumnNames);
+      setColumnNames(parsed.columns || {});
+      setTotalColumnName(parsed.totalColumn || 'Total');
+    }
   }, []);
 
   const loadData = () => {
@@ -78,10 +97,13 @@ export default function Results() {
     if (savedArchivedProjects) setArchivedProjects(JSON.parse(savedArchivedProjects));
   };
 
+  const saveColumnNames = (cols: Record<number, string>, total: string) => {
+    localStorage.setItem(COLUMN_NAMES_KEY, JSON.stringify({ columns: cols, totalColumn: total }));
+  };
+
   const getResultItems = (): ResultItem[] => {
     const items: ResultItem[] = [];
     
-    // Combine active and archived tasks
     const allTasks = [...tasks, ...archivedTasks];
     allTasks.forEach(task => {
       if (task.showInResults) {
@@ -102,13 +124,13 @@ export default function Results() {
           name: task.name,
           shortName: task.resultShortName,
           category: task.category || 'Uncategorized',
+          subcategory: task.subcategory,
           result,
           originalTask: task
         });
       }
     });
 
-    // Combine active and archived projects
     const allProjects = [...projects, ...archivedProjects];
     allProjects.forEach(project => {
       if (project.showInResults) {
@@ -141,38 +163,53 @@ export default function Results() {
   const resultItems = getResultItems();
   const maxParts = Math.max(defaultPartCount, ...resultItems.map(item => item.result.parts.length));
 
-  const groupedItems = groupBy === 'category' 
-    ? resultItems.reduce((acc, item) => {
+  const getGroupedItems = () => {
+    if (groupBy === 'subcategory') {
+      // Group by category then subcategory
+      const grouped: Record<string, ResultItem[]> = {};
+      resultItems.forEach(item => {
+        const key = item.subcategory 
+          ? `${item.category} › ${item.subcategory}`
+          : item.category;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(item);
+      });
+      return grouped;
+    } else if (groupBy === 'category') {
+      return resultItems.reduce((acc, item) => {
         const key = item.category;
         if (!acc[key]) acc[key] = [];
         acc[key].push(item);
         return acc;
-      }, {} as Record<string, ResultItem[]>)
-    : { 'All Results': resultItems };
+      }, {} as Record<string, ResultItem[]>);
+    }
+    return { 'All Results': resultItems };
+  };
+
+  const groupedItems = getGroupedItems();
 
   const calculatePercentage = (score: number | null, maxScore: number): string => {
     if (score === null) return '-';
     return ((score / maxScore) * 100).toFixed(2) + '%';
   };
 
-  const calculateTotalScore = (item: ResultItem): { score: number | null; maxScore: number; percentage: string } => {
+  const calculateTotalScore = (item: ResultItem): { score: number | null; maxScore: number; percentage: string; displayValue: string } => {
     const mode = item.result.totalMode || 'marks';
     const parts = item.result.parts;
     const scoredParts = parts.filter(p => p.score !== null);
     
-    if (scoredParts.length === 0) return { score: null, maxScore: item.result.totalMaxScore, percentage: '-' };
+    if (scoredParts.length === 0) return { score: null, maxScore: item.result.totalMaxScore, percentage: '-', displayValue: '-' };
     
     if (mode === 'average') {
       const avgPercentage = scoredParts.reduce((sum, p) => sum + ((p.score || 0) / p.maxScore) * 100, 0) / scoredParts.length;
-      return { score: null, maxScore: 100, percentage: avgPercentage.toFixed(2) + '%' };
+      return { score: null, maxScore: 100, percentage: avgPercentage.toFixed(2) + '%', displayValue: avgPercentage.toFixed(2) + '%' };
     } else {
       const totalScore = scoredParts.reduce((sum, p) => sum + (p.score || 0), 0);
       const totalMax = parts.reduce((sum, p) => sum + p.maxScore, 0);
-      return { score: totalScore, maxScore: totalMax, percentage: ((totalScore / totalMax) * 100).toFixed(2) + '%' };
+      return { score: totalScore, maxScore: totalMax, percentage: ((totalScore / totalMax) * 100).toFixed(2) + '%', displayValue: `${totalScore}/${totalMax}` };
     }
   };
 
-  // Calculate category total
   const calculateCategoryTotal = (items: ResultItem[]): { score: number | null; maxScore: number; percentage: string } => {
     const validItems = items.filter(item => {
       const total = calculateTotalScore(item);
@@ -181,7 +218,6 @@ export default function Results() {
     
     if (validItems.length === 0) return { score: null, maxScore: 0, percentage: '-' };
     
-    // Calculate average of percentages
     const percentages = validItems.map(item => {
       const total = calculateTotalScore(item);
       return parseFloat(total.percentage.replace('%', '')) || 0;
@@ -191,7 +227,6 @@ export default function Results() {
     return { score: null, maxScore: 100, percentage: avgPercentage.toFixed(2) + '%' };
   };
 
-  // Calculate global average
   const calculateGlobalAverage = (): { percentage: string; categories: { name: string; percentage: string }[] } => {
     const categories: { name: string; percentage: string }[] = [];
     
@@ -231,12 +266,10 @@ export default function Results() {
   };
 
   const handleUpdateTask = (updatedTask: Task) => {
-    // Update in active tasks
     const newTasks = tasks.map(t => t.id === updatedTask.id ? updatedTask : t);
     setTasks(newTasks);
     localStorage.setItem('tasks', JSON.stringify(newTasks));
     
-    // Also check archived
     const newArchivedTasks = archivedTasks.map(t => t.id === updatedTask.id ? updatedTask : t);
     setArchivedTasks(newArchivedTasks);
     localStorage.setItem('archivedTasks', JSON.stringify(newArchivedTasks));
@@ -404,24 +437,32 @@ export default function Results() {
     return part || { name: `Part ${editingCell.partIndex + 1}`, score: null, maxScore: 25, notes: '' };
   };
 
-  // Get part column names from items
-  const getPartColumnNames = (): string[] => {
-    const names: string[] = [];
-    for (let i = 0; i < maxParts; i++) {
-      // Find a part name from any item that has this part
-      const itemWithPart = resultItems.find(item => item.result.parts[i]?.name);
-      names.push(itemWithPart?.result.parts[i]?.name || `Part ${i + 1}`);
-    }
-    return names;
+  const getPartColumnName = (index: number): string => {
+    if (columnNames[index]) return columnNames[index];
+    const itemWithPart = resultItems.find(item => item.result.parts[index]?.name);
+    return itemWithPart?.result.parts[index]?.name || `Part ${index + 1}`;
   };
 
-  const partColumnNames = getPartColumnNames();
+  const handleSaveColumnName = (index: number, name: string) => {
+    const newColumnNames = { ...columnNames, [index]: name };
+    setColumnNames(newColumnNames);
+    saveColumnNames(newColumnNames, totalColumnName);
+    setEditingColumnIndex(null);
+    toast.success('Column renamed');
+  };
+
+  const handleSaveTotalColumn = (name: string) => {
+    setTotalColumnName(name);
+    saveColumnNames(columnNames, name);
+    setEditingTotalColumn(false);
+    toast.success('Total column renamed');
+  };
 
   return (
     <div className="container mx-auto p-4 max-w-7xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <h1 className="text-2xl font-bold">Results</h1>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Default parts:</span>
             <Button
@@ -440,13 +481,14 @@ export default function Results() {
               <Plus className="h-4 w-4" />
             </Button>
           </div>
-          <Select value={groupBy} onValueChange={(v) => setGroupBy(v as 'none' | 'category')}>
+          <Select value={groupBy} onValueChange={(v) => setGroupBy(v as 'none' | 'category' | 'subcategory')}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Group by" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">No grouping</SelectItem>
               <SelectItem value="category">By Category</SelectItem>
+              <SelectItem value="subcategory">By Subcategory</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -482,11 +524,11 @@ export default function Results() {
           const categoryTotal = calculateCategoryTotal(items);
           return (
             <Card key={groupName} className="mb-6 overflow-hidden">
-              {groupBy === 'category' && (
+              {groupBy !== 'none' && (
                 <div className="bg-muted px-4 py-2 font-semibold border-b flex items-center justify-between">
                   <span>{groupName}</span>
                   <Badge variant="secondary" className="text-sm">
-                    Category Avg: {categoryTotal.percentage}
+                    Avg: {categoryTotal.percentage}
                   </Badge>
                 </div>
               )}
@@ -495,10 +537,66 @@ export default function Results() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="min-w-[200px]">Name</TableHead>
-                      <TableHead className="text-center min-w-[120px]">Total</TableHead>
-                      {partColumnNames.map((name, i) => (
+                      <TableHead className="text-center min-w-[120px]">
+                        {editingTotalColumn ? (
+                          <div className="flex items-center gap-1 justify-center">
+                            <Input
+                              value={totalColumnName}
+                              onChange={(e) => setTotalColumnName(e.target.value)}
+                              className="h-6 w-20 text-xs"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveTotalColumn(totalColumnName);
+                                if (e.key === 'Escape') setEditingTotalColumn(false);
+                              }}
+                              autoFocus
+                            />
+                            <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => handleSaveTotalColumn(totalColumnName)}>
+                              <Check className="h-3 w-3" />
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => setEditingTotalColumn(false)}>
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div 
+                            className="flex items-center gap-1 justify-center cursor-pointer hover:text-primary"
+                            onClick={() => setEditingTotalColumn(true)}
+                          >
+                            {totalColumnName}
+                            <Edit2 className="h-3 w-3 opacity-50" />
+                          </div>
+                        )}
+                      </TableHead>
+                      {Array.from({ length: maxParts }, (_, i) => (
                         <TableHead key={i} className="text-center min-w-[120px]">
-                          {name}
+                          {editingColumnIndex === i ? (
+                            <div className="flex items-center gap-1 justify-center">
+                              <Input
+                                value={editingColumnName}
+                                onChange={(e) => setEditingColumnName(e.target.value)}
+                                className="h-6 w-20 text-xs"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveColumnName(i, editingColumnName);
+                                  if (e.key === 'Escape') setEditingColumnIndex(null);
+                                }}
+                                autoFocus
+                              />
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => handleSaveColumnName(i, editingColumnName)}>
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => setEditingColumnIndex(null)}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div 
+                              className="flex items-center gap-1 justify-center cursor-pointer hover:text-primary"
+                              onClick={() => { setEditingColumnIndex(i); setEditingColumnName(getPartColumnName(i)); }}
+                            >
+                              {getPartColumnName(i)}
+                              <Edit2 className="h-3 w-3 opacity-50" />
+                            </div>
+                          )}
                         </TableHead>
                       ))}
                       <TableHead className="w-20"></TableHead>
@@ -520,6 +618,11 @@ export default function Results() {
                                   {item.name}
                                 </span>
                               )}
+                              {item.subcategory && (
+                                <span className="text-xs text-muted-foreground block">
+                                  {item.category} › {item.subcategory}
+                                </span>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell 
@@ -528,14 +631,16 @@ export default function Results() {
                             title="Click to toggle between marks and average mode"
                           >
                             <div className="text-sm font-medium">
-                              {total.score !== null ? `${total.score}/${total.maxScore}` : ''}
+                              {total.displayValue}
                               <Badge variant="outline" className="ml-1 text-xs">
                                 {item.result.totalMode === 'average' ? 'Avg' : 'Sum'}
                               </Badge>
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              {total.percentage}
-                            </div>
+                            {item.result.totalMode !== 'average' && (
+                              <div className="text-xs text-muted-foreground">
+                                {total.percentage}
+                              </div>
+                            )}
                           </TableCell>
                           {Array.from({ length: maxParts }, (_, i) => {
                             const part = item.result.parts[i];

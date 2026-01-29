@@ -78,15 +78,18 @@ const App = () => {
         <Toaster />
         <Sonner />
         
-        {/* PIN Protection Overlay */}
+        {/* PIN Protection Overlay - blur background but not dialog */}
         {settings?.pinProtection && settings?.pin && !isUnlocked && (
-          <div className="fixed inset-0 z-[100] bg-background/80 pin-blur-overlay flex items-center justify-center">
-            <PinProtectionDialog
-              open={true}
-              onSuccess={() => setIsUnlocked(true)}
-              correctPin={settings.pin}
-            />
-          </div>
+          <>
+            <div className="fixed inset-0 z-[99] pin-blur-overlay" style={{ filter: 'blur(10px)' }} />
+            <div className="fixed inset-0 z-[100] flex items-center justify-center">
+              <PinProtectionDialog
+                open={true}
+                onSuccess={() => setIsUnlocked(true)}
+                correctPin={settings.pin}
+              />
+            </div>
+          </>
         )}
         
         <BrowserRouter>
