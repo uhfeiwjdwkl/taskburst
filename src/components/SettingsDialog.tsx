@@ -5,15 +5,50 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
-import { AppSettings, DEFAULT_SETTINGS, PageConfig, DEFAULT_PAGES } from '@/types/settings';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { 
+  AppSettings, 
+  DEFAULT_SETTINGS, 
+  PageConfig, 
+  DEFAULT_PAGES,
+  PROGRESS_GRID_SHAPES,
+  COLOR_PALETTES,
+  ProgressGridShape,
+  ColorPalette,
+  SubtaskBoxShape,
+} from '@/types/settings';
 import { toast } from 'sonner';
 import { Download, Upload, GripVertical, Eye, EyeOff, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import ProgressGridShapeComponent from './ProgressGridShape';
 
 interface SettingsDialogProps {
   open: boolean;
   onClose: () => void;
 }
+
+// Common timezones
+const TIMEZONES = [
+  'UTC',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'Asia/Tokyo',
+  'Asia/Shanghai',
+  'Asia/Singapore',
+  'Australia/Sydney',
+  'Pacific/Auckland',
+];
 
 export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -134,6 +169,8 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
     toast.success('PIN protection disabled');
   };
 
+  const selectedPalette = COLOR_PALETTES.find(p => p.value === settings.colorPalette) || COLOR_PALETTES[0];
+
   return (
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent 
@@ -175,6 +212,213 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                 step={5}
                 className="mt-2"
               />
+            </div>
+
+            {/* Color Palette */}
+            <div>
+              <Label htmlFor="colorPalette">Color Palette</Label>
+              <Select
+                value={settings.colorPalette}
+                onValueChange={(value) => setSettings({ ...settings, colorPalette: value as ColorPalette })}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select palette" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COLOR_PALETTES.map((palette) => (
+                    <SelectItem key={palette.value} value={palette.value}>
+                      <div className="flex items-center gap-2">
+                        <span>{palette.label}</span>
+                        <div className="flex gap-0.5">
+                          {palette.colors.slice(0, 4).map((color, i) => (
+                            <div 
+                              key={i}
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Timezone */}
+            <div>
+              <Label htmlFor="timezone">Clock Timezone</Label>
+              <Select
+                value={settings.timezone}
+                onValueChange={(value) => setSettings({ ...settings, timezone: value })}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select timezone" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIMEZONES.map((tz) => (
+                    <SelectItem key={tz} value={tz}>
+                      {tz}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Progress Grid Section */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Progress Grid</h3>
+            
+            {/* Shape Selection */}
+            <div>
+              <Label>Progress Box Shape</Label>
+              <Select
+                value={settings.progressGridShape}
+                onValueChange={(value) => setSettings({ ...settings, progressGridShape: value as ProgressGridShape })}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select shape" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {PROGRESS_GRID_SHAPES.map((shape) => (
+                    <SelectItem key={shape.value} value={shape.value}>
+                      <div className="flex items-center gap-2">
+                        <ProgressGridShapeComponent 
+                          shape={shape.value} 
+                          filled={false} 
+                          size={20}
+                          color={settings.progressGridColor}
+                        />
+                        <span>{shape.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Color Selection */}
+            <div>
+              <Label>Progress Box Color</Label>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {selectedPalette.colors.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => setSettings({ ...settings, progressGridColor: color })}
+                    className={`w-8 h-8 rounded-md border-2 transition-all ${
+                      settings.progressGridColor === color ? 'border-foreground scale-110' : 'border-transparent'
+                    }`}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Preview */}
+            <div>
+              <Label>Preview</Label>
+              <div className="flex gap-2 mt-2 p-3 bg-muted rounded-md justify-center">
+                <ProgressGridShapeComponent 
+                  shape={settings.progressGridShape} 
+                  filled={false} 
+                  color={settings.progressGridColor}
+                  size={32}
+                />
+                <ProgressGridShapeComponent 
+                  shape={settings.progressGridShape} 
+                  filled={true} 
+                  color={settings.progressGridColor}
+                  size={32}
+                />
+                <ProgressGridShapeComponent 
+                  shape={settings.progressGridShape} 
+                  filled={false} 
+                  color={settings.progressGridColor}
+                  size={32}
+                >
+                  A
+                </ProgressGridShapeComponent>
+              </div>
+            </div>
+
+            {/* Per-task settings toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="allowPerTaskProgressSettings">Allow per-task settings</Label>
+                <p className="text-xs text-muted-foreground">
+                  Enable custom shape/color for each task
+                </p>
+              </div>
+              <Switch
+                id="allowPerTaskProgressSettings"
+                checked={settings.allowPerTaskProgressSettings}
+                onCheckedChange={(checked) => setSettings({ ...settings, allowPerTaskProgressSettings: checked })}
+              />
+            </div>
+          </div>
+
+          {/* Subtask Box Settings */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Subtask Progress Boxes</h3>
+            
+            <div>
+              <Label>Subtask Box Shape</Label>
+              <Select
+                value={settings.subtaskBoxShape}
+                onValueChange={(value) => setSettings({ ...settings, subtaskBoxShape: value as SubtaskBoxShape })}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select shape" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="circle">Circle</SelectItem>
+                  <SelectItem value="rounded-square">Rounded Square</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Text Size in Boxes</Label>
+              <Select
+                value={settings.subtaskBoxTextSize}
+                onValueChange={(value) => setSettings({ ...settings, subtaskBoxTextSize: value as 'xs' | 'sm' | 'md' })}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select size" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="xs">Extra Small</SelectItem>
+                  <SelectItem value="sm">Small</SelectItem>
+                  <SelectItem value="md">Medium</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Subtask Preview */}
+            <div>
+              <Label>Subtask Preview</Label>
+              <div className="flex gap-2 mt-2 p-3 bg-muted rounded-md justify-center items-center">
+                <ProgressGridShapeComponent 
+                  shape={settings.subtaskBoxShape === 'circle' ? 'circle' : 'rounded-square'} 
+                  filled={false} 
+                  color={settings.progressGridColor}
+                  size={28}
+                  textSize={settings.subtaskBoxTextSize}
+                >
+                  AB
+                </ProgressGridShapeComponent>
+                <ProgressGridShapeComponent 
+                  shape={settings.subtaskBoxShape === 'circle' ? 'circle' : 'rounded-square'} 
+                  filled={true} 
+                  color={settings.progressGridColor}
+                  size={28}
+                  textSize={settings.subtaskBoxTextSize}
+                >
+                  ✓
+                </ProgressGridShapeComponent>
+              </div>
             </div>
           </div>
 
