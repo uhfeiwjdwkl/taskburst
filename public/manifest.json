@@ -1,0 +1,20 @@
+{
+  "name": "TaskBurst",
+  "short_name": "TaskBurst",
+  "description": "Focus Timer with Task Management - Track your focus sessions, manage tasks with visual progress grids, and celebrate achievements.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/TaskBurst.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "lang": "en"
+}

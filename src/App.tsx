@@ -34,8 +34,8 @@ const App = () => {
         const parsed = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
         setSettings(parsed);
         
-        // If PIN protection is enabled, require PIN
-        if (parsed.pinProtection && parsed.pin) {
+        // If PIN protection is enabled and pinHash exists, require PIN
+        if (parsed.pinProtection && parsed.pinHash) {
           setIsUnlocked(false);
         } else {
           setIsUnlocked(true);
@@ -78,16 +78,23 @@ const App = () => {
         <Toaster />
         <Sonner />
         
-        {/* PIN Protection Overlay - blur background but not dialog */}
-        {settings?.pinProtection && settings?.pin && !isUnlocked && (
+        {/* PIN Protection Overlay */}
+        {settings?.pinProtection && settings?.pinHash && !isUnlocked && (
           <>
-            <div className="fixed inset-0 z-[99] pin-blur-overlay" style={{ filter: 'blur(10px)' }} />
-            <div className="fixed inset-0 z-[100] flex items-center justify-center">
-              <PinProtectionDialog
-                open={true}
-                onSuccess={() => setIsUnlocked(true)}
-                correctPin={settings.pin}
-              />
+            {/* Blurred background overlay - everything behind is blurred */}
+            <div 
+              className="fixed inset-0 z-[99] bg-background/80 backdrop-blur-md" 
+              aria-hidden="true"
+            />
+            {/* PIN dialog container - not blurred */}
+            <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
+              <div className="pointer-events-auto">
+                <PinProtectionDialog
+                  open={true}
+                  onSuccess={() => setIsUnlocked(true)}
+                  pinHash={settings.pinHash}
+                />
+              </div>
             </div>
           </>
         )}

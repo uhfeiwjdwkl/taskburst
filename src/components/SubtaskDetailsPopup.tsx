@@ -1,20 +1,24 @@
 import { Subtask } from '@/types/subtask';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, X, Clock, Calendar as CalendarIcon } from 'lucide-react';
+import { Check, X, Clock, Calendar as CalendarIcon, ChevronRight } from 'lucide-react';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 
 interface SubtaskDetailsPopupProps {
   subtask: Subtask;
   onComplete: () => void;
+  onUncomplete?: () => void;
   onClose: () => void;
+  onViewDetails?: () => void;
   position?: 'top' | 'bottom';
 }
 
 export const SubtaskDetailsPopup = ({ 
   subtask, 
   onComplete, 
+  onUncomplete,
   onClose,
+  onViewDetails,
   position = 'top' 
 }: SubtaskDetailsPopupProps) => {
   const priorityColors: Record<number, string> = {
@@ -29,22 +33,52 @@ export const SubtaskDetailsPopup = ({
     ? 'bottom-full mb-2' 
     : 'top-full mt-2';
 
+  // Calculate remaining time
+  const remainingMinutes = subtask.estimatedMinutes || 0;
+  const mins = Math.floor(remainingMinutes);
+  const secs = Math.round((remainingMinutes % 1) * 60);
+
   return (
     <div 
-      className={`absolute z-20 left-1/2 -translate-x-1/2 ${positionClasses} w-56 bg-popover border border-border rounded-lg shadow-lg p-3`}
+      className={`absolute z-20 left-1/2 -translate-x-1/2 ${positionClasses} w-64 bg-popover border border-border rounded-lg shadow-lg p-3`}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex justify-between items-start mb-2">
-        <p className="font-medium text-sm flex-1 pr-2">{subtask.title}</p>
+      <div className="flex justify-end mb-1">
         <Button
           size="sm"
           variant="ghost"
           onClick={onClose}
-          className="h-6 w-6 p-0 -mt-1 -mr-1"
+          className="h-6 w-6 p-0"
         >
           <X className="h-3 w-3" />
         </Button>
       </div>
+
+      {/* Remaining Time */}
+      {remainingMinutes > 0 && (
+        <div className="text-center mb-3 p-2 bg-muted rounded-md">
+          <div className="text-lg font-bold">
+            {mins}m {secs}s
+          </div>
+          <div className="text-xs text-muted-foreground">Estimated remaining</div>
+        </div>
+      )}
+      
+      {/* Full Name Button - opens details */}
+      {onViewDetails && (
+        <Button
+          variant="outline"
+          className="w-full justify-between mb-2 h-auto py-2"
+          onClick={onViewDetails}
+        >
+          <span className="text-left truncate flex-1 text-sm">{subtask.title}</span>
+          <ChevronRight className="h-4 w-4 flex-shrink-0 ml-2" />
+        </Button>
+      )}
+
+      {!onViewDetails && (
+        <p className="font-medium text-sm mb-2">{subtask.title}</p>
+      )}
       
       {subtask.description && (
         <p className="text-xs text-muted-foreground mb-2">{subtask.description}</p>
@@ -56,40 +90,46 @@ export const SubtaskDetailsPopup = ({
             P{subtask.priority}
           </Badge>
         )}
-        {subtask.estimatedMinutes && (
+        {subtask.dueDate && (
+          <Badge variant="outline" className="text-xs h-5">
+            <CalendarIcon className="h-2 w-2 mr-1" />
+            {new Date(subtask.dueDate).toLocaleDateString('en-GB')}
+          </Badge>
+        )}
+        {subtask.scheduledTime && (
           <Badge variant="outline" className="text-xs h-5">
             <Clock className="h-2 w-2 mr-1" />
-            {subtask.estimatedMinutes}m
+            {formatTimeTo12Hour(subtask.scheduledTime)}
           </Badge>
         )}
       </div>
       
-      <div className="flex flex-wrap gap-1 text-xs text-muted-foreground mb-3">
-        {subtask.dueDate && (
-          <span className="flex items-center gap-0.5">
-            <CalendarIcon className="h-2 w-2" />
-            {new Date(subtask.dueDate).toLocaleDateString('en-GB')}
-          </span>
-        )}
-        {subtask.scheduledTime && (
-          <span className="flex items-center gap-0.5">
-            <Clock className="h-2 w-2" />
-            {formatTimeTo12Hour(subtask.scheduledTime)}
-          </span>
+      {/* Complete/Uncomplete Button */}
+      <div className="mt-3">
+        {subtask.completed ? (
+          onUncomplete && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onUncomplete}
+              className="w-full h-8 text-xs"
+            >
+              <X className="h-3 w-3 mr-1" />
+              Mark Incomplete
+            </Button>
+          )
+        ) : (
+          <Button
+            size="sm"
+            variant="default"
+            onClick={onComplete}
+            className="w-full h-8 text-xs"
+          >
+            <Check className="h-3 w-3 mr-1" />
+            Complete
+          </Button>
         )}
       </div>
-      
-      {!subtask.completed && (
-        <Button
-          size="sm"
-          variant="default"
-          onClick={onComplete}
-          className="w-full h-7 text-xs"
-        >
-          <Check className="h-3 w-3 mr-1" />
-          Complete
-        </Button>
-      )}
     </div>
   );
 };

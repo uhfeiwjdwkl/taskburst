@@ -43,18 +43,21 @@ export const SubtaskProgressPopup = ({
   const remainingMinutes = estimatedRemaining !== undefined 
     ? estimatedRemaining 
     : subtask.estimatedMinutes || 0;
+  
+  const mins = Math.floor(remainingMinutes);
+  const secs = Math.round((remainingMinutes % 1) * 60);
 
   return (
     <div 
       className={`absolute z-20 left-1/2 -translate-x-1/2 ${positionClasses} w-64 bg-popover border border-border rounded-lg shadow-lg p-3`}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex justify-between items-start mb-2">
+      <div className="flex justify-end mb-1">
         <Button
-          variant="ghost"
           size="sm"
+          variant="ghost"
           onClick={onClose}
-          className="h-6 w-6 p-0 -mt-1 -ml-1"
+          className="h-6 w-6 p-0"
         >
           <X className="h-3 w-3" />
         </Button>
@@ -64,19 +67,19 @@ export const SubtaskProgressPopup = ({
       {remainingMinutes > 0 && (
         <div className="text-center mb-3 p-2 bg-muted rounded-md">
           <div className="text-lg font-bold">
-            {Math.floor(remainingMinutes)}m {Math.round((remainingMinutes % 1) * 60)}s
+            {mins}m {secs}s
           </div>
           <div className="text-xs text-muted-foreground">Estimated remaining</div>
         </div>
       )}
       
-      {/* Full Name Button */}
+      {/* Full Name Button - opens full details */}
       <Button
         variant="outline"
         className="w-full justify-between mb-2 h-auto py-2"
         onClick={onViewDetails}
       >
-        <span className="text-left truncate flex-1">{subtask.title}</span>
+        <span className="text-left truncate flex-1 text-sm">{subtask.title}</span>
         <ChevronRight className="h-4 w-4 flex-shrink-0 ml-2" />
       </Button>
 
@@ -102,30 +105,32 @@ export const SubtaskProgressPopup = ({
       </div>
 
       {/* Action buttons */}
-      <div className="flex gap-2 mt-3">
-        {onEdit && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onEdit}
-            className="flex-1 h-7 text-xs"
-          >
-            <Edit className="h-3 w-3 mr-1" />
-            Edit
-          </Button>
-        )}
-        {onSchedule && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onSchedule}
-            className="flex-1 h-7 text-xs"
-          >
-            <CalendarIcon className="h-3 w-3 mr-1" />
-            Schedule
-          </Button>
-        )}
-      </div>
+      {(onEdit || onSchedule) && (
+        <div className="flex gap-2 mt-3">
+          {onEdit && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onEdit}
+              className="flex-1 h-7 text-xs"
+            >
+              <Edit className="h-3 w-3 mr-1" />
+              Edit
+            </Button>
+          )}
+          {onSchedule && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onSchedule}
+              className="flex-1 h-7 text-xs"
+            >
+              <CalendarIcon className="h-3 w-3 mr-1" />
+              Schedule
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Complete/Uncomplete Button */}
       <div className="mt-2">
