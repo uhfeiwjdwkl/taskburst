@@ -9,16 +9,18 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Lock } from 'lucide-react';
+import { verifyPin } from '@/lib/pin';
 
 interface PinProtectionDialogProps {
   open: boolean;
   onSuccess: () => void;
-  correctPin: string;
+  pinHash: string;
 }
 
-export const PinProtectionDialog = ({ open, onSuccess, correctPin }: PinProtectionDialogProps) => {
+export const PinProtectionDialog = ({ open, onSuccess, pinHash }: PinProtectionDialogProps) => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -27,17 +29,29 @@ export const PinProtectionDialog = ({ open, onSuccess, correctPin }: PinProtecti
     }
   }, [open]);
 
-  const handleSubmit = () => {
-    if (pin === correctPin) {
-      onSuccess();
-    } else {
+  const handleSubmit = async () => {
+    setIsVerifying(true);
+    setError(false);
+    
+    try {
+      const isValid = await verifyPin(pin, pinHash);
+      if (isValid) {
+        onSuccess();
+      } else {
+        setError(true);
+        setPin('');
+      }
+    } catch (e) {
+      console.error('PIN verification failed:', e);
       setError(true);
       setPin('');
+    } finally {
+      setIsVerifying(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !isVerifying) {
       handleSubmit();
     }
   };
@@ -45,7 +59,7 @@ export const PinProtectionDialog = ({ open, onSuccess, correctPin }: PinProtecti
   return (
     <Dialog open={open}>
       <DialogContent 
-        className="max-w-sm"
+        className="max-w-sm bg-background border shadow-lg"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
@@ -72,12 +86,17 @@ export const PinProtectionDialog = ({ open, onSuccess, correctPin }: PinProtecti
             onKeyDown={handleKeyDown}
             className={error ? 'border-destructive' : ''}
             autoFocus
+            disabled={isVerifying}
           />
           {error && (
             <p className="text-sm text-destructive">Incorrect PIN. Please try again.</p>
           )}
-          <Button onClick={handleSubmit} className="w-full">
-            Unlock
+          <Button 
+            onClick={handleSubmit} 
+            className="w-full" 
+            disabled={isVerifying || !pin}
+          >
+            {isVerifying ? 'Verifying...' : 'Unlock'}
           </Button>
         </div>
       </DialogContent>

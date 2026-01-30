@@ -29,32 +29,46 @@ export const importData = (file: File): Promise<any> => {
   });
 };
 
+// All localStorage keys that should be included in export
+const ALL_STORAGE_KEYS = [
+  // Core data
+  'tasks',
+  'deletedTasks',
+  'archivedTasks',
+  'deletedArchive',
+  'calendarEvents',
+  'timetables',
+  'lists',
+  'deletedListItems',
+  'sessions',
+  'deletedSessions',
+  'projects',
+  'deletedProjects',
+  
+  // Progress grid indices for non-sequential filling
+  'progressGridFilledIndices',
+  
+  // Results page column names
+  'resultsColumnNames',
+  
+  // Categories
+  'categories',
+  'subcategories',
+  
+  // Settings
+  'appSettings',
+];
+
 export const exportAllData = async () => {
   const zip = new JSZip();
   
   // Get all data from localStorage
-  const tasks = localStorage.getItem('tasks') || '[]';
-  const deletedTasks = localStorage.getItem('deletedTasks') || '[]';
-  const archivedTasks = localStorage.getItem('archivedTasks') || '[]';
-  const deletedArchive = localStorage.getItem('deletedArchive') || '[]';
-  const events = localStorage.getItem('calendarEvents') || '[]';
-  const timetables = localStorage.getItem('timetables') || '[]';
-  const lists = localStorage.getItem('lists') || '[]';
-  const deletedListItems = localStorage.getItem('deletedListItems') || '[]';
-  const sessions = localStorage.getItem('sessions') || '[]';
-  const deletedSessions = localStorage.getItem('deletedSessions') || '[]';
-  
-  // Add files to zip
-  zip.file('tasks.json', tasks);
-  zip.file('deletedTasks.json', deletedTasks);
-  zip.file('archivedTasks.json', archivedTasks);
-  zip.file('deletedArchive.json', deletedArchive);
-  zip.file('events.json', events);
-  zip.file('timetables.json', timetables);
-  zip.file('lists.json', lists);
-  zip.file('deletedListItems.json', deletedListItems);
-  zip.file('sessions.json', sessions);
-  zip.file('deletedSessions.json', deletedSessions);
+  ALL_STORAGE_KEYS.forEach(key => {
+    const data = localStorage.getItem(key);
+    if (data) {
+      zip.file(`${key}.json`, data);
+    }
+  });
   
   // Generate zip
   const content = await zip.generateAsync({ type: 'blob' });
@@ -75,6 +89,9 @@ export const importAllData = async (file: File, merge = true): Promise<void> => 
     const content = await zip.files[filename].async('string');
     const key = filename.replace('.json', '');
     
+    // Skip unknown keys
+    if (!ALL_STORAGE_KEYS.includes(key)) return;
+    
     if (merge) {
       // Merge with existing data instead of replacing
       const existingData = localStorage.getItem(key);
@@ -87,6 +104,11 @@ export const importAllData = async (file: File, merge = true): Promise<void> => 
             // Merge arrays, avoiding duplicates by ID
             const existingIds = new Set(existing.map((item: any) => item.id));
             const merged = [...existing, ...incoming.filter((item: any) => !existingIds.has(item.id))];
+            localStorage.setItem(key, JSON.stringify(merged));
+            return;
+          } else if (typeof existing === 'object' && typeof incoming === 'object' && !Array.isArray(existing)) {
+            // Merge objects (like progressGridFilledIndices, resultsColumnNames)
+            const merged = { ...existing, ...incoming };
             localStorage.setItem(key, JSON.stringify(merged));
             return;
           }
