@@ -34,9 +34,11 @@ export const ProgressGridIcon = ({
 
   // For subtasks - stretched rounded rectangle
   if (isSubtask) {
-    const bgColor = filled ? (subtaskColor || color) : 'transparent';
+    // Incomplete subtask boxes use their own color (outline + text).
+    // Completed subtask boxes use the global completed color (settings.progressGridColor).
     const borderColor = subtaskColor || color;
-    const textColor = filled ? '#fff' : (subtaskColor || color);
+    const bgColor = filled ? color : 'transparent';
+    const textColor = filled ? '#fff' : borderColor;
     
     return (
       <button
@@ -61,26 +63,31 @@ export const ProgressGridIcon = ({
   }
 
   // Regular progress box
-  const bgColor = filled ? color : 'hsl(var(--secondary))';
-  const textColor = filled ? '#fff' : color;
+  const imgSrc = `/icons/${encodeURIComponent(icon)}.svg`;
 
   return (
     <button
       onClick={onClick}
-      style={{ 
-        width: size, 
-        height: size,
-        backgroundColor: bgColor,
-      }}
+      style={{ width: size, height: size, backgroundColor: filled ? color : undefined, borderColor: color }}
       className={cn(
-        'rounded-sm transition-all flex items-center justify-center border border-border hover:scale-110',
+        'rounded-md transition-all flex items-center justify-center border bg-card hover:scale-110',
         className
       )}
     >
-      {children && (
-        <span style={{ color: textColor }} className={cn(textSizeClasses[textSize], 'font-medium')}>
+      {children ? (
+        <span style={{ color: filled ? '#fff' : color }} className={cn(textSizeClasses[textSize], 'font-medium')}>
           {children}
         </span>
+      ) : (
+        <img
+          src={imgSrc}
+          alt=""
+          aria-hidden="true"
+          className="h-[70%] w-[70%] select-none pointer-events-none"
+          style={{
+            filter: filled ? 'brightness(0) invert(1)' : undefined,
+          }}
+        />
       )}
     </button>
   );

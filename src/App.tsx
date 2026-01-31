@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,7 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { PinProtectionDialog } from "@/components/PinProtectionDialog";
-import { AppSettings, DEFAULT_SETTINGS } from "@/types/settings";
+import { AppSettings, COLOR_THEMES, DEFAULT_SETTINGS } from "@/types/settings";
+import { applyColorThemeToDocument } from "@/lib/theme";
 import Index from "./pages/Index";
 import Archive from "./pages/Archive";
 import Calendar from "./pages/Calendar";
@@ -26,31 +27,35 @@ const App = () => {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Load settings and check PIN protection
+  const loadSettings = useCallback(() => {
     const saved = localStorage.getItem('appSettings');
     if (saved) {
       try {
         const parsed = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
         setSettings(parsed);
-        
-        // If PIN protection is enabled and pinHash exists, require PIN
-        if (parsed.pinProtection && parsed.pinHash) {
-          setIsUnlocked(false);
-        } else {
-          setIsUnlocked(true);
-        }
+        setIsUnlocked(!(parsed.pinProtection && parsed.pinHash));
+        return;
       } catch (e) {
         console.error('Failed to load settings:', e);
-        setSettings(DEFAULT_SETTINGS);
-        setIsUnlocked(true);
       }
-    } else {
-      setSettings(DEFAULT_SETTINGS);
-      setIsUnlocked(true);
     }
-    setIsLoading(false);
+    setSettings(DEFAULT_SETTINGS);
+    setIsUnlocked(true);
   }, []);
+
+  useEffect(() => {
+    // Load settings and subscribe to updates
+    loadSettings();
+    setIsLoading(false);
+
+    const handleSettingsUpdated = () => loadSettings();
+    window.addEventListener('appSettingsUpdated', handleSettingsUpdated);
+    window.addEventListener('storage', handleSettingsUpdated);
+    return () => {
+      window.removeEventListener('appSettingsUpdated', handleSettingsUpdated);
+      window.removeEventListener('storage', handleSettingsUpdated);
+    };
+  }, [loadSettings]);
 
   // Apply dark mode and brightness from settings
   useEffect(() => {
@@ -61,6 +66,11 @@ const App = () => {
         document.documentElement.classList.remove('dark');
       }
       document.documentElement.style.filter = `brightness(${settings.brightness / 100})`;
+
+      const theme = COLOR_THEMES.find(t => t.id === settings.colorTheme);
+      if (theme) {
+        applyColorThemeToDocument(theme.colors);
+      }
     }
   }, [settings]);
 
@@ -83,19 +93,15 @@ const App = () => {
           <>
             {/* Blurred background overlay - everything behind is blurred */}
             <div 
-              className="fixed inset-0 z-[99] bg-background/80 backdrop-blur-md" 
+              className="fixed inset-0 z-40 bg-background/80 backdrop-blur-md pin-blur-overlay" 
               aria-hidden="true"
             />
-            {/* PIN dialog container - not blurred */}
-            <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
-              <div className="pointer-events-auto">
-                <PinProtectionDialog
-                  open={true}
-                  onSuccess={() => setIsUnlocked(true)}
-                  pinHash={settings.pinHash}
-                />
-              </div>
-            </div>
+            {/* PIN dialog - rendered via portal above the blur */}
+            <PinProtectionDialog
+              open={true}
+              onSuccess={() => setIsUnlocked(true)}
+              pinHash={settings.pinHash}
+            />
           </>
         )}
         

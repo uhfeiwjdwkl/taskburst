@@ -34,6 +34,7 @@ import { ProgressGridBox } from './ProgressGridShape';
 import { ColorPickerGrid } from './ColorPickerGrid';
 import { IconGrid } from './IconGrid';
 import { hashPin } from '@/lib/pin';
+import { applyColorThemeToDocument } from '@/lib/theme';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -72,10 +73,15 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
     
     // Apply brightness
     document.documentElement.style.filter = `brightness(${settings.brightness / 100})`;
-  }, [settings.darkMode, settings.brightness]);
+
+    // Apply theme live while previewing settings
+    const theme = COLOR_THEMES.find(t => t.id === settings.colorTheme);
+    if (theme) applyColorThemeToDocument(theme.colors);
+  }, [settings.darkMode, settings.brightness, settings.colorTheme]);
 
   const handleSave = () => {
     localStorage.setItem('appSettings', JSON.stringify(settings));
+    window.dispatchEvent(new Event('appSettingsUpdated'));
     toast.success('Settings saved');
     onClose();
   };
@@ -109,6 +115,7 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
         if (typeof imported.darkMode === 'boolean') {
           setSettings({ ...DEFAULT_SETTINGS, ...imported });
           localStorage.setItem('appSettings', JSON.stringify({ ...DEFAULT_SETTINGS, ...imported }));
+          window.dispatchEvent(new Event('appSettingsUpdated'));
           toast.success('Settings imported');
         } else {
           toast.error('Invalid settings file');
@@ -175,6 +182,7 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent 
         className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        showClose={false}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
@@ -364,6 +372,7 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                 <div className="flex gap-3 mt-2 p-4 bg-muted rounded-md justify-center items-center">
                   <div className="flex flex-col items-center gap-1">
                     <ProgressGridBox
+                      icon={settings.progressGridIcon}
                       filled={false}
                       color={settings.progressGridColor}
                       size={32}
@@ -372,6 +381,7 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   </div>
                   <div className="flex flex-col items-center gap-1">
                     <ProgressGridBox
+                      icon={settings.progressGridIcon}
                       filled={true}
                       color={settings.progressGridColor}
                       size={32}

@@ -112,6 +112,7 @@ export const SubtaskDialog = ({
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent 
         className="max-w-md max-h-[90vh] overflow-y-auto"
+        showClose={false}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
