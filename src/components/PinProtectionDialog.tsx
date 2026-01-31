@@ -60,6 +60,7 @@ export const PinProtectionDialog = ({ open, onSuccess, pinHash }: PinProtectionD
     <Dialog open={open}>
       <DialogContent 
         className="max-w-sm bg-background border shadow-lg"
+        showClose={false}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}

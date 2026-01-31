@@ -205,6 +205,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent 
         className="max-w-lg max-h-[90vh] overflow-y-auto"
+        showClose={false}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >

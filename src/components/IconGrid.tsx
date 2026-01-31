@@ -22,7 +22,7 @@ export const IconGrid = ({ value, onChange, color = '#6366f1', className }: Icon
           title={icon}
         >
           <img 
-            src={`/icons/${icon}.svg`}
+            src={`/icons/${encodeURIComponent(icon)}.svg`}
             alt={icon}
             className="w-5 h-5"
             style={{ filter: `drop-shadow(0 0 0 ${color})` }}

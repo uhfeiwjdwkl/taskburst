@@ -205,7 +205,8 @@ export default function Results() {
       return { score: null, maxScore: 100, percentage: avgPercentage.toFixed(2) + '%', displayValue: avgPercentage.toFixed(2) + '%' };
     } else {
       const totalScore = scoredParts.reduce((sum, p) => sum + (p.score || 0), 0);
-      const totalMax = parts.reduce((sum, p) => sum + p.maxScore, 0);
+      // Denominator should only include completed/scored parts
+      const totalMax = scoredParts.reduce((sum, p) => sum + p.maxScore, 0);
       return { score: totalScore, maxScore: totalMax, percentage: ((totalScore / totalMax) * 100).toFixed(2) + '%', displayValue: `${totalScore}/${totalMax}` };
     }
   };
