@@ -21,8 +21,13 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
   const [fieldsPerCell, setFieldsPerCell] = useState<1 | 2 | 3>(1);
   const [fortnightStartDate, setFortnightStartDate] = useState("");
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([
-    { id: '1', label: '9:00 AM', startTime: '09:00', duration: 60 }
+    { id: '1', label: '', startTime: '09:00', duration: 60 }
   ]);
+
+  // Flexible mode settings
+  const [flexStartTime, setFlexStartTime] = useState('06:00');
+  const [flexEndTime, setFlexEndTime] = useState('22:00');
+  const [flexInterval, setFlexInterval] = useState(60); // minutes between time markings
 
   const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const [selectedDays, setSelectedDays] = useState<string[]>([...allDays]);
@@ -61,10 +66,6 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
     setTimeSlots(timeSlots.map(slot => {
       if (slot.id === id) {
         const updated = { ...slot, [field]: value };
-        // Auto-generate label from start time
-        if (field === 'startTime') {
-          updated.label = generateLabel(value);
-        }
         return updated;
       }
       return slot;
@@ -72,11 +73,19 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
   };
 
   const handleCreate = () => {
-    if (!name.trim() || timeSlots.some(s => !s.startTime || !s.duration)) {
+    if (!name.trim()) {
+      toast.error("Please enter a timetable name");
+      return;
+    }
+
+    // Validation differs by mode
+    if (mode === 'rigid' && timeSlots.some(s => !s.startTime || !s.duration)) {
+      toast.error("Please fill in all time slots");
       return;
     }
 
     if (type === 'fortnightly' && !fortnightStartDate) {
+      toast.error("Please select a week 1 start date");
       return;
     }
 
@@ -85,6 +94,12 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
       return;
     }
 
+    // For flexible mode, auto-generate display labels if not set
+    const processedSlots = timeSlots.map(slot => ({
+      ...slot,
+      label: slot.label || generateLabel(slot.startTime)
+    }));
+
     const newTimetable: Timetable = {
       id: Date.now().toString(),
       name: name.trim(),
@@ -92,12 +107,18 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
       type,
       mode,
       fortnightStartDate: type === 'fortnightly' ? fortnightStartDate : undefined,
-      rows: timeSlots,
+      rows: mode === 'rigid' ? processedSlots : [],
       columns: selectedDays,
       fieldsPerCell,
       cells: {},
       colorKey: {},
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      // Store flexible mode settings in a way that can be retrieved
+      ...(mode === 'flexible' ? {
+        flexStartTime,
+        flexEndTime,
+        flexInterval,
+      } : {}),
     };
 
     onCreate(newTimetable);
@@ -108,8 +129,11 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
     setMode('rigid');
     setFieldsPerCell(1);
     setFortnightStartDate("");
-    setTimeSlots([{ id: '1', label: '9:00 AM', startTime: '09:00', duration: 60 }]);
+    setTimeSlots([{ id: '1', label: '', startTime: '09:00', duration: 60 }]);
     setSelectedDays([...allDays]);
+    setFlexStartTime('06:00');
+    setFlexEndTime('22:00');
+    setFlexInterval(60);
     onOpenChange(false);
   };
 
@@ -158,19 +182,21 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="fields">Fields Per Cell</Label>
-              <Select value={fieldsPerCell.toString()} onValueChange={(v) => setFieldsPerCell(parseInt(v) as 1 | 2 | 3)}>
-                <SelectTrigger id="fields">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">1 Field</SelectItem>
-                  <SelectItem value="2">2 Fields</SelectItem>
-                  <SelectItem value="3">3 Fields</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {mode === 'rigid' && (
+              <div className="space-y-2">
+                <Label htmlFor="fields">Fields Per Cell</Label>
+                <Select value={fieldsPerCell.toString()} onValueChange={(v) => setFieldsPerCell(parseInt(v) as 1 | 2 | 3)}>
+                  <SelectTrigger id="fields">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">1 Field</SelectItem>
+                    <SelectItem value="2">2 Fields</SelectItem>
+                    <SelectItem value="3">3 Fields</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           {type === 'fortnightly' && (
@@ -203,49 +229,110 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Time Slots</Label>
-              <Button size="sm" variant="outline" onClick={handleAddTimeSlot}>
-                <Plus className="h-4 w-4 mr-1" />
-                Add Slot
-              </Button>
-            </div>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {timeSlots.map((slot, index) => (
-                <div key={slot.id} className="flex gap-2 items-start p-2 border rounded">
-                  <div className="flex-1 grid grid-cols-2 gap-2">
-                    <Input
-                      type="time"
-                      placeholder="Start time"
-                      value={slot.startTime}
-                      onChange={(e) => handleUpdateTimeSlot(slot.id, 'startTime', e.target.value)}
-                    />
-                    <Input
-                      type="number"
-                      placeholder="Duration (min)"
-                      value={slot.duration || ''}
-                      onChange={(e) => handleUpdateTimeSlot(slot.id, 'duration', e.target.value)}
-                      min="1"
-                    />
-                    {slot.label && (
-                      <div className="col-span-2 text-xs text-muted-foreground">
-                        Display: {slot.label}
-                      </div>
-                    )}
-                  </div>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleRemoveTimeSlot(slot.id)}
-                    disabled={timeSlots.length === 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+          {/* Flexible mode time range settings */}
+          {mode === 'flexible' && (
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+              <h4 className="font-medium">Flexible Timetable Settings</h4>
+              <p className="text-sm text-muted-foreground">
+                Events can span any time range and will be displayed scaled to their duration.
+              </p>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="flexStart">Start Time</Label>
+                  <Input
+                    id="flexStart"
+                    type="time"
+                    value={flexStartTime}
+                    onChange={(e) => setFlexStartTime(e.target.value)}
+                  />
                 </div>
-              ))}
+                <div className="space-y-2">
+                  <Label htmlFor="flexEnd">End Time</Label>
+                  <Input
+                    id="flexEnd"
+                    type="time"
+                    value={flexEndTime}
+                    onChange={(e) => setFlexEndTime(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="flexInterval">Time Interval (min)</Label>
+                  <Select value={flexInterval.toString()} onValueChange={(v) => setFlexInterval(parseInt(v))}>
+                    <SelectTrigger id="flexInterval">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="15">15 minutes</SelectItem>
+                      <SelectItem value="30">30 minutes</SelectItem>
+                      <SelectItem value="60">1 hour</SelectItem>
+                      <SelectItem value="120">2 hours</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Rigid mode time slots */}
+          {mode === 'rigid' && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Time Slots</Label>
+                <Button size="sm" variant="outline" onClick={handleAddTimeSlot}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Slot
+                </Button>
+              </div>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {timeSlots.map((slot, index) => (
+                  <div key={slot.id} className="flex gap-2 items-start p-2 border rounded">
+                    <div className="flex-1 grid grid-cols-3 gap-2">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Name (optional)</Label>
+                        <Input
+                          placeholder="e.g. Lecture, Break"
+                          value={slot.label}
+                          onChange={(e) => handleUpdateTimeSlot(slot.id, 'label', e.target.value)}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Start Time</Label>
+                        <Input
+                          type="time"
+                          placeholder="Start time"
+                          value={slot.startTime}
+                          onChange={(e) => handleUpdateTimeSlot(slot.id, 'startTime', e.target.value)}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Duration (min)</Label>
+                        <Input
+                          type="number"
+                          placeholder="Duration"
+                          value={slot.duration || ''}
+                          onChange={(e) => handleUpdateTimeSlot(slot.id, 'duration', e.target.value)}
+                          min="1"
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => handleRemoveTimeSlot(slot.id)}
+                      disabled={timeSlots.length === 1}
+                      className="mt-5"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

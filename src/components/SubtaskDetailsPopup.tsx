@@ -1,7 +1,7 @@
 import { Subtask } from '@/types/subtask';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, X, Clock, Calendar as CalendarIcon, ChevronRight } from 'lucide-react';
+import { Check, X, Clock, Calendar as CalendarIcon, ChevronRight, Edit } from 'lucide-react';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 
 interface SubtaskDetailsPopupProps {
@@ -10,6 +10,7 @@ interface SubtaskDetailsPopupProps {
   onUncomplete?: () => void;
   onClose: () => void;
   onViewDetails?: () => void;
+  onEdit?: () => void;
   position?: 'top' | 'bottom';
 }
 
@@ -19,6 +20,7 @@ export const SubtaskDetailsPopup = ({
   onUncomplete,
   onClose,
   onViewDetails,
+  onEdit,
   position = 'top' 
 }: SubtaskDetailsPopupProps) => {
   const priorityColors: Record<number, string> = {
@@ -40,7 +42,7 @@ export const SubtaskDetailsPopup = ({
 
   return (
     <div 
-      className={`absolute z-20 left-1/2 -translate-x-1/2 ${positionClasses} w-64 bg-popover border border-border rounded-lg shadow-lg p-3`}
+      className={`absolute z-[100] left-1/2 -translate-x-1/2 ${positionClasses} w-64 bg-popover border border-border rounded-lg shadow-lg p-3`}
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex justify-end mb-1">
@@ -64,7 +66,7 @@ export const SubtaskDetailsPopup = ({
         </div>
       )}
       
-      {/* Full Name Button - opens details */}
+      {/* Full Name Button - opens details view (NOT edit) */}
       {onViewDetails && (
         <Button
           variant="outline"
@@ -105,7 +107,7 @@ export const SubtaskDetailsPopup = ({
       </div>
       
       {/* Complete/Uncomplete Button */}
-      <div className="mt-3">
+      <div className="mt-3 space-y-2">
         {subtask.completed ? (
           onUncomplete && (
             <Button

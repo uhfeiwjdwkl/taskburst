@@ -32,6 +32,11 @@ export interface Timetable {
   customColors?: string[]; // custom hex colors saved by user
   createdAt: string;
   deletedAt?: string; // ISO string - when moved to recently deleted
+  
+  // Flexible mode settings
+  flexStartTime?: string; // "06:00" format
+  flexEndTime?: string; // "22:00" format
+  flexInterval?: number; // minutes between time markings
 }
 
 // For flexible timetables

@@ -83,6 +83,11 @@ export interface ColorTheme {
 export const COLOR_THEMES = [
   { 
     id: 'default', 
+    name: 'Purple (Default)', 
+    colors: { primary: '#8b5cf6', secondary: '#a855f7', accent: '#6366f1' }
+  },
+  { 
+    id: 'indigo', 
     name: 'Indigo', 
     colors: { primary: '#6366f1', secondary: '#8b5cf6', accent: '#10b981' }
   },
@@ -212,6 +217,16 @@ export interface AppSettings {
   
   // Subtask progress box settings (text size only)
   subtaskTextSize: SubtaskTextSize;
+  
+  // Homepage timetable display settings
+  homepageTimetableMode: 'none' | 'constant' | 'scheduled';
+  homepageTimetableId?: string; // For constant mode
+  homepageTimetableSchedule?: { // For scheduled mode
+    timetableId: string;
+    dayOfWeek?: number[]; // 0-6, Sunday-Saturday
+    startTime?: string; // "HH:MM" format
+    endTime?: string;
+  }[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -233,9 +248,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   colorTheme: 'default',
   customColors: [],
   progressGridIcon: 'square',
-  progressGridColor: '#6366f1',
+  progressGridColor: '#8b5cf6', // Purple default
   allowPerTaskProgressSettings: false,
   subtaskTextSize: 'xs',
+  homepageTimetableMode: 'none',
+  homepageTimetableId: undefined,
+  homepageTimetableSchedule: undefined,
 };
 
 // Legacy color palettes for backwards compatibility
