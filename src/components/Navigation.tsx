@@ -145,15 +145,15 @@ export function Navigation() {
               </div>
             </div>
 
-            {/* Single row navigation */}
+            {/* Single row navigation - only show when navRows is 1 (fits) */}
             {navRows === 1 && (
               <div ref={navRef} className="hidden md:flex md:gap-1 flex-wrap">
                 {renderNavButtons(visiblePages)}
               </div>
             )}
 
-            {/* Dropdown navigation */}
-            {(navRows === 'dropdown' || navRows === 2) && (
+            {/* Dropdown navigation - only show when explicitly dropdown mode */}
+            {navRows === 'dropdown' && (
               <div className="hidden md:flex ml-auto">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -163,14 +163,14 @@ export function Navigation() {
                       <ChevronDown className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48 bg-background">
+                  <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuLabel>Pages</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {visiblePages.map((page) => (
                       <DropdownMenuItem 
                         key={page.id} 
                         onClick={() => navigate(page.path)}
-                        className={isActive(page.path) ? 'bg-secondary' : ''}
+                        className={isActive(page.path) ? 'bg-muted' : ''}
                       >
                         {getIcon(page.icon)}
                         {page.name}
@@ -213,9 +213,9 @@ export function Navigation() {
             </div>
           </div>
 
-          {/* Two row navigation - second row */}
+          {/* Two row navigation - second row (when items don't fit in one row) */}
           {navRows === 2 && (
-            <div className="hidden md:flex gap-1 pb-2 flex-wrap justify-center">
+            <div className="hidden md:flex gap-1 pb-2 flex-wrap justify-start">
               {renderNavButtons(visiblePages)}
             </div>
           )}

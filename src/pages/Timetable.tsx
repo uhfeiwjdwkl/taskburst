@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { CreateTimetableDialog } from "@/components/CreateTimetableDialog";
 import { ImportTimetableDialog } from "@/components/ImportTimetableDialog";
 import { TimetableGrid } from "@/components/TimetableGrid";
+import { FlexibleTimetableGrid } from "@/components/FlexibleTimetableGrid";
 import { ColorKeyEditor } from "@/components/ColorKeyEditor";
 import { TimetableRowColEditor } from "@/components/TimetableRowColEditor";
 import { Timetable as TimetableType, TimeSlot } from "@/types/timetable";
@@ -454,30 +455,46 @@ const Timetable = () => {
                         </div>
                       )}
 
-                       <TimetableGrid
-                        timetable={isEditing && selectedTimetable?.id === timetable.id ? selectedTimetable : timetable}
-                        currentWeek={currentWeek}
-                        onUpdate={(updated) => {
-                          if (isEditing && selectedTimetable?.id === timetable.id) {
-                            setSelectedTimetable(updated);
-                          } else {
-                            handleUpdateTimetable(updated);
-                          }
-                        }}
-                        isEditing={isEditing && selectedTimetable?.id === timetable.id}
-                        focusedColor={focusedColor}
-                        onCellClick={(cell, rowIndex, colIndex) => {
-                          const timeSlot = timetable.rows[rowIndex];
-                          setSelectedCell({
-                            ...cell,
-                            timeSlot,
-                            rowIndex,
-                            colIndex,
-                            timetableId: timetable.id,
-                          });
-                          setCellDetailsOpen(true);
-                        }}
-                      />
+                       {/* Use appropriate grid based on mode */}
+                       {timetable.mode === 'flexible' ? (
+                         <FlexibleTimetableGrid
+                           timetable={isEditing && selectedTimetable?.id === timetable.id ? selectedTimetable : timetable}
+                           currentWeek={currentWeek}
+                           isEditing={isEditing && selectedTimetable?.id === timetable.id}
+                           onUpdateTimetable={(updated) => {
+                             if (isEditing && selectedTimetable?.id === timetable.id) {
+                               setSelectedTimetable(updated);
+                             } else {
+                               handleUpdateTimetable(updated);
+                             }
+                           }}
+                         />
+                       ) : (
+                         <TimetableGrid
+                           timetable={isEditing && selectedTimetable?.id === timetable.id ? selectedTimetable : timetable}
+                           currentWeek={currentWeek}
+                           onUpdate={(updated) => {
+                             if (isEditing && selectedTimetable?.id === timetable.id) {
+                               setSelectedTimetable(updated);
+                             } else {
+                               handleUpdateTimetable(updated);
+                             }
+                           }}
+                           isEditing={isEditing && selectedTimetable?.id === timetable.id}
+                           focusedColor={focusedColor}
+                           onCellClick={(cell, rowIndex, colIndex) => {
+                             const timeSlot = timetable.rows[rowIndex];
+                             setSelectedCell({
+                               ...cell,
+                               timeSlot,
+                               rowIndex,
+                               colIndex,
+                               timetableId: timetable.id,
+                             });
+                             setCellDetailsOpen(true);
+                           }}
+                         />
+                       )}
                     </div>
                   </CollapsibleContent>
                 </div>

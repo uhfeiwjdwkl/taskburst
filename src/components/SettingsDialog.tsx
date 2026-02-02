@@ -465,7 +465,32 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
               </div>
             </div>
 
-            {/* Timer Settings */}
+            {/* Homepage Timetable Display */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Homepage Timetable Display</h3>
+              <p className="text-sm text-muted-foreground">
+                Show current timetable block above the Pomodoro timer
+              </p>
+              
+              <div>
+                <Label>Display Mode</Label>
+                <Select
+                  value={settings.homepageTimetableMode}
+                  onValueChange={(value: 'none' | 'constant' | 'scheduled') => 
+                    setSettings({ ...settings, homepageTimetableMode: value })
+                  }
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select mode" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None (Use favorite timetables)</SelectItem>
+                    <SelectItem value="constant">Single timetable</SelectItem>
+                    <SelectItem value="scheduled">Scheduled (different by day/time)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Timer Settings</h3>
               

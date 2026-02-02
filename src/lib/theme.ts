@@ -58,10 +58,18 @@ export const applyColorThemeToDocument = (colors: ThemeColors) => {
   root.style.setProperty('--ring', primary);
   root.style.setProperty('--accent', accent);
 
-  // Keep secondary as a subtle surface color.
-  root.style.setProperty('--secondary', `${secondary}`);
-  root.style.setProperty('--muted', `${secondary}`);
-
-  // Update gradients to match theme (used in multiple places).
+  // Update gradients to match theme
   root.style.setProperty('--gradient-primary', `linear-gradient(135deg, hsl(${primary}), hsl(${accent}))`);
+  root.style.setProperty('--shadow-glow', `0 10px 40px -10px hsl(${primary} / 0.3)`);
+};
+
+// Reset to default theme (purple)
+export const resetToDefaultTheme = () => {
+  const root = document.documentElement;
+  
+  root.style.removeProperty('--primary');
+  root.style.removeProperty('--ring');
+  root.style.removeProperty('--accent');
+  root.style.removeProperty('--gradient-primary');
+  root.style.removeProperty('--shadow-glow');
 };

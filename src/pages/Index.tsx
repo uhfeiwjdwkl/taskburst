@@ -283,6 +283,7 @@ const Index = () => {
 
         {/* Timer Section */}
         <section className="bg-card rounded-2xl shadow-lg p-8 mb-8 border border-border relative z-50 pointer-events-auto">
+          <TimetableCurrentBlock />
           <CurrentScheduledTask tasks={tasks} />
           <CurrentEventDisplay />
           <Timer

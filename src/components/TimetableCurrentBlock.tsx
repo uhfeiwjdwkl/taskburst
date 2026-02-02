@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Clock } from "lucide-react";
 import { Timetable } from "@/types/timetable";
+import { AppSettings, DEFAULT_SETTINGS } from "@/types/settings";
 
 export function TimetableCurrentBlock() {
   const [currentBlock, setCurrentBlock] = useState<string | null>(null);
   const [nextBlock, setNextBlock] = useState<string | null>(null);
+  const [blockName, setBlockName] = useState<string | null>(null);
 
   useEffect(() => {
     const updateCurrentBlock = () => {
@@ -17,7 +19,23 @@ export function TimetableCurrentBlock() {
       }
 
       const timetables = JSON.parse(saved) as Timetable[];
-      const activeTimetables = timetables.filter(t => !t.deletedAt && t.favorite);
+      
+      // Get settings to check for specific timetable selection
+      const settingsSaved = localStorage.getItem('appSettings');
+      const settings: AppSettings = settingsSaved 
+        ? { ...DEFAULT_SETTINGS, ...JSON.parse(settingsSaved) }
+        : DEFAULT_SETTINGS;
+
+      let activeTimetables: Timetable[];
+      
+      if (settings.homepageTimetableMode === 'constant' && settings.homepageTimetableId) {
+        // Use specific timetable
+        const specific = timetables.find(t => t.id === settings.homepageTimetableId && !t.deletedAt);
+        activeTimetables = specific ? [specific] : [];
+      } else {
+        // Use favorite timetables
+        activeTimetables = timetables.filter(t => !t.deletedAt && t.favorite);
+      }
       
       if (activeTimetables.length === 0) {
         setCurrentBlock(null);
@@ -29,7 +47,7 @@ export function TimetableCurrentBlock() {
       const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
       const currentTime = now.getHours() * 60 + now.getMinutes();
 
-      // Try to find current and next blocks from favorite timetables
+      // Try to find current and next blocks from active timetables
       for (const timetable of activeTimetables) {
         // Find the column index for the current day
         const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -70,9 +88,14 @@ export function TimetableCurrentBlock() {
             if (cell && cell.fields && cell.fields.length > 0) {
               const blockText = cell.fields.filter(f => f.trim()).join(' - ');
               setCurrentBlock(blockText || 'Free Period');
+              // Include slot label if set
+              if (slot.label) setBlockName(slot.label);
+              else setBlockName(null);
               currentFound = true;
             } else {
               setCurrentBlock('Free Period');
+              if (slot.label) setBlockName(slot.label);
+              else setBlockName(null);
               currentFound = true;
             }
           }
@@ -116,7 +139,9 @@ export function TimetableCurrentBlock() {
         <div className="flex-1">
           {currentBlock && (
             <div className="mb-1">
-              <span className="text-sm font-medium text-muted-foreground">Current: </span>
+              <span className="text-sm font-medium text-muted-foreground">
+                {blockName ? `${blockName}: ` : 'Current: '}
+              </span>
               <span className="font-semibold">{currentBlock}</span>
             </div>
           )}
