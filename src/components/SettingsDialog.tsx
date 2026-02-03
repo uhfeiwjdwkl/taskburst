@@ -196,7 +196,7 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
           </Button>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
+        <div className="flex-1 overflow-y-auto pr-4" style={{ maxHeight: 'calc(85vh - 120px)' }}>
           <div className="space-y-6 pb-4">
             {/* Appearance Section */}
             <div className="space-y-4">
@@ -690,7 +690,7 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
               </Button>
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
