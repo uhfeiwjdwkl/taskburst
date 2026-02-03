@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Timetable, FlexibleEvent } from '@/types/timetable';
 import { cn } from '@/lib/utils';
-import { formatTimeTo12Hour } from '@/lib/dateFormat';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, X } from 'lucide-react';
+import { FlexibleEventDetailsDialog } from './FlexibleEventDetailsDialog';
 
 interface FlexibleTimetableGridProps {
   timetable: Timetable;
@@ -26,14 +26,14 @@ export function FlexibleTimetableGrid({
 }: FlexibleTimetableGridProps) {
   const [events, setEvents] = useState<FlexibleEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<FlexibleEvent | null>(null);
-  const [eventDialogOpen, setEventDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newEventDay, setNewEventDay] = useState<number | null>(null);
 
-  // Form state for adding/editing events
-  const [eventTitle, setEventTitle] = useState('');
-  const [eventStartTime, setEventStartTime] = useState('');
-  const [eventEndTime, setEventEndTime] = useState('');
-  const [eventColor, setEventColor] = useState<string | undefined>();
+  // Form state for adding new events
+  const [newEventTitle, setNewEventTitle] = useState('');
+  const [newEventStartTime, setNewEventStartTime] = useState('09:00');
+  const [newEventEndTime, setNewEventEndTime] = useState('10:00');
 
   // Load events from localStorage
   useEffect(() => {
@@ -57,11 +57,21 @@ export function FlexibleTimetableGrid({
   const startTime = timetable.flexStartTime || '06:00';
   const endTime = timetable.flexEndTime || '22:00';
   const interval = timetable.flexInterval || 60;
+  const timeFormat = timetable.flexTimeFormat || '12h';
 
   const [startHour, startMin] = startTime.split(':').map(Number);
   const [endHour, endMin] = endTime.split(':').map(Number);
   const totalMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
   const startMinutesOfDay = startHour * 60 + startMin;
+
+  // Format time based on setting
+  const formatTime = (time: string) => {
+    if (timeFormat === '24h') return time;
+    const [hours, minutes] = time.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
 
   // Generate time markers
   const timeMarkers: string[] = [];
@@ -95,58 +105,46 @@ export function FlexibleTimetableGrid({
 
   const handleAddEvent = (dayIndex: number) => {
     setNewEventDay(dayIndex);
-    setSelectedEvent(null);
-    setEventTitle('');
-    setEventStartTime('09:00');
-    setEventEndTime('10:00');
-    setEventColor(undefined);
-    setEventDialogOpen(true);
+    setNewEventTitle('');
+    setNewEventStartTime('09:00');
+    setNewEventEndTime('10:00');
+    setAddDialogOpen(true);
   };
 
-  const handleEditEvent = (event: FlexibleEvent) => {
+  const handleEventClick = (event: FlexibleEvent) => {
     setSelectedEvent(event);
-    setNewEventDay(null);
-    setEventTitle(event.fields[0] || '');
-    setEventStartTime(event.startTime);
-    setEventEndTime(event.endTime);
-    setEventColor(event.color);
-    setEventDialogOpen(true);
+    setDetailsDialogOpen(true);
   };
 
-  const handleSaveEvent = () => {
-    if (!eventTitle.trim() || !eventStartTime || !eventEndTime) return;
+  const handleSaveNewEvent = () => {
+    if (!newEventTitle.trim() || newEventDay === null) return;
 
-    if (selectedEvent) {
-      // Update existing event
-      const updated = events.map(e => 
-        e.id === selectedEvent.id
-          ? { ...e, fields: [eventTitle], startTime: eventStartTime, endTime: eventEndTime, color: eventColor }
-          : e
-      );
-      saveEvents(updated);
-    } else if (newEventDay !== null) {
-      // Create new event
-      const newEvent: FlexibleEvent = {
-        id: Date.now().toString(),
-        timetableId: timetable.id,
-        dayIndex: newEventDay,
-        startTime: eventStartTime,
-        endTime: eventEndTime,
-        fields: [eventTitle],
-        color: eventColor,
-        week: timetable.type === 'fortnightly' ? currentWeek : undefined,
-      };
-      saveEvents([...events, newEvent]);
-    }
-
-    setEventDialogOpen(false);
+    const newEvent: FlexibleEvent = {
+      id: Date.now().toString(),
+      timetableId: timetable.id,
+      dayIndex: newEventDay,
+      startTime: newEventStartTime,
+      endTime: newEventEndTime,
+      title: newEventTitle.trim(),
+      fields: [],
+      week: timetable.type === 'fortnightly' ? currentWeek : undefined,
+    };
+    
+    saveEvents([...events, newEvent]);
+    setAddDialogOpen(false);
   };
 
-  const handleDeleteEvent = () => {
-    if (selectedEvent) {
-      saveEvents(events.filter(e => e.id !== selectedEvent.id));
-      setEventDialogOpen(false);
-    }
+  const handleSaveEvent = (updatedEvent: FlexibleEvent) => {
+    const updated = events.map(e => e.id === updatedEvent.id ? updatedEvent : e);
+    saveEvents(updated);
+    setDetailsDialogOpen(false);
+    setSelectedEvent(null);
+  };
+
+  const handleDeleteEvent = (eventId: string) => {
+    saveEvents(events.filter(e => e.id !== eventId));
+    setDetailsDialogOpen(false);
+    setSelectedEvent(null);
   };
 
   return (
@@ -162,7 +160,7 @@ export function FlexibleTimetableGrid({
                 className="absolute left-0 right-0 text-xs text-muted-foreground px-2"
                 style={{ top: `${(i / (timeMarkers.length - 1)) * 100}%`, transform: 'translateY(-50%)' }}
               >
-                {formatTimeTo12Hour(time)}
+                {formatTime(time)}
               </div>
             ))}
           </div>
@@ -213,7 +211,7 @@ export function FlexibleTimetableGrid({
                 {dayEvents.map(event => (
                   <div
                     key={event.id}
-                    onClick={() => handleEditEvent(event)}
+                    onClick={() => handleEventClick(event)}
                     className={cn(
                       "absolute left-1 right-1 rounded-md px-2 py-1 cursor-pointer text-xs overflow-hidden",
                       "hover:ring-2 hover:ring-ring transition-all"
@@ -225,10 +223,10 @@ export function FlexibleTimetableGrid({
                     }}
                   >
                     <div className="font-medium truncate" style={{ color: event.color || 'hsl(var(--primary))' }}>
-                      {event.fields[0]}
+                      {event.title}
                     </div>
                     <div className="text-muted-foreground text-[10px]">
-                      {formatTimeTo12Hour(event.startTime)} - {formatTimeTo12Hour(event.endTime)}
+                      {formatTime(event.startTime)} - {formatTime(event.endTime)}
                     </div>
                   </div>
                 ))}
@@ -251,12 +249,22 @@ export function FlexibleTimetableGrid({
         </div>
       </div>
 
-      {/* Event Dialog */}
-      <Dialog open={eventDialogOpen} onOpenChange={setEventDialogOpen}>
+      {/* Event Details Dialog */}
+      <FlexibleEventDetailsDialog
+        event={selectedEvent}
+        open={detailsDialogOpen}
+        onOpenChange={setDetailsDialogOpen}
+        onSave={handleSaveEvent}
+        onDelete={handleDeleteEvent}
+        timeFormat={timeFormat}
+      />
+
+      {/* Add Event Dialog */}
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="max-w-sm" showClose={false}>
           <DialogHeader className="flex flex-row items-center justify-between">
-            <DialogTitle>{selectedEvent ? 'Edit Event' : 'Add Event'}</DialogTitle>
-            <Button variant="ghost" size="sm" onClick={() => setEventDialogOpen(false)} className="h-8 w-8 p-0">
+            <DialogTitle>Add Event</DialogTitle>
+            <Button variant="ghost" size="sm" onClick={() => setAddDialogOpen(false)} className="h-8 w-8 p-0">
               <X className="h-4 w-4" />
             </Button>
           </DialogHeader>
@@ -265,8 +273,8 @@ export function FlexibleTimetableGrid({
             <div>
               <Label>Title</Label>
               <Input
-                value={eventTitle}
-                onChange={(e) => setEventTitle(e.target.value)}
+                value={newEventTitle}
+                onChange={(e) => setNewEventTitle(e.target.value)}
                 placeholder="Event title"
                 className="mt-1"
               />
@@ -277,8 +285,8 @@ export function FlexibleTimetableGrid({
                 <Label>Start Time</Label>
                 <Input
                   type="time"
-                  value={eventStartTime}
-                  onChange={(e) => setEventStartTime(e.target.value)}
+                  value={newEventStartTime}
+                  onChange={(e) => setNewEventStartTime(e.target.value)}
                   className="mt-1"
                 />
               </div>
@@ -286,49 +294,20 @@ export function FlexibleTimetableGrid({
                 <Label>End Time</Label>
                 <Input
                   type="time"
-                  value={eventEndTime}
-                  onChange={(e) => setEventEndTime(e.target.value)}
+                  value={newEventEndTime}
+                  onChange={(e) => setNewEventEndTime(e.target.value)}
                   className="mt-1"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label>Color</Label>
-              <div className="flex gap-2 mt-2 flex-wrap">
-                {['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899'].map(color => (
-                  <button
-                    key={color}
-                    onClick={() => setEventColor(color)}
-                    className={cn(
-                      "w-6 h-6 rounded-full border-2",
-                      eventColor === color ? 'border-foreground' : 'border-transparent'
-                    )}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-                <button
-                  onClick={() => setEventColor(undefined)}
-                  className={cn(
-                    "w-6 h-6 rounded-full border-2 bg-muted",
-                    !eventColor ? 'border-foreground' : 'border-transparent'
-                  )}
                 />
               </div>
             </div>
           </div>
 
           <DialogFooter className="gap-2">
-            {selectedEvent && (
-              <Button variant="destructive" onClick={handleDeleteEvent}>
-                Delete
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setEventDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveEvent}>
-              Save
+            <Button onClick={handleSaveNewEvent}>
+              Add Event
             </Button>
           </DialogFooter>
         </DialogContent>
