@@ -8,6 +8,7 @@ import { TimetableGrid } from "@/components/TimetableGrid";
 import { FlexibleTimetableGrid } from "@/components/FlexibleTimetableGrid";
 import { ColorKeyEditor } from "@/components/ColorKeyEditor";
 import { TimetableRowColEditor } from "@/components/TimetableRowColEditor";
+import { FlexibleTimetableEditor } from "@/components/FlexibleTimetableEditor";
 import { Timetable as TimetableType, TimeSlot } from "@/types/timetable";
 import { toast } from "sonner";
 import { exportToPDF, exportToExcel } from "@/lib/exportTimetable";
@@ -194,6 +195,12 @@ const Timetable = () => {
     }
   };
 
+  const handleUpdateFlexibleSettings = (updates: Partial<TimetableType>) => {
+    if (selectedTimetable) {
+      setSelectedTimetable({ ...selectedTimetable, ...updates });
+    }
+  };
+
   const toggleEditSection = (section: string) => {
     setExpandedEditSections(prev => {
       const newSet = new Set(prev);
@@ -341,25 +348,46 @@ const Timetable = () => {
                           )}
 
                           <div className="space-y-2">
-                            <Collapsible
-                              open={expandedEditSections.has('rows-cols')}
-                              onOpenChange={() => toggleEditSection('rows-cols')}
-                            >
-                              <CollapsibleTrigger asChild>
-                                <Button variant="outline" size="sm" className="w-full justify-between">
-                                  Edit Time Slots & Days
-                                  <ChevronDown className={`h-4 w-4 transition-transform ${expandedEditSections.has('rows-cols') ? '' : '-rotate-90'}`} />
-                                </Button>
-                              </CollapsibleTrigger>
-                              <CollapsibleContent className="pt-2">
-                                <TimetableRowColEditor
-                                  rows={selectedTimetable.rows}
-                                  columns={selectedTimetable.columns}
-                                  onUpdateRows={handleUpdateRows}
-                                  onUpdateColumns={handleUpdateColumns}
-                                />
-                              </CollapsibleContent>
-                            </Collapsible>
+                            {/* For flexible timetables, show interval/format editor */}
+                            {selectedTimetable.mode === 'flexible' ? (
+                              <Collapsible
+                                open={expandedEditSections.has('flex-settings')}
+                                onOpenChange={() => toggleEditSection('flex-settings')}
+                              >
+                                <CollapsibleTrigger asChild>
+                                  <Button variant="outline" size="sm" className="w-full justify-between">
+                                    Edit Time Settings
+                                    <ChevronDown className={`h-4 w-4 transition-transform ${expandedEditSections.has('flex-settings') ? '' : '-rotate-90'}`} />
+                                  </Button>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent className="pt-2">
+                                  <FlexibleTimetableEditor
+                                    timetable={selectedTimetable}
+                                    onUpdate={handleUpdateFlexibleSettings}
+                                  />
+                                </CollapsibleContent>
+                              </Collapsible>
+                            ) : (
+                              <Collapsible
+                                open={expandedEditSections.has('rows-cols')}
+                                onOpenChange={() => toggleEditSection('rows-cols')}
+                              >
+                                <CollapsibleTrigger asChild>
+                                  <Button variant="outline" size="sm" className="w-full justify-between">
+                                    Edit Time Slots & Days
+                                    <ChevronDown className={`h-4 w-4 transition-transform ${expandedEditSections.has('rows-cols') ? '' : '-rotate-90'}`} />
+                                  </Button>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent className="pt-2">
+                                  <TimetableRowColEditor
+                                    rows={selectedTimetable.rows}
+                                    columns={selectedTimetable.columns}
+                                    onUpdateRows={handleUpdateRows}
+                                    onUpdateColumns={handleUpdateColumns}
+                                  />
+                                </CollapsibleContent>
+                              </Collapsible>
+                            )}
 
                             <Collapsible
                               open={expandedEditSections.has('colors')}

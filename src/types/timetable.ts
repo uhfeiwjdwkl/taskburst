@@ -36,7 +36,8 @@ export interface Timetable {
   // Flexible mode settings
   flexStartTime?: string; // "06:00" format
   flexEndTime?: string; // "22:00" format
-  flexInterval?: number; // minutes between time markings
+  flexInterval?: number; // minutes between time markings (can be custom)
+  flexTimeFormat?: '12h' | '24h'; // time format for display
 }
 
 // For flexible timetables
@@ -46,7 +47,9 @@ export interface FlexibleEvent {
   dayIndex: number; // which column/day
   startTime: string; // "09:00" format
   endTime: string; // "10:30" format
-  fields: string[];
+  title: string; // main title
+  fields: { label: string; value: string }[]; // additional optional fields
+  description?: string; // short description (not shown on timetable)
   color?: string;
   week?: 1 | 2; // for fortnightly
 }

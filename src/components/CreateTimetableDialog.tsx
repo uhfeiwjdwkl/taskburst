@@ -28,6 +28,9 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
   const [flexStartTime, setFlexStartTime] = useState('06:00');
   const [flexEndTime, setFlexEndTime] = useState('22:00');
   const [flexInterval, setFlexInterval] = useState(60); // minutes between time markings
+  const [flexTimeFormat, setFlexTimeFormat] = useState<'12h' | '24h'>('12h');
+  const [customInterval, setCustomInterval] = useState(60);
+  const [useCustomInterval, setUseCustomInterval] = useState(false);
 
   const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const [selectedDays, setSelectedDays] = useState<string[]>([...allDays]);
@@ -117,7 +120,8 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
       ...(mode === 'flexible' ? {
         flexStartTime,
         flexEndTime,
-        flexInterval,
+        flexInterval: useCustomInterval ? customInterval : flexInterval,
+        flexTimeFormat,
       } : {}),
     };
 
@@ -134,6 +138,9 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
     setFlexStartTime('06:00');
     setFlexEndTime('22:00');
     setFlexInterval(60);
+    setFlexTimeFormat('12h');
+    setCustomInterval(60);
+    setUseCustomInterval(false);
     onOpenChange(false);
   };
 
@@ -237,7 +244,7 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
                 Events can span any time range and will be displayed scaled to their duration.
               </p>
               
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="flexStart">Start Time</Label>
                   <Input
@@ -256,20 +263,64 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
                     onChange={(e) => setFlexEndTime(e.target.value)}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="flexInterval">Time Interval (min)</Label>
-                  <Select value={flexInterval.toString()} onValueChange={(v) => setFlexInterval(parseInt(v))}>
-                    <SelectTrigger id="flexInterval">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="15">15 minutes</SelectItem>
-                      <SelectItem value="30">30 minutes</SelectItem>
-                      <SelectItem value="60">1 hour</SelectItem>
-                      <SelectItem value="120">2 hours</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="flexInterval">Time Interval Markers</Label>
+                <Select 
+                  value={useCustomInterval ? 'custom' : flexInterval.toString()} 
+                  onValueChange={(v) => {
+                    if (v === 'custom') {
+                      setUseCustomInterval(true);
+                    } else {
+                      setUseCustomInterval(false);
+                      setFlexInterval(parseInt(v));
+                    }
+                  }}
+                >
+                  <SelectTrigger id="flexInterval">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 minutes</SelectItem>
+                    <SelectItem value="15">15 minutes</SelectItem>
+                    <SelectItem value="20">20 minutes</SelectItem>
+                    <SelectItem value="30">30 minutes</SelectItem>
+                    <SelectItem value="45">45 minutes</SelectItem>
+                    <SelectItem value="60">1 hour</SelectItem>
+                    <SelectItem value="90">1.5 hours</SelectItem>
+                    <SelectItem value="120">2 hours</SelectItem>
+                    <SelectItem value="custom">Custom...</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {useCustomInterval && (
+                  <div className="mt-2">
+                    <Label className="text-xs text-muted-foreground">Custom interval (minutes)</Label>
+                    <Input
+                      type="number"
+                      min="5"
+                      max="240"
+                      step="5"
+                      value={customInterval}
+                      onChange={(e) => setCustomInterval(parseInt(e.target.value) || 60)}
+                      className="mt-1"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="flexTimeFormat">Time Format</Label>
+                <Select value={flexTimeFormat} onValueChange={(v) => setFlexTimeFormat(v as '12h' | '24h')}>
+                  <SelectTrigger id="flexTimeFormat">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="12h">12-hour (AM/PM)</SelectItem>
+                    <SelectItem value="24h">24-hour</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           )}
