@@ -170,3 +170,20 @@ All colors MUST be HSL.
   -webkit-backdrop-filter: none !important;
   filter: none !important;
 }
+
+  /*
+    Radix layering + scrollability fixes
+    - Dropdown menus were appearing behind dialogs/popups due to z-index stacking.
+    - Some dialogs were not scrollable on smaller screens.
+  */
+  [data-radix-popper-content-wrapper] {
+    z-index: 9999 !important;
+  }
+
+  /* Ensure all Radix dialogs are vertically scrollable and fit the viewport */
+  [role="dialog"] {
+    max-height: min(85vh, calc(100vh - 2rem));
+    max-width: calc(100vw - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
