@@ -34,8 +34,8 @@ export const ProgressGridIcon = ({
 
   // For subtasks - stretched rounded rectangle
   if (isSubtask) {
-    // Incomplete: white background with colored border and text
-    // Complete: colored background with white text
+    // Completed: colored background with white text
+    // Incomplete: white/light background with colored text/border
     const borderColor = subtaskColor || color;
     const bgColor = filled ? (subtaskColor || color) : 'white';
     const textColor = filled ? 'white' : (subtaskColor || color);
