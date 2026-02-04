@@ -442,9 +442,20 @@ const Timetable = () => {
                               <DropdownMenuItem onClick={() => exportToPDF(timetable, currentWeek)}>
                                 Export as PDF
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => exportToExcel(timetable, currentWeek)}>
-                                Export as Excel
-                              </DropdownMenuItem>
+                              {timetable.mode !== 'flexible' && (
+                                <DropdownMenuItem onClick={() => exportToExcel(timetable, currentWeek)}>
+                                  Export as Excel
+                                </DropdownMenuItem>
+                              )}
+                              {timetable.mode === 'flexible' && (
+                                <DropdownMenuItem onClick={() => {
+                                  const { downloadFlexibleJSON } = require('@/lib/exportTimetable');
+                                  downloadFlexibleJSON(timetable);
+                                  toast.success('Exported flexible timetable as JSON');
+                                }}>
+                                  Export as JSON
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>

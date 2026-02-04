@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, X } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Plus, X, Copy, Clipboard, Move, Trash2 } from 'lucide-react';
 import { FlexibleEventDetailsDialog } from './FlexibleEventDetailsDialog';
+import { toast } from 'sonner';
 
 interface FlexibleTimetableGridProps {
   timetable: Timetable;
@@ -29,6 +31,12 @@ export function FlexibleTimetableGrid({
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newEventDay, setNewEventDay] = useState<number | null>(null);
+  
+  // Copy/paste/move state
+  const [copiedEvent, setCopiedEvent] = useState<FlexibleEvent | null>(null);
+  const [moveMode, setMoveMode] = useState(false);
+  const [movingEvent, setMovingEvent] = useState<FlexibleEvent | null>(null);
+  const [selectedForAction, setSelectedForAction] = useState<string | null>(null);
 
   // Form state for adding new events
   const [newEventTitle, setNewEventTitle] = useState('');
@@ -104,6 +112,32 @@ export function FlexibleTimetableGrid({
   };
 
   const handleAddEvent = (dayIndex: number) => {
+    // If moving an event, move it to this day instead
+    if (moveMode && movingEvent) {
+      const updated = events.map(e => 
+        e.id === movingEvent.id ? { ...e, dayIndex, week: timetable.type === 'fortnightly' ? currentWeek : undefined } : e
+      );
+      saveEvents(updated);
+      setMovingEvent(null);
+      setMoveMode(false);
+      toast.success('Event moved');
+      return;
+    }
+    
+    // If pasting a copied event
+    if (copiedEvent) {
+      const newEvent: FlexibleEvent = {
+        ...copiedEvent,
+        id: Date.now().toString(),
+        dayIndex,
+        week: timetable.type === 'fortnightly' ? currentWeek : undefined,
+      };
+      saveEvents([...events, newEvent]);
+      setCopiedEvent(null);
+      toast.success('Event pasted');
+      return;
+    }
+    
     setNewEventDay(dayIndex);
     setNewEventTitle('');
     setNewEventStartTime('09:00');
@@ -112,8 +146,30 @@ export function FlexibleTimetableGrid({
   };
 
   const handleEventClick = (event: FlexibleEvent) => {
-    setSelectedEvent(event);
-    setDetailsDialogOpen(true);
+    if (moveMode) {
+      setMovingEvent(event);
+      toast.info('Click on a day column to move the event there');
+      return;
+    }
+    
+    if (isEditing) {
+      setSelectedForAction(selectedForAction === event.id ? null : event.id);
+    } else {
+      setSelectedEvent(event);
+      setDetailsDialogOpen(true);
+    }
+  };
+
+  const handleCopyEvent = (event: FlexibleEvent) => {
+    setCopiedEvent(event);
+    setSelectedForAction(null);
+    toast.success('Event copied. Click on a day to paste.');
+  };
+
+  const handleDeleteSelectedEvent = (eventId: string) => {
+    saveEvents(events.filter(e => e.id !== eventId));
+    setSelectedForAction(null);
+    toast.success('Event deleted');
   };
 
   const handleSaveNewEvent = () => {
@@ -149,6 +205,46 @@ export function FlexibleTimetableGrid({
 
   return (
     <div className="border rounded-lg overflow-hidden">
+      {/* Edit mode toolbar */}
+      {isEditing && (
+        <div className="flex items-center gap-2 p-2 border-b bg-muted/30">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="moveMode"
+              checked={moveMode}
+              onCheckedChange={(checked) => {
+                setMoveMode(checked);
+                if (!checked) setMovingEvent(null);
+              }}
+            />
+            <Label htmlFor="moveMode" className="text-sm flex items-center gap-1">
+              <Move className="h-3 w-3" />
+              Move Mode
+            </Label>
+          </div>
+          
+          {copiedEvent && (
+            <div className="flex items-center gap-2 ml-4 text-sm text-muted-foreground">
+              <Clipboard className="h-3 w-3" />
+              <span>"{copiedEvent.title}" copied - click a day to paste</span>
+              <Button variant="ghost" size="sm" onClick={() => setCopiedEvent(null)} className="h-6 px-2">
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+          
+          {movingEvent && (
+            <div className="flex items-center gap-2 ml-4 text-sm text-muted-foreground">
+              <Move className="h-3 w-3" />
+              <span>Moving "{movingEvent.title}" - click a day</span>
+              <Button variant="ghost" size="sm" onClick={() => setMovingEvent(null)} className="h-6 px-2">
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+      
       <div className="flex">
         {/* Time column */}
         <div className="w-16 flex-shrink-0 border-r bg-muted/30">
@@ -170,7 +266,14 @@ export function FlexibleTimetableGrid({
         <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${timetable.columns.length}, 1fr)` }}>
           {/* Day headers */}
           {timetable.columns.map((day, dayIndex) => (
-            <div key={day} className="h-10 border-b border-r flex items-center justify-center font-medium text-sm bg-muted/30">
+            <div 
+              key={day} 
+              className={cn(
+                "h-10 border-b border-r flex items-center justify-center font-medium text-sm bg-muted/30",
+                (copiedEvent || movingEvent) && "cursor-pointer hover:bg-primary/10"
+              )}
+              onClick={() => (copiedEvent || movingEvent) && handleAddEvent(dayIndex)}
+            >
               {day.slice(0, 3)}
             </div>
           ))}
@@ -185,8 +288,17 @@ export function FlexibleTimetableGrid({
             return (
               <div
                 key={`content-${dayIndex}`}
-                className="relative border-r"
+                className={cn(
+                  "relative border-r",
+                  (copiedEvent || movingEvent) && "cursor-pointer hover:bg-primary/5"
+                )}
                 style={{ height: `${timeMarkers.length * 40}px` }}
+                onClick={(e) => {
+                  // Only trigger paste/move on empty area clicks
+                  if ((copiedEvent || movingEvent) && e.target === e.currentTarget) {
+                    handleAddEvent(dayIndex);
+                  }
+                }}
               >
                 {/* Time grid lines */}
                 {timeMarkers.map((_, i) => (
@@ -208,31 +320,69 @@ export function FlexibleTimetableGrid({
                 )}
 
                 {/* Events */}
-                {dayEvents.map(event => (
-                  <div
-                    key={event.id}
-                    onClick={() => handleEventClick(event)}
-                    className={cn(
-                      "absolute left-1 right-1 rounded-md px-2 py-1 cursor-pointer text-xs overflow-hidden",
-                      "hover:ring-2 hover:ring-ring transition-all"
-                    )}
-                    style={{
-                      ...getEventStyle(event),
-                      backgroundColor: event.color ? `${event.color}30` : 'hsl(var(--primary) / 0.2)',
-                      borderLeft: `3px solid ${event.color || 'hsl(var(--primary))'}`,
-                    }}
-                  >
-                    <div className="font-medium truncate" style={{ color: event.color || 'hsl(var(--primary))' }}>
-                      {event.title}
+                {dayEvents.map(event => {
+                  const isSelected = selectedForAction === event.id;
+                  const isMoving = movingEvent?.id === event.id;
+                  
+                  return (
+                    <div
+                      key={event.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEventClick(event);
+                      }}
+                      className={cn(
+                        "absolute left-1 right-1 rounded-md px-2 py-1 cursor-pointer text-xs overflow-hidden",
+                        "hover:ring-2 hover:ring-ring transition-all",
+                        isSelected && "ring-2 ring-primary",
+                        isMoving && "opacity-50 ring-2 ring-yellow-500"
+                      )}
+                      style={{
+                        ...getEventStyle(event),
+                        backgroundColor: event.color ? `${event.color}30` : 'hsl(var(--primary) / 0.2)',
+                        borderLeft: `3px solid ${event.color || 'hsl(var(--primary))'}`,
+                      }}
+                    >
+                      <div className="font-medium truncate" style={{ color: event.color || 'hsl(var(--primary))' }}>
+                        {event.title}
+                      </div>
+                      <div className="text-muted-foreground text-[10px]">
+                        {formatTime(event.startTime)} - {formatTime(event.endTime)}
+                      </div>
+                      
+                      {/* Action buttons when selected in edit mode */}
+                      {isEditing && isSelected && (
+                        <div className="absolute top-0 right-0 flex gap-1 bg-background rounded-bl p-1 shadow-sm">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyEvent(event);
+                            }}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteSelectedEvent(event.id);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    <div className="text-muted-foreground text-[10px]">
-                      {formatTime(event.startTime)} - {formatTime(event.endTime)}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
 
-                {/* Add event button (when editing) */}
-                {isEditing && (
+                {/* Add event button (when editing and not in paste/move mode) */}
+                {isEditing && !copiedEvent && !movingEvent && (
                   <Button
                     variant="ghost"
                     size="sm"
