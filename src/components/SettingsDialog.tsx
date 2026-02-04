@@ -176,6 +176,24 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
     }
   };
 
+  const handleEditCustomColor = (oldColor: string, newColor: string) => {
+    const updated = settings.customColors.map(c => c === oldColor ? newColor : c);
+    setSettings({ ...settings, customColors: updated });
+    // If the current progressGridColor was the old color, update it
+    if (settings.progressGridColor === oldColor) {
+      setSettings({ ...settings, customColors: updated, progressGridColor: newColor });
+    }
+  };
+
+  const handleDeleteCustomColor = (color: string) => {
+    const updated = settings.customColors.filter(c => c !== color);
+    setSettings({ ...settings, customColors: updated });
+    // If current color is deleted, reset to first preset
+    if (settings.progressGridColor === color) {
+      setSettings({ ...settings, customColors: updated, progressGridColor: PRESET_COLORS[0] });
+    }
+  };
+
   const selectedTheme = COLOR_THEMES.find(t => t.id === settings.colorTheme) || COLOR_THEMES[0];
 
   return (
@@ -362,6 +380,8 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                     onChange={(color) => setSettings({ ...settings, progressGridColor: color })}
                     customColors={settings.customColors}
                     onAddCustomColor={handleAddCustomColor}
+                    onEditCustomColor={handleEditCustomColor}
+                    onDeleteCustomColor={handleDeleteCustomColor}
                   />
                 </div>
               </div>
@@ -490,6 +510,36 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Timetable selection for constant mode */}
+              {settings.homepageTimetableMode === 'constant' && (
+                <div>
+                  <Label>Select Timetable</Label>
+                  <Select
+                    value={settings.homepageTimetableId || ''}
+                    onValueChange={(value) => setSettings({ ...settings, homepageTimetableId: value })}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Choose a timetable" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(() => {
+                        const timetables = JSON.parse(localStorage.getItem('timetables') || '[]')
+                          .filter((t: any) => !t.deletedAt);
+                        return timetables.length === 0 ? (
+                          <SelectItem value="none" disabled>No timetables available</SelectItem>
+                        ) : (
+                          timetables.map((t: any) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.name} ({t.mode === 'flexible' ? 'Flexible' : 'Rigid'})
+                            </SelectItem>
+                          ))
+                        );
+                      })()}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Timer Settings</h3>
