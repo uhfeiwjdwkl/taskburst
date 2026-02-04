@@ -1,7 +1,7 @@
 import { Subtask } from '@/types/subtask';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, X, Clock, Calendar as CalendarIcon, ChevronRight, Edit } from 'lucide-react';
+import { Check, X, Clock, Calendar as CalendarIcon, ChevronRight, Undo } from 'lucide-react';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 
 interface SubtaskDetailsPopupProps {
@@ -9,8 +9,7 @@ interface SubtaskDetailsPopupProps {
   onComplete: () => void;
   onUncomplete?: () => void;
   onClose: () => void;
-  onViewDetails?: () => void;
-  onEdit?: () => void;
+  onViewFullDetails?: () => void;
   position?: 'top' | 'bottom';
 }
 
@@ -19,8 +18,7 @@ export const SubtaskDetailsPopup = ({
   onComplete, 
   onUncomplete,
   onClose,
-  onViewDetails,
-  onEdit,
+  onViewFullDetails,
   position = 'top' 
 }: SubtaskDetailsPopupProps) => {
   const priorityColors: Record<number, string> = {
@@ -66,24 +64,11 @@ export const SubtaskDetailsPopup = ({
         </div>
       )}
       
-      {/* Full Name Button - opens details view (NOT edit) */}
-      {onViewDetails && (
-        <Button
-          variant="outline"
-          className="w-full justify-between mb-2 h-auto py-2"
-          onClick={onViewDetails}
-        >
-          <span className="text-left truncate flex-1 text-sm">{subtask.title}</span>
-          <ChevronRight className="h-4 w-4 flex-shrink-0 ml-2" />
-        </Button>
-      )}
-
-      {!onViewDetails && (
-        <p className="font-medium text-sm mb-2">{subtask.title}</p>
-      )}
+      {/* Title */}
+      <p className="font-medium text-sm mb-2">{subtask.title}</p>
       
       {subtask.description && (
-        <p className="text-xs text-muted-foreground mb-2">{subtask.description}</p>
+        <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{subtask.description}</p>
       )}
       
       <div className="flex flex-wrap gap-1 mb-2">
@@ -106,8 +91,21 @@ export const SubtaskDetailsPopup = ({
         )}
       </div>
       
-      {/* Complete/Uncomplete Button */}
+      {/* Action Buttons */}
       <div className="mt-3 space-y-2">
+        {/* View Full Details Button */}
+        {onViewFullDetails && (
+          <Button
+            variant="outline"
+            className="w-full justify-between h-8 text-xs"
+            onClick={onViewFullDetails}
+          >
+            <span>View Full Details</span>
+            <ChevronRight className="h-3 w-3" />
+          </Button>
+        )}
+        
+        {/* Complete/Uncomplete Button */}
         {subtask.completed ? (
           onUncomplete && (
             <Button
@@ -116,7 +114,7 @@ export const SubtaskDetailsPopup = ({
               onClick={onUncomplete}
               className="w-full h-8 text-xs"
             >
-              <X className="h-3 w-3 mr-1" />
+              <Undo className="h-3 w-3 mr-1" />
               Mark Incomplete
             </Button>
           )
