@@ -66,6 +66,15 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
   const handleAdd = () => {
     if (!name.trim()) return;
 
+    // Ensure category is saved to main categories list
+    if (category.trim()) {
+      const mainCategories = JSON.parse(localStorage.getItem('categories') || '[]');
+      if (!mainCategories.includes(category.trim())) {
+        mainCategories.push(category.trim());
+        localStorage.setItem('categories', JSON.stringify(mainCategories));
+      }
+    }
+
     onAdd({
       name: name.trim(),
       description: description.trim(),

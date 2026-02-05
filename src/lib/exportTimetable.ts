@@ -4,11 +4,18 @@ import * as XLSX from 'xlsx';
 // Storage key for flexible events
 const FLEXIBLE_EVENTS_KEY = 'flexibleTimetableEvents';
 
-function getFlexibleEventsForTimetable(timetableId: string): FlexibleEvent[] {
+export function getFlexibleEventsForTimetable(timetableId: string): FlexibleEvent[] {
   const saved = localStorage.getItem(FLEXIBLE_EVENTS_KEY);
   if (!saved) return [];
   const allEvents = JSON.parse(saved) as FlexibleEvent[];
   return allEvents.filter(e => e.timetableId === timetableId);
+}
+
+export function saveFlexibleEventsForTimetable(timetableId: string, newEvents: FlexibleEvent[]): void {
+  const saved = localStorage.getItem(FLEXIBLE_EVENTS_KEY);
+  const allEvents = saved ? JSON.parse(saved) as FlexibleEvent[] : [];
+  const otherEvents = allEvents.filter(e => e.timetableId !== timetableId);
+  localStorage.setItem(FLEXIBLE_EVENTS_KEY, JSON.stringify([...otherEvents, ...newEvents]));
 }
 
 export const exportToPDF = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {
@@ -383,12 +390,30 @@ export function downloadFlexibleJSON(timetable: Timetable) {
 }
 
 // Import flexible timetable events from JSON
-export function importFlexibleFromJSON(jsonData: any, newTimetableId: string): FlexibleEvent[] {
+export function importFlexibleFromJSON(jsonData: any, newTimetableId: string): { timetable: Partial<Timetable>; events: FlexibleEvent[] } {
+  const timetableData: Partial<Timetable> = {
+    name: jsonData.name || 'Imported Timetable',
+    type: jsonData.type || 'weekly',
+    mode: jsonData.mode || 'flexible',
+    columns: jsonData.columns || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    colorKey: jsonData.colorKey || {},
+    customColors: jsonData.customColors,
+    flexStartTime: jsonData.flexStartTime || '06:00',
+    flexEndTime: jsonData.flexEndTime || '22:00',
+    flexInterval: jsonData.flexInterval || 60,
+    flexTimeFormat: jsonData.flexTimeFormat || '12h',
+    fortnightStartDate: jsonData.fortnightStartDate,
+    favorite: jsonData.favorite || false,
+    rows: jsonData.rows || [],
+    cells: jsonData.cells || {},
+    fieldsPerCell: jsonData.fieldsPerCell || 1,
+  };
+  
   if (!jsonData.events || !Array.isArray(jsonData.events)) {
-    return [];
+    return { timetable: timetableData, events: [] };
   }
   
-  return jsonData.events.map((e: any) => ({
+  const events = jsonData.events.map((e: any) => ({
     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
     timetableId: newTimetableId,
     dayIndex: e.dayIndex,
@@ -400,6 +425,8 @@ export function importFlexibleFromJSON(jsonData: any, newTimetableId: string): F
     color: e.color,
     week: e.week,
   }));
+  
+  return { timetable: timetableData, events };
 }
 
 export const exportToExcel = (timetable: Timetable, currentWeek: 1 | 2 = 1) => {

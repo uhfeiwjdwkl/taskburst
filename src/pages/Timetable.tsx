@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Star, Trash2, Home, Edit, Eye, ChevronDown, FileDown } from "lucide-react";
+import { Plus, Star, Trash2, Home, Edit, Eye, ChevronDown, FileDown, Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CreateTimetableDialog } from "@/components/CreateTimetableDialog";
 import { ImportTimetableDialog } from "@/components/ImportTimetableDialog";
@@ -11,13 +11,15 @@ import { TimetableRowColEditor } from "@/components/TimetableRowColEditor";
 import { FlexibleTimetableEditor } from "@/components/FlexibleTimetableEditor";
 import { Timetable as TimetableType, TimeSlot } from "@/types/timetable";
 import { toast } from "sonner";
-import { exportToPDF, exportToExcel } from "@/lib/exportTimetable";
+import { exportToPDF, exportToExcel, downloadFlexibleJSON, importFlexibleFromJSON, saveFlexibleEventsForTimetable } from "@/lib/exportTimetable";
 import TimetableCellDetailsDialog from "@/components/TimetableCellDetailsDialog";
 import { ExportImportButton } from "@/components/ExportImportButton";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -53,6 +55,7 @@ const Timetable = () => {
   const [expandedEditSections, setExpandedEditSections] = useState<Set<string>>(new Set());
   const [selectedCell, setSelectedCell] = useState<any>(null);
   const [cellDetailsOpen, setCellDetailsOpen] = useState(false);
+  const jsonInputRef = useState<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('timetables');
@@ -228,16 +231,36 @@ const Timetable = () => {
               data={timetables}
               filename={`timetables-${new Date().toISOString().split('T')[0]}.json`}
               onImport={(data) => {
-                if (Array.isArray(data) && data.every(item => 'name' in item && 'rows' in item)) {
-                  const allTimetables = JSON.parse(localStorage.getItem('timetables') || '[]');
-                  const otherTimetables = allTimetables.filter((t: TimetableType) => t.deletedAt);
-                  const timetablesWithDefaults = data.map(t => ({
-                    ...t,
-                    id: t.id || Date.now().toString() + Math.random(),
-                    createdAt: t.createdAt || new Date().toISOString()
-                  }));
-                  localStorage.setItem('timetables', JSON.stringify([...timetablesWithDefaults, ...otherTimetables]));
-                  saveTimetables(timetablesWithDefaults);
+                if (Array.isArray(data) && data.every(item => 'name' in item)) {
+                  const allTimetables = JSON.parse(localStorage.getItem('timetables') || '[]') as TimetableType[];
+                  const deletedTimetables = allTimetables.filter((t: TimetableType) => t.deletedAt);
+                  
+                  const importedTimetables = data.map((item: any) => {
+                    const newId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+                    
+                    // Handle flexible timetable with events
+                    if (item.mode === 'flexible' && item.events) {
+                      const { timetable: ttData, events } = importFlexibleFromJSON(item, newId);
+                      if (events.length > 0) {
+                        saveFlexibleEventsForTimetable(newId, events);
+                      }
+                      return {
+                        ...ttData,
+                        id: newId,
+                        createdAt: item.createdAt || new Date().toISOString(),
+                      } as TimetableType;
+                    }
+                    
+                    // Regular timetable
+                    return {
+                      ...item,
+                      id: newId,
+                      createdAt: item.createdAt || new Date().toISOString(),
+                    } as TimetableType;
+                  });
+                  
+                  localStorage.setItem('timetables', JSON.stringify([...importedTimetables, ...deletedTimetables]));
+                  saveTimetables(importedTimetables);
                   toast.success('Timetables imported successfully!');
                 } else {
                   toast.error('Invalid timetables file. Please upload a valid timetables JSON file.');
@@ -448,11 +471,7 @@ const Timetable = () => {
                                 </DropdownMenuItem>
                               )}
                               {timetable.mode === 'flexible' && (
-                                <DropdownMenuItem onClick={() => {
-                                  const { downloadFlexibleJSON } = require('@/lib/exportTimetable');
-                                  downloadFlexibleJSON(timetable);
-                                  toast.success('Exported flexible timetable as JSON');
-                                }}>
+                                <DropdownMenuItem onClick={() => downloadFlexibleJSON(timetable)}>
                                   Export as JSON
                                 </DropdownMenuItem>
                               )}

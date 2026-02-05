@@ -153,9 +153,17 @@ const Categories = () => {
       return getTasksForSubcategory(selectedSubcategory).sort((a, b) => b.importance - a.importance);
     }
     if (selectedCategory) {
+      // Show ALL tasks in the category, including those in subcategories
       return (categoryGroups[selectedCategory] || [])
-        .filter(t => !t.subcategory) // Only tasks without subcategory in main view
-        .sort((a, b) => b.importance - a.importance);
+        .sort((a, b) => {
+          // Sort by subcategory first (tasks without subcategory come first), then by importance
+          if (!a.subcategory && b.subcategory) return -1;
+          if (a.subcategory && !b.subcategory) return 1;
+          if (a.subcategory && b.subcategory && a.subcategory !== b.subcategory) {
+            return a.subcategory.localeCompare(b.subcategory);
+          }
+          return b.importance - a.importance;
+        });
     }
     return [];
   };
