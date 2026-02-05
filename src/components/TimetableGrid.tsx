@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import { useState, useEffect, useRef } from "react";
 import { Timetable } from "@/types/timetable";
 import { TimetableCell as TimetableCellComponent } from "@/components/TimetableCell";
@@ -19,6 +20,12 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
   const [isSelecting, setIsSelecting] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
+  
+  // Get current day for column highlighting
+  const now = new Date();
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const currentDayName = dayNames[now.getDay()];
+  const currentDayColIndex = timetable.columns.indexOf(currentDayName);
 
   useEffect(() => {
     const updateCurrentTime = () => {
@@ -305,7 +312,13 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
             <tr>
               <th className="border bg-muted p-2 min-w-[100px] sticky left-0 z-10">Time</th>
               {timetable.columns.map((day, idx) => (
-                <th key={idx} className="border bg-muted p-2 min-w-[120px]">
+                <th 
+                  key={idx} 
+                  className={cn(
+                    "border bg-muted p-2 min-w-[120px]",
+                    idx === currentDayColIndex && "bg-primary/10 font-semibold text-primary"
+                  )}
+                >
                   {day}
                 </th>
               ))}

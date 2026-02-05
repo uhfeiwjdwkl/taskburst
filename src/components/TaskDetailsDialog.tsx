@@ -119,7 +119,14 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
     if (newCategory.trim() && !categories.includes(newCategory.trim())) {
       const updated = [...categories, newCategory.trim()];
       setCategories(updated);
+      // Save to taskCategories (for the select dropdown)
       localStorage.setItem('taskCategories', JSON.stringify(updated));
+      // Also update the main categories storage used by Categories page
+      const mainCategories = JSON.parse(localStorage.getItem('categories') || '[]');
+      if (!mainCategories.includes(newCategory.trim())) {
+        mainCategories.push(newCategory.trim());
+        localStorage.setItem('categories', JSON.stringify(mainCategories));
+      }
       setEditedTask({ ...editedTask, category: newCategory.trim() });
       setNewCategory('');
       setShowAddCategory(false);

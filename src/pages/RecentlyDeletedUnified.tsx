@@ -7,9 +7,10 @@ import { Project } from '@/types/project';
 import { TextBackup, getTextBackups, deleteTextBackup, clearTextBackups } from '@/lib/textBackup';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Undo2, Trash2, Copy, FileText, CheckSquare, Menu, ChevronDown } from 'lucide-react';
+import { Undo2, Trash2, Copy, FileText, CheckSquare, Menu, ChevronDown, Search, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns/formatDistanceToNow';
 import { ExportImportRecentlyDeletedButton } from '@/components/ExportImportRecentlyDeletedButton';
@@ -58,6 +59,7 @@ const RecentlyDeletedUnified = () => {
   const [permanentDeleteDialog, setPermanentDeleteDialog] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ type: string; id: string } | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [textSearchQuery, setTextSearchQuery] = useState('');
 
   useEffect(() => {
     loadAllDeleted();
@@ -298,6 +300,94 @@ const RecentlyDeletedUnified = () => {
     toast.success('Text copied to clipboard');
   };
 
+  const handleRestoreTextToField = (backup: TextBackup) => {
+    // Restore text directly to the source item's field
+    const { sourceType, sourceId, fieldLabel } = backup;
+    
+    try {
+      let storageKey = '';
+      let items: any[] = [];
+      
+      switch (sourceType) {
+        case 'task':
+          storageKey = 'tasks';
+          items = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          // Also check archived tasks
+          const archivedTasks = JSON.parse(localStorage.getItem('archivedTasks') || '[]');
+          const taskIndex = items.findIndex((t: any) => t.id === sourceId);
+          const archivedIndex = archivedTasks.findIndex((t: any) => t.id === sourceId);
+          
+          if (taskIndex !== -1) {
+            const fieldKey = fieldLabel.toLowerCase() as keyof Task;
+            items[taskIndex][fieldKey] = backup.previousContent;
+            localStorage.setItem(storageKey, JSON.stringify(items));
+          } else if (archivedIndex !== -1) {
+            const fieldKey = fieldLabel.toLowerCase() as keyof Task;
+            archivedTasks[archivedIndex][fieldKey] = backup.previousContent;
+            localStorage.setItem('archivedTasks', JSON.stringify(archivedTasks));
+          } else {
+            toast.error('Source item not found');
+            return;
+          }
+          break;
+          
+        case 'project':
+          storageKey = 'projects';
+          items = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          const projectIndex = items.findIndex((p: any) => p.id === sourceId);
+          if (projectIndex !== -1) {
+            const fieldKey = fieldLabel.toLowerCase() as keyof Project;
+            items[projectIndex][fieldKey] = backup.previousContent;
+            localStorage.setItem(storageKey, JSON.stringify(items));
+          } else {
+            toast.error('Source project not found');
+            return;
+          }
+          break;
+          
+        case 'list':
+          storageKey = 'lists';
+          items = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          const listIndex = items.findIndex((l: any) => l.id === sourceId);
+          if (listIndex !== -1) {
+            const fieldKey = fieldLabel.toLowerCase() as keyof List;
+            items[listIndex][fieldKey] = backup.previousContent;
+            localStorage.setItem(storageKey, JSON.stringify(items));
+          } else {
+            toast.error('Source list not found');
+            return;
+          }
+          break;
+          
+        case 'event':
+          storageKey = 'events';
+          items = JSON.parse(localStorage.getItem(storageKey) || '[]');
+          const eventIndex = items.findIndex((e: any) => e.id === sourceId);
+          if (eventIndex !== -1) {
+            const fieldKey = fieldLabel.toLowerCase();
+            items[eventIndex][fieldKey] = backup.previousContent;
+            localStorage.setItem(storageKey, JSON.stringify(items));
+          } else {
+            toast.error('Source event not found');
+            return;
+          }
+          break;
+          
+        default:
+          toast.error('Cannot restore to this item type');
+          return;
+      }
+      
+      toast.success(`Restored "${fieldLabel}" to ${sourceType}`);
+      // Delete the backup after restoring
+      deleteTextBackup(backup.id);
+      setTextBackups(textBackups.filter(b => b.id !== backup.id));
+    } catch (error) {
+      console.error('Restore error:', error);
+      toast.error('Failed to restore text');
+    }
+  };
+
   const handleDeleteTextBackup = (backupId: string) => {
     deleteTextBackup(backupId);
     setTextBackups(textBackups.filter(b => b.id !== backupId));
@@ -342,6 +432,15 @@ const RecentlyDeletedUnified = () => {
     navigator.clipboard.writeText(content);
     toast.success(`Copied ${selectedTextBackups.size} text backups to clipboard`);
   };
+  // Filter text backups by search query
+  const filteredTextBackups = textSearchQuery.trim()
+    ? textBackups.filter(b => 
+        b.sourceName.toLowerCase().includes(textSearchQuery.toLowerCase()) ||
+        b.fieldLabel.toLowerCase().includes(textSearchQuery.toLowerCase()) ||
+        b.previousContent.toLowerCase().includes(textSearchQuery.toLowerCase()) ||
+        b.sourceType.toLowerCase().includes(textSearchQuery.toLowerCase())
+      )
+    : textBackups;
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -617,6 +716,17 @@ const RecentlyDeletedUnified = () => {
       case 'text-backups':
         return (
           <>
+            {/* Search bar */}
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search text backups..."
+                value={textSearchQuery}
+                onChange={(e) => setTextSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
             {textBackups.length > 0 && (
               <div className="flex flex-wrap items-center gap-2 mb-4">
                 <Button
@@ -649,12 +759,12 @@ const RecentlyDeletedUnified = () => {
                 )}
               </div>
             )}
-            {textBackups.length === 0 ? (
+            {filteredTextBackups.length === 0 ? (
               <Card className="p-8 text-center text-muted-foreground">
-                No text backups. Text backups are created when you edit and save text fields.
+                {textSearchQuery ? 'No text backups match your search.' : 'No text backups. Text backups are created when you edit and save text fields.'}
               </Card>
             ) : (
-              textBackups.map(backup => (
+              filteredTextBackups.map(backup => (
                 <Card key={backup.id} className={cn("p-4", selectedTextBackups.has(backup.id) && "ring-2 ring-primary")}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
@@ -679,6 +789,15 @@ const RecentlyDeletedUnified = () => {
                       </div>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => handleRestoreTextToField(backup)}
+                        title="Restore to original field"
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        Restore
+                      </Button>
                       <Button 
                         size="sm" 
                         variant="outline" 

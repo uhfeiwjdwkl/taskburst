@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Timetable, FlexibleEvent } from '@/types/timetable';
+import { Timetable, FlexibleEvent, TimeSlot } from '@/types/timetable';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Plus, X, Copy, Clipboard, Move, Trash2 } from 'lucide-react';
+import { Plus, X, Copy, Clipboard, Move, Trash2, GripVertical } from 'lucide-react';
 import { FlexibleEventDetailsDialog } from './FlexibleEventDetailsDialog';
 import { toast } from 'sonner';
 
@@ -37,6 +37,10 @@ export function FlexibleTimetableGrid({
   const [moveMode, setMoveMode] = useState(false);
   const [movingEvent, setMovingEvent] = useState<FlexibleEvent | null>(null);
   const [selectedForAction, setSelectedForAction] = useState<string | null>(null);
+  // Dragging state
+  const [draggingEvent, setDraggingEvent] = useState<FlexibleEvent | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<number | null>(null);
+  const [dragOverTime, setDragOverTime] = useState<string | null>(null);
 
   // Form state for adding new events
   const [newEventTitle, setNewEventTitle] = useState('');
@@ -94,6 +98,75 @@ export function FlexibleTimetableGrid({
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const currentPosition = ((currentMinutes - startMinutesOfDay) / totalMinutes) * 100;
   const showCurrentTime = currentPosition >= 0 && currentPosition <= 100;
+  
+  // Get current day of week (0 = Sunday, so we adjust for Mon-Fri columns)
+  const currentDayOfWeek = now.getDay();
+  // Adjust to match timetable columns (0 = Monday in most timetables)
+  const adjustedCurrentDay = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+  // Drag handlers
+  const handleDragStart = (e: React.DragEvent, event: FlexibleEvent) => {
+    if (!moveMode) return;
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingEvent(event);
+  };
+  
+  const handleDragEnd = () => {
+    setDraggingEvent(null);
+    setDragOverDay(null);
+    setDragOverTime(null);
+  };
+  
+  const handleDragOver = (e: React.DragEvent, dayIndex: number, yPosition: number, containerHeight: number) => {
+    if (!draggingEvent) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    setDragOverDay(dayIndex);
+    
+    // Calculate time from Y position
+    const percentage = yPosition / containerHeight;
+    const minutesFromStart = Math.round(percentage * totalMinutes / interval) * interval;
+    const newMinutes = startMinutesOfDay + minutesFromStart;
+    const newHour = Math.floor(newMinutes / 60);
+    const newMin = newMinutes % 60;
+    setDragOverTime(`${newHour.toString().padStart(2, '0')}:${newMin.toString().padStart(2, '0')}`);
+  };
+  
+  const handleDrop = (e: React.DragEvent, dayIndex: number) => {
+    e.preventDefault();
+    if (!draggingEvent || !dragOverTime) return;
+    
+    // Calculate event duration
+    const [startH, startM] = draggingEvent.startTime.split(':').map(Number);
+    const [endH, endM] = draggingEvent.endTime.split(':').map(Number);
+    const durationMins = (endH * 60 + endM) - (startH * 60 + startM);
+    
+    // Calculate new end time
+    const [newStartH, newStartM] = dragOverTime.split(':').map(Number);
+    const newEndMins = newStartH * 60 + newStartM + durationMins;
+    const newEndH = Math.floor(newEndMins / 60);
+    const newEndM = newEndMins % 60;
+    const newEndTime = `${newEndH.toString().padStart(2, '0')}:${newEndM.toString().padStart(2, '0')}`;
+    
+    const updated = events.map(e => 
+      e.id === draggingEvent.id 
+        ? { 
+            ...e, 
+            dayIndex, 
+            startTime: dragOverTime,
+            endTime: newEndTime,
+            week: timetable.type === 'fortnightly' ? currentWeek : undefined 
+          } 
+        : e
+    );
+    saveEvents(updated);
+    toast.success('Event moved');
+    
+    setDraggingEvent(null);
+    setDragOverDay(null);
+    setDragOverTime(null);
+  };
+
 
   // Get position and height for an event
   const getEventStyle = (event: FlexibleEvent) => {
@@ -270,11 +343,12 @@ export function FlexibleTimetableGrid({
               key={day} 
               className={cn(
                 "h-10 border-b border-r flex items-center justify-center font-medium text-sm bg-muted/30",
-                (copiedEvent || movingEvent) && "cursor-pointer hover:bg-primary/10"
+                (copiedEvent || movingEvent) && "cursor-pointer hover:bg-primary/10",
+                dayIndex === adjustedCurrentDay && "bg-primary/10 font-semibold"
               )}
               onClick={() => (copiedEvent || movingEvent) && handleAddEvent(dayIndex)}
             >
-              {day.slice(0, 3)}
+              <span className={cn(dayIndex === adjustedCurrentDay && "text-primary")}>{day.slice(0, 3)}</span>
             </div>
           ))}
 
@@ -284,13 +358,17 @@ export function FlexibleTimetableGrid({
               e.dayIndex === dayIndex && 
               (timetable.type !== 'fortnightly' || !e.week || e.week === currentWeek)
             );
+            
+            const isCurrentDay = dayIndex === adjustedCurrentDay;
 
             return (
               <div
                 key={`content-${dayIndex}`}
                 className={cn(
                   "relative border-r",
-                  (copiedEvent || movingEvent) && "cursor-pointer hover:bg-primary/5"
+                  (copiedEvent || movingEvent) && "cursor-pointer hover:bg-primary/5",
+                  isCurrentDay && "bg-primary/5",
+                  dragOverDay === dayIndex && "bg-primary/10"
                 )}
                 style={{ height: `${timeMarkers.length * 40}px` }}
                 onClick={(e) => {
@@ -299,6 +377,12 @@ export function FlexibleTimetableGrid({
                     handleAddEvent(dayIndex);
                   }
                 }}
+                onDragOver={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const yPos = e.clientY - rect.top;
+                  handleDragOver(e, dayIndex, yPos, rect.height);
+                }}
+                onDrop={(e) => handleDrop(e, dayIndex)}
               >
                 {/* Time grid lines */}
                 {timeMarkers.map((_, i) => (
@@ -309,8 +393,8 @@ export function FlexibleTimetableGrid({
                   />
                 ))}
 
-                {/* Current time indicator */}
-                {showCurrentTime && dayIndex === new Date().getDay() - 1 && (
+                {/* Current time indicator - show on current day */}
+                {showCurrentTime && isCurrentDay && (
                   <div
                     className="absolute left-0 right-0 h-0.5 bg-red-500 z-10"
                     style={{ top: `${currentPosition}%` }}
@@ -318,15 +402,33 @@ export function FlexibleTimetableGrid({
                     <div className="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-red-500" />
                   </div>
                 )}
+                
+                {/* Drop indicator */}
+                {dragOverDay === dayIndex && dragOverTime && (
+                  <div
+                    className="absolute left-1 right-1 h-1 bg-primary/50 rounded z-20"
+                    style={{
+                      top: (() => {
+                        const [h, m] = dragOverTime.split(':').map(Number);
+                        const mins = h * 60 + m;
+                        return `${((mins - startMinutesOfDay) / totalMinutes) * 100}%`;
+                      })()
+                    }}
+                  />
+                )}
 
                 {/* Events */}
                 {dayEvents.map(event => {
                   const isSelected = selectedForAction === event.id;
                   const isMoving = movingEvent?.id === event.id;
+                  const isDragging = draggingEvent?.id === event.id;
                   
                   return (
                     <div
                       key={event.id}
+                      draggable={moveMode}
+                      onDragStart={(e) => handleDragStart(e, event)}
+                      onDragEnd={handleDragEnd}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleEventClick(event);
@@ -335,7 +437,9 @@ export function FlexibleTimetableGrid({
                         "absolute left-1 right-1 rounded-md px-2 py-1 cursor-pointer text-xs overflow-hidden",
                         "hover:ring-2 hover:ring-ring transition-all",
                         isSelected && "ring-2 ring-primary",
-                        isMoving && "opacity-50 ring-2 ring-yellow-500"
+                        isMoving && "opacity-50 ring-2 ring-yellow-500",
+                        isDragging && "opacity-30",
+                        moveMode && "cursor-grab active:cursor-grabbing"
                       )}
                       style={{
                         ...getEventStyle(event),
@@ -343,6 +447,9 @@ export function FlexibleTimetableGrid({
                         borderLeft: `3px solid ${event.color || 'hsl(var(--primary))'}`,
                       }}
                     >
+                      {moveMode && (
+                        <GripVertical className="absolute top-1 right-1 h-3 w-3 opacity-50" />
+                      )}
                       <div className="font-medium truncate" style={{ color: event.color || 'hsl(var(--primary))' }}>
                         {event.title}
                       </div>

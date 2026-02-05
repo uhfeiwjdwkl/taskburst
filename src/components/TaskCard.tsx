@@ -173,6 +173,11 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
               {task.category && (
                 <div className="flex items-center gap-1">
                   <Badge variant="outline">{task.category}</Badge>
+                  {task.subcategory && (
+                    <Badge variant="secondary" className="text-xs">
+                      → {task.subcategory}
+                    </Badge>
+                  )}
                 </div>
               )}
               <div className="flex items-center gap-1">

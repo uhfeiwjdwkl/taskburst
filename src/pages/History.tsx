@@ -5,6 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -38,6 +45,7 @@ const History = () => {
   const [newDescription, setNewDescription] = useState('');
   const [taskDetailsOpen, setTaskDetailsOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [groupBy, setGroupBy] = useState<'date' | 'task'>('date');
 
   useEffect(() => {
     const savedSessions = localStorage.getItem('sessions');
@@ -140,7 +148,23 @@ const History = () => {
     return grouped;
   };
 
-  const groupedSessions = groupByDate(sessions);
+  const groupByTask = (sessions: Session[]) => {
+    const grouped: { [key: string]: Session[] } = {};
+    sessions.forEach(session => {
+      const taskName = session.taskName || 'Unknown Task';
+      if (!grouped[taskName]) {
+        grouped[taskName] = [];
+      }
+      grouped[taskName].push(session);
+    });
+    // Sort by task name
+    return Object.keys(grouped).sort().reduce((acc, key) => {
+      acc[key] = grouped[key];
+      return acc;
+    }, {} as { [key: string]: Session[] });
+  };
+
+  const groupedSessions = groupBy === 'date' ? groupByDate(sessions) : groupByTask(sessions);
 
   return (
     <div className="min-h-screen bg-background">
@@ -163,19 +187,30 @@ const History = () => {
               </p>
             </div>
           </div>
-          <ExportImportButton
-            data={sessions}
-            filename={`history-${new Date().toISOString().split('T')[0]}.json`}
-            onImport={(data) => {
-              localStorage.setItem('sessions', JSON.stringify(data));
-              setSessions(data.sort((a: Session, b: Session) => 
-                new Date(b.dateEnded).getTime() - new Date(a.dateEnded).getTime()
-              ));
-              toast.success('History imported successfully!');
-            }}
-            storageKey="sessions"
-            label="All History"
-          />
+          <div className="flex gap-2 items-center">
+            <Select value={groupBy} onValueChange={(v) => setGroupBy(v as 'date' | 'task')}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Group by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date">Group by Date</SelectItem>
+                <SelectItem value="task">Group by Task</SelectItem>
+              </SelectContent>
+            </Select>
+            <ExportImportButton
+              data={sessions}
+              filename={`history-${new Date().toISOString().split('T')[0]}.json`}
+              onImport={(data) => {
+                localStorage.setItem('sessions', JSON.stringify(data));
+                setSessions(data.sort((a: Session, b: Session) => 
+                  new Date(b.dateEnded).getTime() - new Date(a.dateEnded).getTime()
+                ));
+                toast.success('History imported successfully!');
+              }}
+              storageKey="sessions"
+              label="All History"
+            />
+          </div>
         </header>
 
         {sessions.length === 0 ? (
@@ -189,7 +224,11 @@ const History = () => {
             {Object.entries(groupedSessions).map(([date, dateSessions]) => (
               <div key={date}>
                 <div className="flex items-center gap-2 mb-3">
-                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  {groupBy === 'date' ? (
+                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                  )}
                   <h2 className="text-lg font-semibold">{date}</h2>
                   <span className="text-sm text-muted-foreground">
                     ({dateSessions.length} session{dateSessions.length !== 1 ? 's' : ''})
