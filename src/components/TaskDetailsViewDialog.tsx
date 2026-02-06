@@ -17,10 +17,8 @@ import ProgressRing from '@/components/ProgressRing';
 import { ExportTaskButton } from '@/components/ExportTaskButton';
 import { cn } from '@/lib/utils';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
-import { ProgressGridBox } from '@/components/ProgressGridShape';
-import { SubtaskProgressPopup } from './SubtaskProgressPopup';
+import { UniversalProgressGrid } from './UniversalProgressGrid';
 import { SubtaskDialog } from './SubtaskDialog';
-import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface TaskDetailsViewDialogProps {
   task: Task | null;
@@ -46,11 +44,9 @@ const storeFilledIndices = (taskId: string, indices: number[]): void => {
 };
 
 const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: TaskDetailsViewDialogProps) => {
-  const [selectedBox, setSelectedBox] = useState<number | null>(null);
   const [filledIndices, setFilledIndices] = useState<number[]>([]);
   const [subtaskDialogOpen, setSubtaskDialogOpen] = useState(false);
   const [activeSubtask, setActiveSubtask] = useState<Subtask | null>(null);
-  const settings = useAppSettings();
 
   // Initialize filled indices when task changes
   useEffect(() => {
@@ -96,82 +92,7 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
   };
 
   // Get filled indices from localStorage
-  const currentFilledIndices = filledIndices;
-
-  // Get subtask for a specific grid index
-  const getSubtaskForIndex = (index: number): Subtask | undefined => {
-    return task.subtasks?.find(s => s.linkedToProgressGrid && s.progressGridIndex === index);
-  };
-
-  const handleGridClick = (index: number) => {
-    const subtask = getSubtaskForIndex(index);
-
-    // Subtask boxes always open the subtask popup (to allow complete/uncomplete).
-    if (subtask) {
-      setSelectedBox(selectedBox === index ? null : index);
-      return;
-    }
-
-      // Toggle the box (non-sequential)
-      const newIndices = currentFilledIndices.includes(index)
-        ? currentFilledIndices.filter(i => i !== index)
-        : [...currentFilledIndices, index].sort((a, b) => a - b);
-      
-      storeFilledIndices(task.id, newIndices);
-      setFilledIndices(newIndices);
-      
-      if (onUpdateTask) {
-        onUpdateTask({ ...task, progressGridFilled: newIndices.length });
-      }
-  };
-
-  const handleCompleteSubtask = (subtaskId: string, index: number) => {
-    if (!onUpdateTask) return;
-    
-    // Mark subtask as completed
-    const updatedSubtasks = (task.subtasks || []).map(s =>
-      s.id === subtaskId ? { ...s, completed: true } : s
-    );
-    
-    // Fill the grid box
-    const newIndices = currentFilledIndices.includes(index)
-      ? currentFilledIndices
-      : [...currentFilledIndices, index].sort((a, b) => a - b);
-    
-    storeFilledIndices(task.id, newIndices);
-    setFilledIndices(newIndices);
-    
-    onUpdateTask({
-      ...task,
-      subtasks: updatedSubtasks,
-      progressGridFilled: newIndices.length,
-    });
-    
-    setSelectedBox(null);
-  };
-
-  const handleUncompleteSubtask = (subtaskId: string, index: number) => {
-    if (!onUpdateTask) return;
-
-    const updatedSubtasks = (task.subtasks || []).map(s =>
-      s.id === subtaskId ? { ...s, completed: false } : s
-    );
-
-    const newIndices = currentFilledIndices.includes(index)
-      ? currentFilledIndices.filter(i => i !== index)
-      : currentFilledIndices;
-
-    storeFilledIndices(task.id, newIndices);
-    setFilledIndices(newIndices);
-
-    onUpdateTask({
-      ...task,
-      subtasks: updatedSubtasks,
-      progressGridFilled: newIndices.length,
-    });
-
-    setSelectedBox(null);
-  };
+  // filledIndices tracking is now handled by UniversalProgressGrid
 
   const handleToggleSubtaskCompleteFromList = (subtaskId: string) => {
     if (!onUpdateTask) return;
@@ -184,7 +105,7 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
       s.id === subtaskId ? { ...s, completed: nextCompleted } : s
     );
 
-    let newIndices = currentFilledIndices;
+    let newIndices = [...filledIndices];
     if (existing.linkedToProgressGrid && existing.progressGridIndex !== undefined) {
       const idx = existing.progressGridIndex;
       if (nextCompleted) {
@@ -313,70 +234,30 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
             </div>
           </div>
 
-          {/* Progress Grid Display - Non-sequential with subtask colors */}
+          {/* Progress Grid Display - Universal Component */}
           <div>
             <Label className="text-muted-foreground text-sm flex items-center gap-1">
               <Grid3X3 className="h-3 w-3" />
               Progress Grid (click to toggle)
             </Label>
-            <div className="mt-2 flex flex-wrap gap-1 justify-center">
-              {Array.from({ length: task.progressGridSize }).map((_, index) => {
-                const subtask = getSubtaskForIndex(index);
-                const isFilled = currentFilledIndices.includes(index);
-                const isSelected = selectedBox === index;
-                const displayText = subtask
-                  ? (subtask.abbreviation || subtask.title.charAt(0).toUpperCase())
-                  : null;
-                
-                return (
-                  <div key={index} className="relative">
-                    <ProgressGridBox
-                      icon={settings.progressGridIcon}
-                      filled={isFilled}
-                      color={settings.progressGridColor}
-                      size={subtask ? 28 : 28}
-                      isSubtask={!!subtask}
-                      subtaskColor={subtask?.color}
-                      textSize={settings.subtaskTextSize}
-                      onClick={() => handleGridClick(index)}
-                      className={cn(
-                        isSelected && 'ring-2 ring-ring',
-                        subtask && !isFilled && !subtask.completed && 'ring-2 ring-ring/50'
-                      )}
-                    >
-                      {subtask ? displayText : undefined}
-                    </ProgressGridBox>
-                    
-                    {/* Subtask popup */}
-                    {isSelected && subtask && (
-                      <SubtaskProgressPopup
-                        subtask={subtask}
-                        estimatedRemaining={subtask.estimatedMinutes}
-                        onClose={() => setSelectedBox(null)}
-                        onViewDetails={() => {
-                          setActiveSubtask(subtask);
-                          setSubtaskDialogOpen(true);
-                        }}
-                        onComplete={() => handleCompleteSubtask(subtask.id, index)}
-                        onUncomplete={() => handleUncompleteSubtask(subtask.id, index)}
-                        onEdit={() => {
-                          setActiveSubtask(subtask);
-                          setSubtaskDialogOpen(true);
-                        }}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+            <div className="mt-2">
+              <UniversalProgressGrid
+                task={task}
+                onUpdateTask={onUpdateTask}
+                size="lg"
+                showPercentage={false}
+                layout="centered"
+                interactive={true}
+              />
             </div>
             <p className="text-xs text-muted-foreground text-center mt-2">
-              {currentFilledIndices.length} / {task.progressGridSize} boxes filled
+              {task.progressGridFilled} / {task.progressGridSize} boxes filled
             </p>
           </div>
 
           <div className="flex justify-center">
             <ProgressRing
-              progress={(currentFilledIndices.length / task.progressGridSize) * 100}
+              progress={(task.progressGridFilled / task.progressGridSize) * 100}
               size={80}
               strokeWidth={8}
             />
