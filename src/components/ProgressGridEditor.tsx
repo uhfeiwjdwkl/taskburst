@@ -12,9 +12,10 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { X } from 'lucide-react';
-import { SubtaskDetailsPopup } from './SubtaskDetailsPopup';
-import { SubtaskFullDetailsDialog } from './SubtaskFullDetailsDialog';
+import { ProgressGridBox } from './ProgressGridShape';
+import { SubtaskProgressPopup } from './SubtaskProgressPopup';
 import { SubtaskDialog } from './SubtaskDialog';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface ProgressGridEditorProps {
   task: Task;
@@ -39,26 +40,22 @@ const ProgressGridEditor = ({
   title, 
   description 
 }: ProgressGridEditorProps) => {
-  // Track filled boxes as an array of indices for non-sequential filling
   const [filledIndices, setFilledIndices] = useState<number[]>([]);
   const [selectedBox, setSelectedBox] = useState<number | null>(null);
-  const [fullDetailsSubtask, setFullDetailsSubtask] = useState<Subtask | null>(null);
   const [editingSubtask, setEditingSubtask] = useState<Subtask | null>(null);
   const [localSubtasks, setLocalSubtasks] = useState<Subtask[]>([]);
+  const settings = useAppSettings();
 
   // Initialize from existing progressGridFilled 
   useEffect(() => {
     if (open) {
-      // Check if task has filledIndices stored, otherwise use sequential from progressGridFilled
       const storedIndices = getStoredFilledIndices(task.id);
       if (storedIndices) {
         setFilledIndices(storedIndices);
       } else {
-        // Backwards compatibility: assume sequential filling
         setFilledIndices(Array.from({ length: task.progressGridFilled }, (_, i) => i));
       }
       setSelectedBox(null);
-      setFullDetailsSubtask(null);
       setEditingSubtask(null);
       setLocalSubtasks(task.subtasks || []);
     }
@@ -73,10 +70,8 @@ const ProgressGridEditor = ({
     const subtask = getSubtaskForIndex(index);
     
     if (subtask) {
-      // If there's a linked subtask (completed or not), show popup
       setSelectedBox(selectedBox === index ? null : index);
     } else {
-      // Toggle the box directly (non-sequential)
       setFilledIndices(prev => {
         if (prev.includes(index)) {
           return prev.filter(i => i !== index);
@@ -88,38 +83,27 @@ const ProgressGridEditor = ({
   };
 
   const handleCompleteSubtask = (subtaskId: string, index: number) => {
-    // Fill the grid box
     if (!filledIndices.includes(index)) {
       setFilledIndices(prev => [...prev, index].sort((a, b) => a - b));
     }
-    // Update local subtasks
     setLocalSubtasks(prev => prev.map(s => 
       s.id === subtaskId ? { ...s, completed: true } : s
     ));
-    // Complete the subtask externally
     onCompleteSubtask?.(subtaskId);
     setSelectedBox(null);
   };
 
   const handleUncompleteSubtask = (subtaskId: string, index: number) => {
-    // Unfill the grid box
     setFilledIndices(prev => prev.filter(i => i !== index));
-    // Update local subtasks
     setLocalSubtasks(prev => prev.map(s => 
       s.id === subtaskId ? { ...s, completed: false } : s
     ));
-    // Uncomplete the subtask externally
     onUncompleteSubtask?.(subtaskId);
     setSelectedBox(null);
   };
 
-  const handleViewFullDetails = (subtask: Subtask) => {
-    setSelectedBox(null);
-    setFullDetailsSubtask(subtask);
-  };
-
   const handleEditSubtask = (subtask: Subtask) => {
-    setFullDetailsSubtask(null);
+    setSelectedBox(null);
     setEditingSubtask(subtask);
   };
 
@@ -132,9 +116,7 @@ const ProgressGridEditor = ({
   };
 
   const handleSave = () => {
-    // Store the indices for this task
     storeFilledIndices(task.id, filledIndices);
-    // Return count, indices, and updated subtasks
     onSave(filledIndices.length, filledIndices, localSubtasks);
   };
 
@@ -172,49 +154,40 @@ const ProgressGridEditor = ({
                   const subtask = getSubtaskForIndex(index);
                   const isFilled = filledIndices.includes(index);
                   const isSelected = selectedBox === index;
-                  
-                  // For subtasks: always show abbreviation/first letter, completed changes color
                   const displayText = subtask 
                     ? (subtask.abbreviation || subtask.title.charAt(0).toUpperCase())
                     : null;
                   
                   return (
                     <div key={index} className="relative">
-                      <button
+                      <ProgressGridBox
+                        icon={settings.progressGridIcon}
+                        filled={isFilled}
+                        color={settings.progressGridColor}
+                        size={32}
+                        isSubtask={!!subtask}
+                        subtaskColor={subtask?.color}
+                        textSize="sm"
                         onClick={() => handleGridClick(index)}
                         className={cn(
-                          "w-8 h-8 border border-border rounded-sm transition-all hover:scale-110 flex items-center justify-center text-xs font-medium",
-                          isFilled && !subtask && "bg-gradient-primary text-primary-foreground",
-                          !isFilled && !subtask && "bg-secondary hover:bg-secondary/80",
-                          subtask && "ring-1 ring-primary/50",
-                          isSelected && "ring-2 ring-primary"
+                          isSelected && 'ring-2 ring-ring',
+                          subtask && !isFilled && !subtask.completed && 'ring-2 ring-ring/50'
                         )}
-                        style={subtask ? {
-                          // Subtask: completed = filled color bg with white text, incomplete = light bg with colored text
-                          backgroundColor: subtask.completed 
-                            ? (subtask.color || 'hsl(var(--primary))') 
-                            : `${subtask.color || 'hsl(var(--primary))'}20`,
-                          borderColor: subtask.color || 'hsl(var(--primary))',
-                          color: subtask.completed ? 'white' : (subtask.color || 'hsl(var(--primary))'),
-                        } : undefined}
-                        aria-label={`Toggle progress square ${index + 1}${subtask ? ` - ${subtask.title}` : ''}`}
-                        title={subtask ? subtask.title : undefined}
                       >
-                        {displayText && (
-                          <span className="truncate px-0.5">
-                            {displayText}
-                          </span>
-                        )}
-                      </button>
+                        {subtask ? displayText : undefined}
+                      </ProgressGridBox>
                       
                       {/* Subtask popup */}
                       {isSelected && subtask && (
-                        <SubtaskDetailsPopup
+                        <SubtaskProgressPopup
                           subtask={subtask}
+                          estimatedRemaining={subtask.estimatedMinutes}
                           onComplete={() => handleCompleteSubtask(subtask.id, index)}
                           onUncomplete={() => handleUncompleteSubtask(subtask.id, index)}
                           onClose={() => setSelectedBox(null)}
-                          onViewFullDetails={() => handleViewFullDetails(subtask)}
+                          onViewDetails={() => handleEditSubtask(subtask)}
+                          onEdit={() => handleEditSubtask(subtask)}
+                          position="bottom"
                         />
                       )}
                     </div>
@@ -237,26 +210,6 @@ const ProgressGridEditor = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Full Subtask Details Dialog */}
-      <SubtaskFullDetailsDialog
-        subtask={fullDetailsSubtask}
-        open={!!fullDetailsSubtask}
-        onClose={() => setFullDetailsSubtask(null)}
-        onEdit={() => fullDetailsSubtask && handleEditSubtask(fullDetailsSubtask)}
-        onComplete={() => {
-          if (fullDetailsSubtask && fullDetailsSubtask.progressGridIndex !== undefined) {
-            handleCompleteSubtask(fullDetailsSubtask.id, fullDetailsSubtask.progressGridIndex);
-            setFullDetailsSubtask(null);
-          }
-        }}
-        onUncomplete={() => {
-          if (fullDetailsSubtask && fullDetailsSubtask.progressGridIndex !== undefined) {
-            handleUncompleteSubtask(fullDetailsSubtask.id, fullDetailsSubtask.progressGridIndex);
-            setFullDetailsSubtask(null);
-          }
-        }}
-      />
 
       {/* Edit Subtask Dialog */}
       <SubtaskDialog
