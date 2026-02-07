@@ -48,7 +48,7 @@ export const SubtaskDialog = ({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [abbreviation, setAbbreviation] = useState('');
-  const [estimatedMinutes, setEstimatedMinutes] = useState<number | undefined>(60);
+  const [estimatedMinutes, setEstimatedMinutes] = useState<number | undefined>(0);
   const [priority, setPriority] = useState<number | undefined>(undefined);
   const [dueDate, setDueDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
@@ -61,7 +61,7 @@ export const SubtaskDialog = ({
       setTitle(subtask.title);
       setDescription(subtask.description || '');
       setAbbreviation(subtask.abbreviation || '');
-      setEstimatedMinutes(subtask.estimatedMinutes || 60);
+      setEstimatedMinutes(subtask.estimatedMinutes ?? 0);
       setPriority(subtask.priority);
       setDueDate(subtask.dueDate || '');
       setScheduledTime(subtask.scheduledTime || '');
@@ -72,7 +72,7 @@ export const SubtaskDialog = ({
       setTitle('');
       setDescription('');
       setAbbreviation('');
-      setEstimatedMinutes(60);
+      setEstimatedMinutes(0);
       setPriority(undefined);
       setDueDate('');
       setScheduledTime('');
@@ -207,12 +207,12 @@ export const SubtaskDialog = ({
             <Input
               id="estimatedMinutes"
               type="number"
-              value={estimatedMinutes || ''}
-              onChange={(e) => setEstimatedMinutes(parseInt(e.target.value) || undefined)}
-              placeholder="60"
+              value={estimatedMinutes ?? 0}
+              onChange={(e) => setEstimatedMinutes(parseInt(e.target.value) || 0)}
+              placeholder="0"
               className="mt-1"
-              min="5"
-              step="5"
+              min="0"
+              step="1"
             />
           </div>
 

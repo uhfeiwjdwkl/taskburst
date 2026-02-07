@@ -69,7 +69,10 @@ export const SubtaskList = ({
     }
   };
 
-  const handleToggleComplete = (subtaskId: string) => {
+  const handleToggleComplete = (subtaskId: string, e?: React.MouseEvent | React.ChangeEvent) => {
+    e?.stopPropagation?.();
+    e?.preventDefault?.();
+    
     const subtask = subtasks.find(s => s.id === subtaskId);
     if (!subtask) return;
 
@@ -77,15 +80,30 @@ export const SubtaskList = ({
     const updated = subtasks.map(s => 
       s.id === subtaskId ? { ...s, completed: !s.completed } : s
     );
+    
+    // Update subtasks
     onSubtasksChange(updated);
 
     // Update progress grid if linked
     if (subtask.linkedToProgressGrid && onProgressGridChange) {
+      // Also update localStorage for filled indices
+      const stored = localStorage.getItem('progressGridFilledIndices');
+      const data = stored ? JSON.parse(stored) : {};
+      const taskFilledIndices: number[] = data[subtask.taskId] || [];
+      
       if (wasCompleted) {
-        // Was completed, now uncompleted - decrement
+        // Was completed, now uncompleted - remove index
+        const newIndices = taskFilledIndices.filter(i => i !== subtask.progressGridIndex);
+        data[subtask.taskId] = newIndices;
+        localStorage.setItem('progressGridFilledIndices', JSON.stringify(data));
         onProgressGridChange(Math.max(0, progressGridFilled - 1));
       } else {
-        // Was not completed, now completed - increment
+        // Was not completed, now completed - add index
+        const newIndices = subtask.progressGridIndex !== undefined 
+          ? [...taskFilledIndices, subtask.progressGridIndex].filter((v, i, a) => a.indexOf(v) === i).sort((a, b) => a - b)
+          : taskFilledIndices;
+        data[subtask.taskId] = newIndices;
+        localStorage.setItem('progressGridFilledIndices', JSON.stringify(data));
         onProgressGridChange(Math.min(progressGridSize, progressGridFilled + 1));
       }
     }
@@ -129,7 +147,11 @@ export const SubtaskList = ({
             >
               <Checkbox
                 checked={subtask.completed}
-                onCheckedChange={() => handleToggleComplete(subtask.id)}
+                onCheckedChange={(checked) => {
+                  // Directly handle the change
+                  handleToggleComplete(subtask.id);
+                }}
+                onClick={(e) => e.stopPropagation()}
                 className="mt-1"
               />
               

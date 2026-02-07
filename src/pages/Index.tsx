@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Task } from '@/types/task';
+import { Subtask } from '@/types/subtask';
+import { CalendarEvent } from '@/types/event';
 import { Timetable } from '@/types/timetable';
 import { List } from '@/types/list';
 import { Project } from '@/types/project';
@@ -11,6 +13,7 @@ import AddTaskDialog from '@/components/AddTaskDialog';
 import { TimetableCurrentBlock } from '@/components/TimetableCurrentBlock';
 import { CurrentEventDisplay } from '@/components/CurrentEventDisplay';
 import { CurrentScheduledTask } from '@/components/CurrentScheduledTask';
+import { HomeDayCalendar } from '@/components/HomeDayCalendar';
 import { ExportImportButton } from '@/components/ExportImportButton';
 import { exportAllData } from '@/lib/exportImport';
 import { ImportAllButton } from '@/components/ImportAllButton';
@@ -24,6 +27,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
 import { ListCard } from '@/components/ListCard';
 import { ListDetailsDialog } from '@/components/ListDetailsDialog';
+import { SubtaskFullDetailsDialog } from '@/components/SubtaskFullDetailsDialog';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 const Index = () => {
@@ -41,6 +45,8 @@ const Index = () => {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [selectedList, setSelectedList] = useState<List | null>(null);
   const [listDetailsOpen, setListDetailsOpen] = useState(false);
+  const [selectedSubtask, setSelectedSubtask] = useState<{ subtask: Subtask; task: Task } | null>(null);
+  const [subtaskDetailsOpen, setSubtaskDetailsOpen] = useState(false);
 
   // Load tasks from localStorage
   useEffect(() => {
@@ -281,20 +287,62 @@ const Index = () => {
           </div>
         </header>
 
-        {/* Timer Section */}
-        <section className="bg-card rounded-2xl shadow-lg p-8 mb-8 border border-border relative z-50 pointer-events-auto">
-          <TimetableCurrentBlock />
-          <CurrentScheduledTask tasks={tasks} />
-          <CurrentEventDisplay />
-          <Timer
-            onTick={handleTimerTick} 
-            activeTaskId={activeTaskId} 
-            activeTask={activeTask}
-            onTaskComplete={handleCompleteTask}
-            onRunningChange={setTimerRunning}
-            onUpdateTask={handleUpdateTask}
+        {/* Timer Section with Day Calendar */}
+        <section className="grid lg:grid-cols-[1fr,400px] gap-6 mb-8">
+          {/* Timer */}
+          <div className="bg-card rounded-2xl shadow-lg p-8 border border-border relative z-50 pointer-events-auto">
+            <TimetableCurrentBlock />
+            <CurrentScheduledTask tasks={tasks} />
+            <CurrentEventDisplay />
+            <Timer
+              onTick={handleTimerTick} 
+              activeTaskId={activeTaskId} 
+              activeTask={activeTask}
+              onTaskComplete={handleCompleteTask}
+              onRunningChange={setTimerRunning}
+              onUpdateTask={handleUpdateTask}
+              tasks={tasks}
+              onSelectTask={setActiveTaskId}
+            />
+          </div>
+
+          {/* Day Calendar - shown beside timer on large screens */}
+          <div className="hidden lg:block h-[550px]">
+            <HomeDayCalendar
+              tasks={tasks}
+              onTaskClick={(task) => {
+                setSelectedTask(task);
+                setDetailsDialogOpen(true);
+              }}
+              onSubtaskClick={(subtask, task) => {
+                setSelectedSubtask({ subtask, task });
+                setSubtaskDetailsOpen(true);
+              }}
+              onStartSubtask={(subtask, task) => {
+                // Start the parent task for the subtask
+                setActiveTaskId(task.id);
+                toast.success(`Starting focus session for: ${subtask.title}`);
+              }}
+            />
+          </div>
+        </section>
+
+        {/* Day Calendar - shown above tasks on smaller screens */}
+        <section className="lg:hidden mb-6">
+          <HomeDayCalendar
             tasks={tasks}
-            onSelectTask={setActiveTaskId}
+            onTaskClick={(task) => {
+              setSelectedTask(task);
+              setDetailsDialogOpen(true);
+            }}
+            onSubtaskClick={(subtask, task) => {
+              setSelectedSubtask({ subtask, task });
+              setSubtaskDetailsOpen(true);
+            }}
+            onStartSubtask={(subtask, task) => {
+              setActiveTaskId(task.id);
+              toast.success(`Starting focus session for: ${subtask.title}`);
+            }}
           />
         </section>
 
@@ -338,6 +386,10 @@ const Index = () => {
                                 onComplete={handleCompleteTask}
                                 onDelete={handleDeleteTask}
                                 onUpdateTask={handleUpdateTask}
+                                onStartSubtask={(subtask, parentTask) => {
+                                  setActiveTaskId(parentTask.id);
+                                  toast.success(`Starting focus session for: ${subtask.title}`);
+                                }}
                               />
                             </div>
                           </div>
@@ -485,6 +537,45 @@ const Index = () => {
                   toast.success('Item moved to recently deleted');
                 }
               }
+            }}
+          />
+        )}
+
+        {/* Subtask Details Dialog */}
+        {selectedSubtask && (
+          <SubtaskFullDetailsDialog
+            subtask={selectedSubtask.subtask}
+            open={subtaskDetailsOpen}
+            onClose={() => {
+              setSubtaskDetailsOpen(false);
+              setSelectedSubtask(null);
+            }}
+            onEdit={() => {
+              // Open task edit dialog with subtask focused
+              setSelectedTask(selectedSubtask.task);
+              setEditDialogOpen(true);
+              setSubtaskDetailsOpen(false);
+            }}
+            onComplete={() => {
+              // Complete the subtask
+              const updatedSubtasks = (selectedSubtask.task.subtasks || []).map(s =>
+                s.id === selectedSubtask.subtask.id ? { ...s, completed: true } : s
+              );
+              const updatedTask = { ...selectedSubtask.task, subtasks: updatedSubtasks };
+              handleUpdateTask(updatedTask);
+              setSubtaskDetailsOpen(false);
+              setSelectedSubtask(null);
+              toast.success('Subtask completed!');
+            }}
+            onUncomplete={() => {
+              const updatedSubtasks = (selectedSubtask.task.subtasks || []).map(s =>
+                s.id === selectedSubtask.subtask.id ? { ...s, completed: false } : s
+              );
+              const updatedTask = { ...selectedSubtask.task, subtasks: updatedSubtasks };
+              handleUpdateTask(updatedTask);
+              setSubtaskDetailsOpen(false);
+              setSelectedSubtask(null);
+              toast.success('Subtask marked incomplete');
             }}
           />
         )}
