@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Subtask } from '@/types/subtask';
 import { CalendarEvent } from '@/types/event';
+import { Task } from '@/types/task';
 import { cn } from '@/lib/utils';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 
@@ -8,23 +9,28 @@ interface ScheduleDayViewProps {
   date: Date;
   subtasks: Subtask[];
   events: CalendarEvent[];
+  tasks?: Task[];
   onSubtaskClick?: (subtask: Subtask) => void;
   onEventClick?: (event: CalendarEvent) => void;
+  onTaskClick?: (task: Task) => void;
 }
 
 export const ScheduleDayView = ({ 
   date, 
   subtasks, 
   events,
+  tasks = [],
   onSubtaskClick,
-  onEventClick 
+  onEventClick,
+  onTaskClick
 }: ScheduleDayViewProps) => {
   // Hours from 6am to 10pm
   const hours = Array.from({ length: 17 }, (_, i) => i + 6);
   
-  // All day items (subtasks/events without time)
+  // All day items (subtasks/events without time, and tasks due on this day)
   const allDaySubtasks = subtasks.filter(s => !s.scheduledTime);
   const allDayEvents = events.filter(e => !e.time);
+  const allDayTasks = tasks; // Tasks passed in are already filtered for this date
   
   // Timed items
   const timedSubtasks = subtasks.filter(s => s.scheduledTime);
@@ -41,11 +47,26 @@ export const ScheduleDayView = ({
 
   return (
     <div className="border rounded-lg overflow-hidden">
-      {/* All Day Section */}
-      {(allDaySubtasks.length > 0 || allDayEvents.length > 0) && (
+      {/* All Day Section - Tasks Due, Events, and Subtasks */}
+      {(allDayTasks.length > 0 || allDaySubtasks.length > 0 || allDayEvents.length > 0) && (
         <div className="border-b bg-muted/30 p-2">
           <div className="text-xs font-medium text-muted-foreground mb-1">All Day</div>
           <div className="flex flex-wrap gap-1">
+            {/* Tasks due on this day */}
+            {allDayTasks.map(task => (
+              <div
+                key={`task-${task.id}`}
+                onClick={() => onTaskClick?.(task)}
+                className={cn(
+                  "text-xs px-2 py-1 rounded cursor-pointer",
+                  task.completed 
+                    ? "bg-green-500/20 text-green-700 dark:text-green-300 line-through" 
+                    : "bg-orange-500/20 text-orange-700 dark:text-orange-300 hover:bg-orange-500/30"
+                )}
+              >
+                📋 {task.name}
+              </div>
+            ))}
             {allDayEvents.map(event => (
               <div
                 key={event.id}
