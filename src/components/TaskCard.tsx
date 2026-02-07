@@ -79,7 +79,7 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
               <UniversalProgressGrid
                 task={task}
                 onUpdateTask={onUpdateTask}
-                size="sm"
+                size="md"
                 showPercentage={true}
                 layout="inline"
                 interactive={true}
