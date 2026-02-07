@@ -23,9 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { X, Plus, Calendar, Trash2 } from 'lucide-react';
+import { X, Plus, Calendar, Trash2, Wand2 } from 'lucide-react';
 import { SubtaskList } from './SubtaskList';
 import { TaskScheduleDialog } from './TaskScheduleDialog';
+import { toast } from 'sonner';
 
 interface TaskDetailsDialogProps {
   task: Task | null;
@@ -294,13 +295,71 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
           </div>
 
           <div>
-            <Label htmlFor="description">Description</Label>
+            <div className="flex items-center justify-between mb-1">
+              <Label htmlFor="description">Description</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  // Parse bullet points from description and convert to subtasks
+                  const lines = editedTask.description.split('\n');
+                  const bulletRegex = /^[\s]*[-•*]\s*(.+)$/;
+                  const numberedRegex = /^[\s]*\d+[.)]\s*(.+)$/;
+                  
+                  const newSubtasks: Subtask[] = [];
+                  let hasItems = false;
+                  
+                  lines.forEach(line => {
+                    const bulletMatch = line.match(bulletRegex);
+                    const numberedMatch = line.match(numberedRegex);
+                    const match = bulletMatch || numberedMatch;
+                    
+                    if (match && match[1].trim()) {
+                      hasItems = true;
+                      const title = match[1].trim();
+                      // Check if subtask with this title already exists
+                      const exists = (editedTask.subtasks || []).some(
+                        s => s.title.toLowerCase() === title.toLowerCase()
+                      );
+                      if (!exists) {
+                        newSubtasks.push({
+                          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                          taskId: editedTask.id,
+                          title,
+                          completed: false,
+                          linkedToProgressGrid: false,
+                          createdAt: new Date().toISOString(),
+                          estimatedMinutes: 0,
+                        });
+                      }
+                    }
+                  });
+                  
+                  if (newSubtasks.length > 0) {
+                    setEditedTask({
+                      ...editedTask,
+                      subtasks: [...(editedTask.subtasks || []), ...newSubtasks],
+                    });
+                    toast.success(`Created ${newSubtasks.length} subtask(s) from description`);
+                  } else if (!hasItems) {
+                    toast.info('No bullet points found in description. Use - or • or * or 1. to mark items.');
+                  } else {
+                    toast.info('All items already exist as subtasks');
+                  }
+                }}
+                className="h-7 px-2 text-xs"
+              >
+                <Wand2 className="h-3 w-3 mr-1" />
+                Convert bullets to subtasks
+              </Button>
+            </div>
             <Textarea
               id="description"
               value={editedTask.description}
               onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })}
               className="mt-1 min-h-[100px]"
-              placeholder="Add details about this task..."
+              placeholder="Add details about this task... Use - or • to list items that can be converted to subtasks"
             />
           </div>
 

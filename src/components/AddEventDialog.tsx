@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,9 +30,29 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
   const [time, setTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [duration, setDuration] = useState('60');
+  const [useEndTime, setUseEndTime] = useState(false);
   const [location, setLocation] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringDays, setRecurringDays] = useState('7');
+
+  // Update date when prefilledDate changes
+  useEffect(() => {
+    if (prefilledDate) {
+      setDate(prefilledDate);
+    }
+  }, [prefilledDate]);
+
+  // Calculate duration from end time
+  const calculateDuration = (startTime: string, finishTime: string): number => {
+    if (!startTime || !finishTime) return 60;
+    const [startH, startM] = startTime.split(':').map(Number);
+    const [endH, endM] = finishTime.split(':').map(Number);
+    const startMinutes = startH * 60 + startM;
+    let endMinutes = endH * 60 + endM;
+    // Handle overnight
+    if (endMinutes < startMinutes) endMinutes += 24 * 60;
+    return endMinutes - startMinutes;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,14 +61,18 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
       return;
     }
 
+    const calculatedDuration = useEndTime && time && endTime 
+      ? calculateDuration(time, endTime)
+      : parseInt(duration) || 60;
+
     onAdd({
       title: title.trim(),
       description: description.trim() || undefined,
       date,
       endDate: isMultiDay && endDate ? endDate : undefined,
       time: time || undefined,
-      endTime: isMultiDay && endTime ? endTime : undefined,
-      duration: !isMultiDay && time ? parseInt(duration) || 60 : undefined,
+      endTime: isMultiDay && endTime ? endTime : (useEndTime && endTime ? endTime : undefined),
+      duration: !isMultiDay && time ? calculatedDuration : undefined,
       location: location.trim() || undefined,
       recurring: isRecurring ? {
         enabled: true,
@@ -65,6 +89,7 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
     setTime('');
     setEndTime('');
     setDuration('60');
+    setUseEndTime(false);
     setLocation('');
     setIsRecurring(false);
     setRecurringDays('7');
@@ -167,28 +192,48 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="time">Time</Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="duration">Duration (minutes)</Label>
-                  <Input
-                    id="duration"
-                    type="number"
-                    min="15"
-                    step="15"
-                    value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
-                    disabled={!time}
-                    placeholder="60"
-                  />
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="time">Start Time</Label>
+                    <Input
+                      id="time"
+                      type="time"
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="useEndTime"
+                        checked={useEndTime}
+                        onCheckedChange={(checked) => setUseEndTime(checked as boolean)}
+                      />
+                      <Label htmlFor="useEndTime" className="cursor-pointer text-sm">Use end time</Label>
+                    </div>
+                    {useEndTime ? (
+                      <Input
+                        id="endTimeNonMulti"
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        disabled={!time}
+                      />
+                    ) : (
+                      <Input
+                        id="duration"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={duration}
+                        onChange={(e) => setDuration(e.target.value)}
+                        disabled={!time}
+                        placeholder="60"
+                      />
+                    )}
+                    {!useEndTime && <p className="text-xs text-muted-foreground">Duration (minutes)</p>}
+                  </div>
                 </div>
               </div>
             )}

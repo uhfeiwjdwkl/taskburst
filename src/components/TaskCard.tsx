@@ -1,9 +1,14 @@
+import { useState } from 'react';
 import { Task } from '@/types/task';
+import { Subtask } from '@/types/subtask';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Clock, Info, Play, CheckCircle2, Edit, Trash2 } from 'lucide-react';
+import { Clock, Info, Play, CheckCircle2, Edit, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { UniversalProgressGrid } from './UniversalProgressGrid';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
 
 interface TaskCardProps {
   task: Task;
@@ -13,9 +18,12 @@ interface TaskCardProps {
   onComplete: (taskId: string) => void;
   onDelete: (taskId: string) => void;
   onUpdateTask: (task: Task) => void;
+  onStartSubtask?: (subtask: Subtask, task: Task) => void;
 }
 
-const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDelete, onUpdateTask }: TaskCardProps) => {
+const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDelete, onUpdateTask, onStartSubtask }: TaskCardProps) => {
+  const [subtasksOpen, setSubtasksOpen] = useState(false);
+  const subtasks = task.subtasks || [];
   const remainingMinutes = Math.max(task.estimatedMinutes - task.spentMinutes, 0);
   const remainingSeconds = Math.round(remainingMinutes * 60);
   const remainingMins = Math.floor(remainingSeconds / 60);
@@ -99,6 +107,88 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
               </div>
             </div>
           </div>
+
+          {/* Collapsible Subtasks */}
+          {subtasks.length > 0 && (
+            <Collapsible open={subtasksOpen} onOpenChange={setSubtasksOpen} className="mb-3">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground hover:text-foreground px-0 h-7">
+                  {subtasksOpen ? <ChevronDown className="h-4 w-4 mr-1" /> : <ChevronRight className="h-4 w-4 mr-1" />}
+                  Subtasks ({subtasks.filter(s => s.completed).length}/{subtasks.length})
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-1">
+                <div className="space-y-1 pl-2 border-l-2 border-border">
+                  {subtasks.map(subtask => (
+                    <div
+                      key={subtask.id}
+                      className={cn(
+                        "flex items-center gap-2 py-1 px-2 rounded text-sm",
+                        subtask.completed ? "bg-muted/50 text-muted-foreground" : "hover:bg-muted/30"
+                      )}
+                    >
+                      <Checkbox
+                        checked={subtask.completed}
+                        onCheckedChange={() => {
+                          const updatedSubtasks = subtasks.map(s =>
+                            s.id === subtask.id ? { ...s, completed: !s.completed } : s
+                          );
+                          
+                          // Update progress grid if linked
+                          let newProgressGridFilled = task.progressGridFilled;
+                          if (subtask.linkedToProgressGrid && subtask.progressGridIndex !== undefined) {
+                            const stored = localStorage.getItem('progressGridFilledIndices');
+                            const data = stored ? JSON.parse(stored) : {};
+                            let indices: number[] = data[task.id] || [];
+                            
+                            if (subtask.completed) {
+                              // Uncompleting - remove index
+                              indices = indices.filter(i => i !== subtask.progressGridIndex);
+                              newProgressGridFilled = Math.max(0, task.progressGridFilled - 1);
+                            } else {
+                              // Completing - add index
+                              if (!indices.includes(subtask.progressGridIndex)) {
+                                indices = [...indices, subtask.progressGridIndex].sort((a, b) => a - b);
+                              }
+                              newProgressGridFilled = Math.min(task.progressGridSize, task.progressGridFilled + 1);
+                            }
+                            data[task.id] = indices;
+                            localStorage.setItem('progressGridFilledIndices', JSON.stringify(data));
+                          }
+                          
+                          onUpdateTask({ 
+                            ...task, 
+                            subtasks: updatedSubtasks,
+                            progressGridFilled: newProgressGridFilled
+                          });
+                        }}
+                        className="h-4 w-4"
+                      />
+                      <span className={cn("flex-1 truncate", subtask.completed && "line-through")}>
+                        {subtask.title}
+                      </span>
+                      {subtask.estimatedMinutes && subtask.estimatedMinutes > 0 && (
+                        <span className="text-xs text-muted-foreground">{subtask.estimatedMinutes}m</span>
+                      )}
+                      {onStartSubtask && !subtask.completed && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onStartSubtask(subtask, task);
+                          }}
+                        >
+                          <Play className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
 
           <div className="flex gap-2 flex-wrap">
             <Button
