@@ -38,6 +38,13 @@ interface TimerProps {
 
 const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChange, onUpdateTask, tasks, onSelectTask }: TimerProps) => {
   // Load durations and settings from localStorage
+  const [timerMode, setTimerMode] = useState<'countdown' | 'stopwatch'>(() => {
+    const settings = localStorage.getItem('appSettings');
+    if (settings) {
+      return JSON.parse(settings).timerMode || 'countdown';
+    }
+    return 'countdown';
+  });
   const [focusDuration, setFocusDuration] = useState(() => {
     const settings = localStorage.getItem('appSettings');
     if (settings) {
@@ -70,10 +77,12 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     const saved = localStorage.getItem('completedFocusSessions');
     return saved ? parseInt(saved) : 0;
   });
+  // Stopwatch elapsed seconds (counts up)
+  const [stopwatchSeconds, setStopwatchSeconds] = useState(0);
 
-  const FOCUS_DURATION = focusDuration * 60; // convert to seconds
-  const BREAK_DURATION = breakDuration * 60; // convert to seconds
-  const LONG_BREAK_DURATION = longBreakDuration * 60; // convert to seconds
+  const FOCUS_DURATION = focusDuration * 60;
+  const BREAK_DURATION = breakDuration * 60;
+  const LONG_BREAK_DURATION = longBreakDuration * 60;
 
   const [phase, setPhase] = useState<TimerPhase>('focus');
   const [seconds, setSeconds] = useState(FOCUS_DURATION);
@@ -93,12 +102,15 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const [showSettings, setShowSettings] = useState(false);
   const [tempFocusDuration, setTempFocusDuration] = useState(focusDuration);
   const [tempBreakDuration, setTempBreakDuration] = useState(breakDuration);
+  const [tempTimerMode, setTempTimerMode] = useState(timerMode);
   const intervalRef = useRef<number>();
 
   const totalDuration = phase === 'focus' 
     ? FOCUS_DURATION 
     : (customBreakDuration !== null ? customBreakDuration * 60 : (completedFocusSessions % longBreakInterval === 0 && completedFocusSessions > 0 ? LONG_BREAK_DURATION : BREAK_DURATION)) + breakBonus;
-  const progress = ((totalDuration - seconds) / totalDuration) * 100;
+  const progress = timerMode === 'stopwatch' 
+    ? (stopwatchSeconds > 0 ? Math.min((stopwatchSeconds / (focusDuration * 60)) * 100, 100) : 0)
+    : ((totalDuration - seconds) / totalDuration) * 100;
 
   // Calculate task progress
   const taskProgress = activeTask 
@@ -273,30 +285,43 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   };
 
   useEffect(() => {
+    if (timerMode === 'stopwatch') {
+      // Stopwatch mode - count up
+      if (isRunning) {
+        intervalRef.current = window.setInterval(() => {
+          setStopwatchSeconds(prev => prev + 1);
+          if (onTick && phase === 'focus') {
+            onTick(1);
+          }
+        }, 1000);
+      }
+      return () => {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      };
+    }
+
+    // Countdown mode
     if (isRunning && seconds > 0) {
       intervalRef.current = window.setInterval(() => {
         setSeconds((prev) => {
           const newSeconds = prev - 1;
           if (onTick && phase === 'focus') {
-            onTick(1); // Increment spent time by 1 second
+            onTick(1);
           }
           
-          // Check if task is completed
           if (activeTask && phase === 'focus') {
             const taskCompleted = activeTask.spentMinutes >= activeTask.estimatedMinutes;
             if (taskCompleted && onTaskComplete && newSeconds > 0) {
-              // Task completed mid-session
               fireConfetti();
               onTaskComplete(activeTask.id);
-              setBreakBonus(300); // Add 5 minutes (300 seconds) to break
+              setBreakBonus(300);
             }
           }
           
           return newSeconds;
         });
       }, 1000);
-    } else if (seconds === 0) {
-      // Phase complete - play sound and show end editor
+    } else if (seconds === 0 && timerMode === 'countdown') {
       playTimerEndSound();
       if (activeTask) {
         setShowEndEditor(true);
@@ -487,12 +512,17 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const handleSaveSettings = () => {
     setFocusDuration(tempFocusDuration);
     setBreakDuration(tempBreakDuration);
+    setTimerMode(tempTimerMode);
     localStorage.setItem('focusDuration', tempFocusDuration.toString());
     localStorage.setItem('breakDuration', tempBreakDuration.toString());
     
     // Reset timer to new duration if not running
     if (!isRunning) {
-      setSeconds(phase === 'focus' ? tempFocusDuration * 60 : tempBreakDuration * 60);
+      if (tempTimerMode === 'stopwatch') {
+        setStopwatchSeconds(0);
+      } else {
+        setSeconds(phase === 'focus' ? tempFocusDuration * 60 : tempBreakDuration * 60);
+      }
     }
     
     setShowSettings(false);
@@ -559,27 +589,53 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="focus-duration">Focus Duration (minutes)</Label>
-              <Input
-                id="focus-duration"
-                type="number"
-                min="1"
-                max="120"
-                value={tempFocusDuration}
-                onChange={(e) => setTempFocusDuration(parseInt(e.target.value) || DEFAULT_FOCUS_DURATION)}
-              />
+              <Label>Timer Mode</Label>
+              <div className="flex gap-2">
+                <Button
+                  variant={tempTimerMode === 'countdown' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTempTimerMode('countdown')}
+                >
+                  ⏳ Countdown
+                </Button>
+                <Button
+                  variant={tempTimerMode === 'stopwatch' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTempTimerMode('stopwatch')}
+                >
+                  ⏱️ Stopwatch
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {tempTimerMode === 'countdown' ? 'Pomodoro-style with session limits' : 'No time limit, counts elapsed time'}
+              </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="break-duration">Break Duration (minutes)</Label>
-              <Input
-                id="break-duration"
-                type="number"
-                min="1"
-                max="60"
-                value={tempBreakDuration}
-                onChange={(e) => setTempBreakDuration(parseInt(e.target.value) || DEFAULT_BREAK_DURATION)}
-              />
-            </div>
+            {tempTimerMode === 'countdown' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="focus-duration">Focus Duration (minutes)</Label>
+                  <Input
+                    id="focus-duration"
+                    type="number"
+                    min="1"
+                    max="120"
+                    value={tempFocusDuration}
+                    onChange={(e) => setTempFocusDuration(parseInt(e.target.value) || DEFAULT_FOCUS_DURATION)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="break-duration">Break Duration (minutes)</Label>
+                  <Input
+                    id="break-duration"
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={tempBreakDuration}
+                    onChange={(e) => setTempBreakDuration(parseInt(e.target.value) || DEFAULT_BREAK_DURATION)}
+                  />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
@@ -621,9 +677,9 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       <div className="flex flex-col items-center gap-8">
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-2">
-          {phase === 'focus' ? '🎯 Focus Time' : '☕ Break Time'}
+          {timerMode === 'stopwatch' ? '⏱️ Stopwatch' : (phase === 'focus' ? '🎯 Focus Time' : '☕ Break Time')}
         </h2>
-        {activeTask && phase === 'focus' && (
+        {activeTask && (phase === 'focus' || timerMode === 'stopwatch') && (
           <p className="text-lg font-medium mt-2">{activeTask.name}</p>
         )}
       </div>
@@ -652,10 +708,10 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
               <div className="text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                {formatTime(seconds)}
+                {timerMode === 'stopwatch' ? formatTime(stopwatchSeconds) : formatTime(seconds)}
               </div>
               <div className="text-sm text-muted-foreground mt-2">
-                {phase === 'focus' ? 'Stay focused!' : 'Take a break!'}
+                {timerMode === 'stopwatch' ? 'Elapsed time' : (phase === 'focus' ? 'Stay focused!' : 'Take a break!')}
               </div>
             </div>
           </div>

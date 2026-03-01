@@ -14,12 +14,26 @@ export interface TaskResult {
   totalMode?: 'marks' | 'average'; // marks = sum of parts, average = avg of part percentages
 }
 
+export type TaskType = 'general' | 'study' | 'revision' | 'practice' | 'homework' | 'reading' | 'writing' | 'research';
+
+export const TASK_TYPES: { value: TaskType; label: string }[] = [
+  { value: 'general', label: 'General' },
+  { value: 'study', label: 'Study' },
+  { value: 'revision', label: 'Revision' },
+  { value: 'practice', label: 'Practice' },
+  { value: 'homework', label: 'Homework' },
+  { value: 'reading', label: 'Reading' },
+  { value: 'writing', label: 'Writing' },
+  { value: 'research', label: 'Research' },
+];
+
 export interface Task {
   id: string;
   name: string;
   description: string;
   category: string;
   subcategory?: string; // Optional subcategory within category
+  taskType?: TaskType; // Type of task
   importance: number; // 1-5 scale
   estimatedMinutes: number;
   spentMinutes: number;

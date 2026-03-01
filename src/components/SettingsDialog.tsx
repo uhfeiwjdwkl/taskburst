@@ -425,6 +425,21 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   onCheckedChange={(checked) => setSettings({ ...settings, allowPerTaskProgressSettings: checked })}
                 />
               </div>
+
+              {/* Auto-link subtasks to grid */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="autoLinkSubtasksToGrid">Auto-link subtasks to grid</Label>
+                  <p className="text-xs text-muted-foreground">
+                    When converting bullets to subtasks, auto-link sequentially to progress boxes
+                  </p>
+                </div>
+                <Switch
+                  id="autoLinkSubtasksToGrid"
+                  checked={settings.autoLinkSubtasksToGrid || false}
+                  onCheckedChange={(checked) => setSettings({ ...settings, autoLinkSubtasksToGrid: checked })}
+                />
+              </div>
             </div>
 
             {/* Subtask Text Size */}
@@ -602,6 +617,28 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                 <p className="text-xs text-muted-foreground mt-1">
                   Long break occurs after every {settings.longBreakInterval} focus sessions
                 </p>
+              </div>
+
+              {/* Timer Mode */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Timer Mode</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {settings.timerMode === 'countdown' ? 'Countdown (Pomodoro)' : 'Stopwatch (no limit)'}
+                  </p>
+                </div>
+                <Select
+                  value={settings.timerMode || 'countdown'}
+                  onValueChange={(value: 'countdown' | 'stopwatch') => setSettings({ ...settings, timerMode: value })}
+                >
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="countdown">Countdown</SelectItem>
+                    <SelectItem value="stopwatch">Stopwatch</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

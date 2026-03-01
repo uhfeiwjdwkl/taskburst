@@ -227,6 +227,12 @@ export interface AppSettings {
     startTime?: string; // "HH:MM" format
     endTime?: string;
   }[];
+
+  // Auto-link subtasks to progress grid when created from bullets
+  autoLinkSubtasksToGrid: boolean;
+
+  // Timer mode: 'countdown' (subtractive/pomodoro) or 'stopwatch' (additive)
+  timerMode: 'countdown' | 'stopwatch';
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -254,6 +260,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   homepageTimetableMode: 'none',
   homepageTimetableId: undefined,
   homepageTimetableSchedule: undefined,
+  autoLinkSubtasksToGrid: false,
+  timerMode: 'countdown',
 };
 
 // Legacy color palettes for backwards compatibility
