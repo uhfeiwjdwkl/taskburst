@@ -36,7 +36,7 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
   const [importance, setImportance] = useState(2);
   const [estimatedMinutes, setEstimatedMinutes] = useState(25);
   const [dueDate, setDueDate] = useState(prefilledDate || '');
-  const [progressGridSize, setProgressGridSize] = useState(10);
+  const [progressGridSize, setProgressGridSize] = useState(0);
   const [categories, setCategories] = useState<string[]>([]);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
 
@@ -205,14 +205,14 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
           </div>
 
           <div>
-            <Label htmlFor="add-progressGridSize">Progress Grid Size (number of squares)</Label>
+            <Label htmlFor="add-progressGridSize">Progress Grid Size (0 = no grid)</Label>
             <Input
               id="add-progressGridSize"
               type="number"
               value={progressGridSize}
-              onChange={(e) => setProgressGridSize(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={(e) => setProgressGridSize(Math.max(0, parseInt(e.target.value) || 0))}
               className="mt-1"
-              min="1"
+              min="0"
               max="100"
             />
           </div>

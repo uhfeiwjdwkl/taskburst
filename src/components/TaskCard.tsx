@@ -3,11 +3,13 @@ import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Clock, Info, Play, CheckCircle2, Edit, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Clock, Info, Play, CheckCircle2, Edit, Trash2, ChevronDown, ChevronRight, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UniversalProgressGrid } from './UniversalProgressGrid';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { SubtaskFullDetailsDialog } from './SubtaskFullDetailsDialog';
+import { SubtaskDialog } from './SubtaskDialog';
 import { cn } from '@/lib/utils';
 
 interface TaskCardProps {
@@ -23,6 +25,9 @@ interface TaskCardProps {
 
 const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDelete, onUpdateTask, onStartSubtask }: TaskCardProps) => {
   const [subtasksOpen, setSubtasksOpen] = useState(false);
+  const [detailsSubtask, setDetailsSubtask] = useState<Subtask | null>(null);
+  const [editSubtask, setEditSubtask] = useState<Subtask | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const subtasks = task.subtasks || [];
   const remainingMinutes = Math.max(task.estimatedMinutes - task.spentMinutes, 0);
   const remainingSeconds = Math.round(remainingMinutes * 60);
@@ -81,7 +86,8 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
             )}
           </div>
 
-          {/* Universal Progress Grid - matches TaskDetailsViewDialog */}
+          {/* Universal Progress Grid - only show if grid size > 0 */}
+          {task.progressGridSize > 0 && (
           <div className="mb-3">
             <div className="mb-2">
               <UniversalProgressGrid
@@ -93,18 +99,19 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
                 interactive={true}
               />
             </div>
+          </div>
+          )}
             
-            {/* Timer Progress Bar */}
-            <div className="space-y-1 mb-2">
-              <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-primary transition-all duration-300"
-                  style={{ width: `${Math.min((task.spentMinutes / task.estimatedMinutes) * 100, 100)}%` }}
-                />
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {formattedSpent} / {Math.round(task.estimatedMinutes)} minutes
-              </div>
+          {/* Timer Progress Bar */}
+          <div className="space-y-1 mb-3">
+            <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+              <div 
+                className="h-full bg-gradient-primary transition-all duration-300"
+                style={{ width: `${task.estimatedMinutes > 0 ? Math.min((task.spentMinutes / task.estimatedMinutes) * 100, 100) : 0}%` }}
+              />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {formattedSpent} / {Math.round(task.estimatedMinutes)} minutes
             </div>
           </div>
 
@@ -123,7 +130,7 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
                     <div
                       key={subtask.id}
                       className={cn(
-                        "flex items-center gap-2 py-1 px-2 rounded text-sm",
+                        "flex items-center gap-2 py-1.5 px-2 rounded text-sm",
                         subtask.completed ? "bg-muted/50 text-muted-foreground" : "hover:bg-muted/30"
                       )}
                     >
@@ -134,7 +141,6 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
                             s.id === subtask.id ? { ...s, completed: !s.completed } : s
                           );
                           
-                          // Update progress grid if linked
                           let newProgressGridFilled = task.progressGridFilled;
                           if (subtask.linkedToProgressGrid && subtask.progressGridIndex !== undefined) {
                             const stored = localStorage.getItem('progressGridFilledIndices');
@@ -142,11 +148,9 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
                             let indices: number[] = data[task.id] || [];
                             
                             if (subtask.completed) {
-                              // Uncompleting - remove index
                               indices = indices.filter(i => i !== subtask.progressGridIndex);
                               newProgressGridFilled = Math.max(0, task.progressGridFilled - 1);
                             } else {
-                              // Completing - add index
                               if (!indices.includes(subtask.progressGridIndex)) {
                                 indices = [...indices, subtask.progressGridIndex].sort((a, b) => a - b);
                               }
@@ -170,6 +174,29 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
                       {subtask.estimatedMinutes && subtask.estimatedMinutes > 0 && (
                         <span className="text-xs text-muted-foreground">{subtask.estimatedMinutes}m</span>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDetailsSubtask(subtask);
+                        }}
+                      >
+                        <Info className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditSubtask(subtask);
+                          setEditDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
                       {onStartSubtask && !subtask.completed && (
                         <Button
                           variant="ghost"
@@ -234,6 +261,52 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
           </div>
         </div>
       </div>
+      {/* Subtask Details Dialog */}
+      <SubtaskFullDetailsDialog
+        subtask={detailsSubtask}
+        open={!!detailsSubtask}
+        onClose={() => setDetailsSubtask(null)}
+        onEdit={() => {
+          if (detailsSubtask) {
+            setEditSubtask(detailsSubtask);
+            setDetailsSubtask(null);
+            setEditDialogOpen(true);
+          }
+        }}
+        onComplete={() => {
+          if (detailsSubtask && !detailsSubtask.completed) {
+            const updatedSubtasks = subtasks.map(s =>
+              s.id === detailsSubtask.id ? { ...s, completed: true } : s
+            );
+            onUpdateTask({ ...task, subtasks: updatedSubtasks });
+            setDetailsSubtask({ ...detailsSubtask, completed: true });
+          }
+        }}
+        onUncomplete={() => {
+          if (detailsSubtask && detailsSubtask.completed) {
+            const updatedSubtasks = subtasks.map(s =>
+              s.id === detailsSubtask.id ? { ...s, completed: false } : s
+            );
+            onUpdateTask({ ...task, subtasks: updatedSubtasks });
+            setDetailsSubtask({ ...detailsSubtask, completed: false });
+          }
+        }}
+      />
+
+      {/* Subtask Edit Dialog */}
+      <SubtaskDialog
+        subtask={editSubtask}
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        onSave={(updated) => {
+          const updatedSubtasks = subtasks.map(s => s.id === updated.id ? updated : s);
+          onUpdateTask({ ...task, subtasks: updatedSubtasks });
+          setEditDialogOpen(false);
+        }}
+        isNew={false}
+        taskId={task.id}
+        availableGridIndices={Array.from({ length: task.progressGridSize }, (_, i) => i)}
+      />
     </Card>
   );
 };
