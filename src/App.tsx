@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { PinProtectionDialog } from "@/components/PinProtectionDialog";
+import { InstanceBlocker } from "@/components/InstanceBlocker";
 import { AppSettings, COLOR_THEMES, DEFAULT_SETTINGS } from "@/types/settings";
 import { applyColorThemeToDocument } from "@/lib/theme";
 import Index from "./pages/Index";
@@ -83,6 +84,7 @@ const App = () => {
   }
 
   return (
+    <InstanceBlocker>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
@@ -91,12 +93,10 @@ const App = () => {
         {/* PIN Protection Overlay */}
         {settings?.pinProtection && settings?.pinHash && !isUnlocked && (
           <>
-            {/* Blurred background overlay - everything behind is blurred */}
             <div 
               className="fixed inset-0 z-40 bg-background/80 backdrop-blur-md pin-blur-overlay" 
               aria-hidden="true"
             />
-            {/* PIN dialog - rendered via portal above the blur */}
             <PinProtectionDialog
               open={true}
               onSuccess={() => setIsUnlocked(true)}
@@ -123,6 +123,7 @@ const App = () => {
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
+    </InstanceBlocker>
   );
 };
 

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Task } from '@/types/task';
+import { Subtask } from '@/types/subtask';
 import { CalendarEvent } from '@/types/event';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Calendar as CalendarIcon, Clock, MapPin, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar as CalendarIcon, Clock, MapPin, Trash2, LayoutList } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import AddTaskDialog from '@/components/AddTaskDialog';
@@ -16,6 +17,7 @@ import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
 import TaskCard from '@/components/TaskCard';
 import { DayTimetableView } from '@/components/DayTimetableView';
+import { ScheduleDayView } from '@/components/ScheduleDayView';
 import { ExportImportButton } from '@/components/ExportImportButton';
 import { ExportEventButton } from '@/components/ExportEventButton';
 import { ImportEventButton } from '@/components/ImportEventButton';
@@ -47,7 +49,7 @@ const CalendarPage = () => {
   const [editEventDialogOpen, setEditEventDialogOpen] = useState(false);
   const [deleteEventDialog, setDeleteEventDialog] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
-
+  const [showScheduleView, setShowScheduleView] = useState(false);
   useEffect(() => {
     const savedTasks = localStorage.getItem('tasks');
     if (savedTasks) {
@@ -218,6 +220,33 @@ const CalendarPage = () => {
   const datesWithTasks = getDatesWithTasks();
   const datesWithEvents = getDatesWithEvents();
 
+  // Gather all subtasks from all tasks that have scheduledTime or dueDate matching selected date
+  const getSubtasksForDate = (date: Date | undefined): Subtask[] => {
+    if (!date) return [];
+    const subtasksList: Subtask[] = [];
+    tasks.forEach(task => {
+      (task.subtasks || []).forEach(subtask => {
+        if (subtask.dueDate) {
+          try {
+            if (isSameDay(parseISO(subtask.dueDate), date)) {
+              subtasksList.push(subtask);
+            }
+          } catch {}
+        } else if (subtask.scheduledTime && task.dueDate) {
+          // If subtask has scheduled time but no own date, use parent task's date
+          try {
+            if (isSameDay(parseISO(task.dueDate), date)) {
+              subtasksList.push(subtask);
+            }
+          } catch {}
+        }
+      });
+    });
+    return subtasksList;
+  };
+
+  const subtasksForSelectedDate = getSubtasksForDate(selectedDate);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-6xl mx-auto px-4 py-8">
@@ -305,6 +334,14 @@ const CalendarPage = () => {
                   </p>
                 </div>
                 <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant={showScheduleView ? 'default' : 'outline'}
+                    onClick={() => setShowScheduleView(!showScheduleView)}
+                  >
+                    <LayoutList className="h-4 w-4 mr-1" />
+                    Schedule
+                  </Button>
                   <Button
                     size="sm"
                     onClick={handleAddEventForDate}
@@ -470,8 +507,24 @@ const CalendarPage = () => {
             </Card>
           </div>
 
+          {/* Schedule Day View - Full day calendar with times */}
+          {selectedDate && showScheduleView && (
+            <Card className="p-4">
+              <h3 className="font-semibold mb-3">Day Schedule — {format(selectedDate, 'MMMM d, yyyy')}</h3>
+              <ScheduleDayView
+                date={selectedDate}
+                subtasks={subtasksForSelectedDate}
+                events={eventsForSelectedDate}
+                tasks={tasksForSelectedDate}
+                onSubtaskClick={() => {}}
+                onEventClick={handleEventClick}
+                onTaskClick={(task) => handleShowDetails(task.id)}
+              />
+            </Card>
+          )}
+
           {/* Bottom Section: Day Timetable Full Width */}
-          {selectedDate && (
+          {selectedDate && !showScheduleView && (
             <DayTimetableView 
               events={eventsForSelectedDate} 
               selectedDate={selectedDate}

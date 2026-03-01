@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Task, TaskResultPart } from '@/types/task';
 import { Project, ProjectResultPart } from '@/types/project';
+import { Assessment } from '@/types/assessment';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,7 +24,9 @@ import { ResultCellDialog } from '@/components/ResultCellDialog';
 import { ResultPartsEditor } from '@/components/ResultPartsEditor';
 import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
-import { Settings2, Plus, Minus, Eye, Edit2, Check, X } from 'lucide-react';
+import { AddAssessmentDialog } from '@/components/AddAssessmentDialog';
+import { AssessmentDetailsDialog } from '@/components/AssessmentDetailsDialog';
+import { Settings2, Plus, Minus, Eye, Edit2, Check, X, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
@@ -52,6 +55,7 @@ export default function Results() {
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [groupBy, setGroupBy] = useState<'none' | 'category' | 'subcategory'>('none');
   const [editingCell, setEditingCell] = useState<{
     itemId: string;
@@ -66,6 +70,11 @@ export default function Results() {
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  // Assessment dialogs
+  const [addAssessmentOpen, setAddAssessmentOpen] = useState(false);
+  const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
+  const [assessmentDetailsOpen, setAssessmentDetailsOpen] = useState(false);
 
   // Column name editing
   const [columnNames, setColumnNames] = useState<Record<number, string>>({});
@@ -90,11 +99,13 @@ export default function Results() {
     const savedArchivedTasks = localStorage.getItem('archivedTasks');
     const savedProjects = localStorage.getItem('projects');
     const savedArchivedProjects = localStorage.getItem('archivedProjects');
+    const savedAssessments = localStorage.getItem('assessments');
     
     if (savedTasks) setTasks(JSON.parse(savedTasks));
     if (savedArchivedTasks) setArchivedTasks(JSON.parse(savedArchivedTasks));
     if (savedProjects) setProjects(JSON.parse(savedProjects));
     if (savedArchivedProjects) setArchivedProjects(JSON.parse(savedArchivedProjects));
+    if (savedAssessments) setAssessments(JSON.parse(savedAssessments).filter((a: Assessment) => !a.deletedAt));
   };
 
   const saveColumnNames = (cols: Record<number, string>, total: string) => {
@@ -459,6 +470,38 @@ export default function Results() {
     toast.success('Total column renamed');
   };
 
+  const handleAddAssessment = (newAssessment: Omit<Assessment, 'id' | 'createdAt'>) => {
+    const assessment: Assessment = {
+      ...newAssessment,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...assessments, assessment];
+    setAssessments(updated);
+    localStorage.setItem('assessments', JSON.stringify(updated));
+    toast.success('Assessment added!');
+  };
+
+  const handleSaveAssessment = (updated: Assessment) => {
+    const newList = assessments.map(a => a.id === updated.id ? updated : a);
+    setAssessments(newList);
+    localStorage.setItem('assessments', JSON.stringify(newList));
+    toast.success('Assessment updated!');
+  };
+
+  const handleDeleteAssessment = (id: string) => {
+    const assessment = assessments.find(a => a.id === id);
+    if (assessment) {
+      const deleted = { ...assessment, deletedAt: new Date().toISOString() };
+      const allAssessments = JSON.parse(localStorage.getItem('assessments') || '[]');
+      const updated = allAssessments.map((a: Assessment) => a.id === id ? deleted : a);
+      localStorage.setItem('assessments', JSON.stringify(updated));
+      setAssessments(assessments.filter(a => a.id !== id));
+      toast.success('Assessment deleted');
+    }
+    setAssessmentDetailsOpen(false);
+  };
+
   return (
     <div className="container mx-auto p-4 max-w-7xl">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
@@ -702,6 +745,46 @@ export default function Results() {
         })
       )}
 
+      {/* Assessments Section */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">Assessments</h2>
+          <Button onClick={() => setAddAssessmentOpen(true)} className="bg-gradient-primary">
+            <Plus className="h-4 w-4 mr-1" /> Add Assessment
+          </Button>
+        </div>
+        {assessments.length === 0 ? (
+          <Card className="p-6 text-center text-muted-foreground">No assessments yet. Add one to track results.</Card>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {assessments.map(a => {
+              const scored = a.result.parts.filter(p => p.score !== null);
+              const totalScore = scored.reduce((s, p) => s + (p.score || 0), 0);
+              const totalMax = scored.reduce((s, p) => s + p.maxScore, 0);
+              const pct = totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
+              const daysUntil = a.dueDate ? Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+              return (
+                <Card key={a.id} className="p-4 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => { setSelectedAssessment(a); setAssessmentDetailsOpen(true); }}>
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h3 className="font-semibold">{a.name}</h3>
+                      <p className="text-xs text-muted-foreground">{a.assessmentType} • {a.category || 'Uncategorized'}</p>
+                    </div>
+                    <Badge variant={daysUntil !== null && daysUntil < 0 ? 'destructive' : 'secondary'} className="text-xs">
+                      {daysUntil !== null ? (daysUntil < 0 ? `${Math.abs(daysUntil)}d ago` : daysUntil === 0 ? 'Today' : `in ${daysUntil}d`) : 'No date'}
+                    </Badge>
+                  </div>
+                  <div className="text-2xl font-bold text-center mt-2">
+                    {scored.length > 0 ? `${totalScore}/${totalMax}` : '—'}
+                  </div>
+                  {scored.length > 0 && <div className="text-center text-sm text-muted-foreground">{pct}%</div>}
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       <ResultCellDialog
         open={editingCell !== null}
         onClose={() => setEditingCell(null)}
@@ -711,10 +794,7 @@ export default function Results() {
 
       <ResultPartsEditor
         open={partsEditorOpen}
-        onClose={() => {
-          setPartsEditorOpen(false);
-          setEditingPartsItem(null);
-        }}
+        onClose={() => { setPartsEditorOpen(false); setEditingPartsItem(null); }}
         onSave={handlePartsSave}
         parts={editingPartsItem?.result.parts || []}
         itemName={editingPartsItem?.name || ''}
@@ -733,6 +813,24 @@ export default function Results() {
         open={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}
         onSave={handleUpdateTask}
+      />
+
+      <AddAssessmentDialog
+        open={addAssessmentOpen}
+        onClose={() => setAddAssessmentOpen(false)}
+        onAdd={handleAddAssessment}
+      />
+
+      <AssessmentDetailsDialog
+        assessment={selectedAssessment}
+        open={assessmentDetailsOpen}
+        onClose={() => { setAssessmentDetailsOpen(false); setSelectedAssessment(null); }}
+        onSave={handleSaveAssessment}
+        onDelete={handleDeleteAssessment}
+        onViewLinkedTask={(taskId) => {
+          const task = [...tasks, ...archivedTasks].find(t => t.id === taskId);
+          if (task) { setViewingTask(task); setDetailsDialogOpen(true); setAssessmentDetailsOpen(false); }
+        }}
       />
     </div>
   );

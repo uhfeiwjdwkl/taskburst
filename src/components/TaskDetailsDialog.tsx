@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Task, TaskResult, TaskResultPart } from '@/types/task';
+import { Task, TaskResult, TaskResultPart, TaskType, TASK_TYPES } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import { saveTextBackup, createFieldId } from '@/lib/textBackup';
 import {
@@ -302,13 +302,28 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  // Parse bullet points from description and convert to subtasks
+                  // Check auto-link setting
+                  const appSettings = JSON.parse(localStorage.getItem('appSettings') || '{}');
+                  const autoLink = appSettings.autoLinkSubtasksToGrid || false;
+
                   const lines = editedTask.description.split('\n');
                   const bulletRegex = /^[\s]*[-•*]\s*(.+)$/;
                   const numberedRegex = /^[\s]*\d+[.)]\s*(.+)$/;
                   
+                  const existingSubtasks = editedTask.subtasks || [];
+                  const existingLinkedIndices = existingSubtasks
+                    .filter(s => s.linkedToProgressGrid && s.progressGridIndex !== undefined)
+                    .map(s => s.progressGridIndex!);
+                  
                   const newSubtasks: Subtask[] = [];
                   let hasItems = false;
+                  let nextGridIndex = 0;
+                  // Find next available grid index
+                  if (autoLink && editedTask.progressGridSize > 0) {
+                    while (existingLinkedIndices.includes(nextGridIndex) && nextGridIndex < editedTask.progressGridSize) {
+                      nextGridIndex++;
+                    }
+                  }
                   
                   lines.forEach(line => {
                     const bulletMatch = line.match(bulletRegex);
@@ -318,30 +333,49 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
                     if (match && match[1].trim()) {
                       hasItems = true;
                       const title = match[1].trim();
-                      // Check if subtask with this title already exists
-                      const exists = (editedTask.subtasks || []).some(
+                      const exists = existingSubtasks.some(
                         s => s.title.toLowerCase() === title.toLowerCase()
                       );
                       if (!exists) {
+                        const shouldLink = autoLink && editedTask.progressGridSize > 0 && nextGridIndex < editedTask.progressGridSize;
                         newSubtasks.push({
                           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                           taskId: editedTask.id,
                           title,
                           completed: false,
-                          linkedToProgressGrid: false,
+                          linkedToProgressGrid: shouldLink,
+                          progressGridIndex: shouldLink ? nextGridIndex : undefined,
                           createdAt: new Date().toISOString(),
                           estimatedMinutes: 0,
                         });
+                        if (shouldLink) nextGridIndex++;
+                        // Skip already-used indices
+                        while (existingLinkedIndices.includes(nextGridIndex) && nextGridIndex < editedTask.progressGridSize) {
+                          nextGridIndex++;
+                        }
                       }
                     }
                   });
                   
                   if (newSubtasks.length > 0) {
+                    // Auto-expand grid if needed and auto-link is on
+                    let newGridSize = editedTask.progressGridSize;
+                    if (autoLink && newSubtasks.filter(s => !s.linkedToProgressGrid).length > 0) {
+                      // Some couldn't be linked - expand grid
+                      const unlinked = newSubtasks.filter(s => !s.linkedToProgressGrid);
+                      newGridSize = editedTask.progressGridSize + unlinked.length;
+                      let idx = editedTask.progressGridSize;
+                      unlinked.forEach(s => {
+                        s.linkedToProgressGrid = true;
+                        s.progressGridIndex = idx++;
+                      });
+                    }
                     setEditedTask({
                       ...editedTask,
-                      subtasks: [...(editedTask.subtasks || []), ...newSubtasks],
+                      subtasks: [...existingSubtasks, ...newSubtasks],
+                      progressGridSize: newGridSize,
                     });
-                    toast.success(`Created ${newSubtasks.length} subtask(s) from description`);
+                    toast.success(`Created ${newSubtasks.length} subtask(s) from description${autoLink ? ' (auto-linked to grid)' : ''}`);
                   } else if (!hasItems) {
                     toast.info('No bullet points found in description. Use - or • or * or 1. to mark items.');
                   } else {
@@ -391,6 +425,24 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
               className="mt-1"
               min="0"
             />
+          </div>
+
+          {/* Task Type */}
+          <div>
+            <Label htmlFor="taskType">Task Type</Label>
+            <Select
+              value={editedTask.taskType || 'general'}
+              onValueChange={(value) => setEditedTask({ ...editedTask, taskType: value as TaskType })}
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                {TASK_TYPES.map(t => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
