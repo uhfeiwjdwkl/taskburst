@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 import { UniversalProgressGrid } from './UniversalProgressGrid';
 import { SubtaskDialog } from './SubtaskDialog';
+import { SubtaskFullDetailsDialog } from './SubtaskFullDetailsDialog';
 
 interface TaskDetailsViewDialogProps {
   task: Task | null;
@@ -47,6 +48,7 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
   const [filledIndices, setFilledIndices] = useState<number[]>([]);
   const [subtaskDialogOpen, setSubtaskDialogOpen] = useState(false);
   const [activeSubtask, setActiveSubtask] = useState<Subtask | null>(null);
+  const [detailsSubtask, setDetailsSubtask] = useState<Subtask | null>(null);
 
   // Initialize filled indices when task changes
   useEffect(() => {
@@ -355,11 +357,22 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
                       className="h-7 px-2"
                       onClick={(e) => {
                         e.stopPropagation();
+                        setDetailsSubtask(subtask);
+                      }}
+                    >
+                      Details
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setActiveSubtask(subtask);
                         setSubtaskDialogOpen(true);
                       }}
                     >
-                      Details
+                      Edit
                     </Button>
                   </div>
                 ))}
@@ -402,6 +415,37 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
             }}
             taskId={task.id}
             availableGridIndices={Array.from({ length: task.progressGridSize }, (_, i) => i)}
+          />
+
+          <SubtaskFullDetailsDialog
+            subtask={detailsSubtask}
+            open={!!detailsSubtask}
+            onClose={() => setDetailsSubtask(null)}
+            onEdit={() => {
+              if (detailsSubtask) {
+                setActiveSubtask(detailsSubtask);
+                setDetailsSubtask(null);
+                setSubtaskDialogOpen(true);
+              }
+            }}
+            onComplete={() => {
+              if (detailsSubtask && !detailsSubtask.completed && onUpdateTask) {
+                const updatedSubtasks = (task.subtasks || []).map(s =>
+                  s.id === detailsSubtask.id ? { ...s, completed: true } : s
+                );
+                onUpdateTask({ ...task, subtasks: updatedSubtasks });
+                setDetailsSubtask({ ...detailsSubtask, completed: true });
+              }
+            }}
+            onUncomplete={() => {
+              if (detailsSubtask && detailsSubtask.completed && onUpdateTask) {
+                const updatedSubtasks = (task.subtasks || []).map(s =>
+                  s.id === detailsSubtask.id ? { ...s, completed: false } : s
+                );
+                onUpdateTask({ ...task, subtasks: updatedSubtasks });
+                setDetailsSubtask({ ...detailsSubtask, completed: false });
+              }
+            }}
           />
         </div>
       </DialogContent>

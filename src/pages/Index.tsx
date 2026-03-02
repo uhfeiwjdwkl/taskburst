@@ -47,22 +47,25 @@ const Index = () => {
   const [listDetailsOpen, setListDetailsOpen] = useState(false);
   const [selectedSubtask, setSelectedSubtask] = useState<{ subtask: Subtask; task: Task } | null>(null);
   const [subtaskDetailsOpen, setSubtaskDetailsOpen] = useState(false);
+  const [tasksLoaded, setTasksLoaded] = useState(false);
 
   // Load tasks from localStorage
   useEffect(() => {
     const savedTasks = localStorage.getItem('tasks');
     if (savedTasks) {
-      const loadedTasks = JSON.parse(savedTasks);
-      // Migrate tasks to include progress grid properties and order
-      const migratedTasks = loadedTasks.map((task: Task, index: number) => ({
-        ...task,
-        progressGridSize: task.progressGridSize ?? 10,
-        progressGridFilled: task.progressGridFilled ?? 0,
-        order: task.order ?? index,
-      }));
-      setTasks(migratedTasks);
+      try {
+        const loadedTasks = JSON.parse(savedTasks);
+        const migratedTasks = loadedTasks.map((task: Task, index: number) => ({
+          ...task,
+          progressGridSize: task.progressGridSize ?? 10,
+          progressGridFilled: task.progressGridFilled ?? 0,
+          order: task.order ?? index,
+        }));
+        setTasks(migratedTasks);
+      } catch (e) {
+        console.error('Failed to parse tasks:', e);
+      }
     } else {
-      // Add a sample task for first-time users
       const sampleTask: Task = {
         id: '1',
         name: 'Welcome to TaskBurst! 🎯',
@@ -81,6 +84,7 @@ const Index = () => {
       setTasks([sampleTask]);
       localStorage.setItem('tasks', JSON.stringify([sampleTask]));
     }
+    setTasksLoaded(true);
   }, []);
 
   // Load favorite timetables
@@ -107,10 +111,12 @@ const Index = () => {
     }
   }, []);
 
-  // Save tasks to localStorage whenever they change
+  // Save tasks to localStorage only after initial load
   useEffect(() => {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
-  }, [tasks]);
+    if (tasksLoaded) {
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+    }
+  }, [tasks, tasksLoaded]);
 
   // Note: Task selection is now manual via Study button - no auto-selection
 
