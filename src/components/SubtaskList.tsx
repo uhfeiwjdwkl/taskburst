@@ -51,6 +51,30 @@ export const SubtaskList = ({
   const handleSaveSubtask = (subtask: Subtask) => {
     let updated: Subtask[];
     if (isNew) {
+      // Auto-link to grid if setting is enabled and subtask isn't already linked
+      const appSettings = JSON.parse(localStorage.getItem('appSettings') || '{}');
+      const autoLink = appSettings.autoLinkSubtasksToGrid || false;
+      
+      if (autoLink && progressGridSize > 0 && !subtask.linkedToProgressGrid) {
+        // Find next available grid index
+        const allLinked = [...subtasks, subtask]
+          .filter(s => s.linkedToProgressGrid && s.progressGridIndex !== undefined)
+          .map(s => s.progressGridIndex!);
+        
+        let nextIdx = 0;
+        while (allLinked.includes(nextIdx) && nextIdx < progressGridSize) {
+          nextIdx++;
+        }
+        
+        if (nextIdx < progressGridSize) {
+          subtask = {
+            ...subtask,
+            linkedToProgressGrid: true,
+            progressGridIndex: nextIdx,
+          };
+        }
+      }
+      
       updated = [...subtasks, subtask];
     } else {
       updated = subtasks.map(s => s.id === subtask.id ? subtask : s);

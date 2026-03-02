@@ -290,6 +290,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       if (isRunning) {
         intervalRef.current = window.setInterval(() => {
           setStopwatchSeconds(prev => prev + 1);
+          // Only count toward task time during focus (not break)
           if (onTick && phase === 'focus') {
             onTick(1);
           }
@@ -676,9 +677,29 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       
       <div className="flex flex-col items-center gap-8">
       <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">
-          {timerMode === 'stopwatch' ? '⏱️ Stopwatch' : (phase === 'focus' ? '🎯 Focus Time' : '☕ Break Time')}
-        </h2>
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <h2 className="text-2xl font-bold">
+            {timerMode === 'stopwatch' ? '⏱️ Stopwatch' : (phase === 'focus' ? '🎯 Focus Time' : '☕ Break Time')}
+          </h2>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => {
+              const newMode = timerMode === 'countdown' ? 'stopwatch' : 'countdown';
+              setTimerMode(newMode);
+              if (!isRunning) {
+                if (newMode === 'stopwatch') {
+                  setStopwatchSeconds(0);
+                } else {
+                  setSeconds(phase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);
+                }
+              }
+            }}
+          >
+            {timerMode === 'countdown' ? '⏱️' : '⏳'}
+          </Button>
+        </div>
         {activeTask && (phase === 'focus' || timerMode === 'stopwatch') && (
           <p className="text-lg font-medium mt-2">{activeTask.name}</p>
         )}

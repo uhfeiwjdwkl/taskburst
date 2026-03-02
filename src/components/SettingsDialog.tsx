@@ -431,7 +431,7 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                 <div>
                   <Label htmlFor="autoLinkSubtasksToGrid">Auto-link subtasks to grid</Label>
                   <p className="text-xs text-muted-foreground">
-                    When converting bullets to subtasks, auto-link sequentially to progress boxes
+                    Auto-link new subtasks sequentially to progress grid boxes
                   </p>
                 </div>
                 <Switch
