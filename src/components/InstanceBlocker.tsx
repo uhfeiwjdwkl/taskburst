@@ -2,9 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 
 const CHANNEL_NAME = 'taskburst-instance';
 const HEARTBEAT_KEY = 'taskburst-heartbeat';
-const HEARTBEAT_INTERVAL = 2000; // 2 seconds
-const HEARTBEAT_TIMEOUT = 5000; // 5 seconds - consider dead after this
-const INSTANCE_ID_KEY = 'taskburst-instance-id';
+const HEARTBEAT_INTERVAL = 2000;
+const HEARTBEAT_TIMEOUT = 6000;
 
 export const InstanceBlocker = ({ children }: { children: React.ReactNode }) => {
   const [blocked, setBlocked] = useState(false);
@@ -13,23 +12,45 @@ export const InstanceBlocker = ({ children }: { children: React.ReactNode }) => 
   const heartbeatRef = useRef<number>();
 
   useEffect(() => {
-    // Check if another instance is alive via localStorage heartbeat
-    const checkExisting = () => {
+    const checkExisting = (): boolean => {
       const stored = localStorage.getItem(HEARTBEAT_KEY);
       if (stored) {
         try {
           const data = JSON.parse(stored);
           if (data.id !== instanceId.current && Date.now() - data.timestamp < HEARTBEAT_TIMEOUT) {
-            return true; // Another instance is alive
+            return true;
           }
         } catch { }
       }
       return false;
     };
 
+    const writeHeartbeat = () => {
+      localStorage.setItem(HEARTBEAT_KEY, JSON.stringify({
+        id: instanceId.current,
+        timestamp: Date.now(),
+      }));
+    };
+
+    const startHeartbeat = () => {
+      writeHeartbeat();
+      heartbeatRef.current = window.setInterval(writeHeartbeat, HEARTBEAT_INTERVAL);
+    };
+
+    const cleanupHeartbeat = () => {
+      const stored = localStorage.getItem(HEARTBEAT_KEY);
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          if (data.id === instanceId.current) {
+            localStorage.removeItem(HEARTBEAT_KEY);
+          }
+        } catch { }
+      }
+    };
+
     if (checkExisting()) {
       setBlocked(true);
-      // Keep checking if the other instance dies
       const checkInterval = window.setInterval(() => {
         if (!checkExisting()) {
           setBlocked(false);
@@ -40,6 +61,9 @@ export const InstanceBlocker = ({ children }: { children: React.ReactNode }) => 
       return () => clearInterval(checkInterval);
     }
 
+    // We are the primary instance
+    startHeartbeat();
+
     // BroadcastChannel for instant detection
     try {
       const channel = new BroadcastChannel(CHANNEL_NAME);
@@ -47,39 +71,24 @@ export const InstanceBlocker = ({ children }: { children: React.ReactNode }) => 
 
       channel.onmessage = (event) => {
         if (event.data.type === 'ping' && event.data.id !== instanceId.current) {
-          // Another instance opened - reply with our presence
+          // Another instance is asking if anyone is alive - respond
           channel.postMessage({ type: 'pong', id: instanceId.current });
         }
-        if (event.data.type === 'pong' && event.data.id !== instanceId.current) {
-          // We got blocked - another instance was here first
-          // Only block if we're newer
-        }
-        if (event.data.type === 'new-instance' && event.data.id !== instanceId.current) {
-          // A new instance opened, it should be blocked, not us
-        }
       };
 
-      // Announce ourselves
       channel.postMessage({ type: 'ping', id: instanceId.current });
     } catch {
-      // BroadcastChannel not supported, fall back to localStorage only
+      // BroadcastChannel not supported
     }
 
-    const startHeartbeat = () => {
-      // Write heartbeat immediately
-      const writeHeartbeat = () => {
-        localStorage.setItem(HEARTBEAT_KEY, JSON.stringify({
-          id: instanceId.current,
-          timestamp: Date.now(),
-        }));
-      };
-      writeHeartbeat();
-      heartbeatRef.current = window.setInterval(writeHeartbeat, HEARTBEAT_INTERVAL);
+    // Clean up on beforeunload so reloads don't false-positive
+    const handleBeforeUnload = () => {
+      cleanupHeartbeat();
+      channelRef.current?.close();
     };
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
-    startHeartbeat();
-
-    // Listen for storage events from other tabs
+    // Listen for OTHER tabs writing heartbeats
     const handleStorage = (e: StorageEvent) => {
       if (e.key === HEARTBEAT_KEY && e.newValue) {
         try {
@@ -90,24 +99,14 @@ export const InstanceBlocker = ({ children }: { children: React.ReactNode }) => 
         } catch { }
       }
     };
-
     window.addEventListener('storage', handleStorage);
 
-    // Cleanup on unmount
     return () => {
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       channelRef.current?.close();
       window.removeEventListener('storage', handleStorage);
-      // Clear heartbeat so other tabs can start
-      const stored = localStorage.getItem(HEARTBEAT_KEY);
-      if (stored) {
-        try {
-          const data = JSON.parse(stored);
-          if (data.id === instanceId.current) {
-            localStorage.removeItem(HEARTBEAT_KEY);
-          }
-        } catch { }
-      }
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      cleanupHeartbeat();
     };
   }, []);
 
