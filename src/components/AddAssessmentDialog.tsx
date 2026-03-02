@@ -178,10 +178,10 @@ export const AddAssessmentDialog = ({ open, onClose, onAdd, prefilledDate }: Add
 
           <div>
             <Label>Link to Task (optional)</Label>
-            <Select value={linkedTaskId} onValueChange={setLinkedTaskId}>
+            <Select value={linkedTaskId || 'none'} onValueChange={(val) => setLinkedTaskId(val === 'none' ? '' : val)}>
               <SelectTrigger className="mt-1"><SelectValue placeholder="No linked task" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {tasks.filter(t => !t.completed).map(t => (
                   <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                 ))}
