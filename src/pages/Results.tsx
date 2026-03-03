@@ -105,7 +105,11 @@ export default function Results() {
     if (savedArchivedTasks) setArchivedTasks(JSON.parse(savedArchivedTasks));
     if (savedProjects) setProjects(JSON.parse(savedProjects));
     if (savedArchivedProjects) setArchivedProjects(JSON.parse(savedArchivedProjects));
-    if (savedAssessments) setAssessments(JSON.parse(savedAssessments).filter((a: Assessment) => !a.deletedAt));
+    if (savedAssessments) {
+      const parsed = JSON.parse(savedAssessments);
+      const arr = Array.isArray(parsed) ? parsed : [];
+      setAssessments(arr.filter((a: Assessment) => !a.deletedAt));
+    }
   };
 
   const saveColumnNames = (cols: Record<number, string>, total: string) => {
