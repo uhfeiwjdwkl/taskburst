@@ -69,6 +69,10 @@ export const SubtaskDialog = ({
       setProgressGridIndex(subtask.progressGridIndex);
       setColor(subtask.color);
     } else {
+      // For new subtasks, check auto-link setting
+      const appSettings = JSON.parse(localStorage.getItem('appSettings') || '{}');
+      const autoLink = appSettings.autoLinkSubtasksToGrid || false;
+      
       setTitle('');
       setDescription('');
       setAbbreviation('');
@@ -76,8 +80,8 @@ export const SubtaskDialog = ({
       setPriority(undefined);
       setDueDate('');
       setScheduledTime('');
-      setLinkedToProgressGrid(false);
-      setProgressGridIndex(undefined);
+      setLinkedToProgressGrid(autoLink && availableGridIndices.length > 0);
+      setProgressGridIndex(autoLink && availableGridIndices.length > 0 ? availableGridIndices[0] : undefined);
       setColor(undefined);
     }
   }, [subtask, open]);

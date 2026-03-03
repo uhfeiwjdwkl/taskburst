@@ -89,26 +89,18 @@ const Index = () => {
 
   // Load favorite timetables
   useEffect(() => {
-    const savedTimetables = localStorage.getItem('timetables');
-    if (savedTimetables) {
-      const allTimetables = JSON.parse(savedTimetables) as Timetable[];
-      const favorites = allTimetables.filter(t => t.favorite && !t.deletedAt);
-      setFavoriteTimetables(favorites);
-    }
+    const safeParse = (key: string): any[] => {
+      const raw = localStorage.getItem(key);
+      if (!raw) return [];
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch { return []; }
+    };
 
-    const savedLists = localStorage.getItem('lists');
-    if (savedLists) {
-      const allLists = JSON.parse(savedLists) as List[];
-      const favorites = allLists.filter(l => l.favorite && !l.deletedAt && !l.archivedAt);
-      setFavoriteLists(favorites);
-    }
-
-    const savedProjects = localStorage.getItem('projects');
-    if (savedProjects) {
-      const allProjects = JSON.parse(savedProjects) as Project[];
-      const active = allProjects.filter(p => !p.deletedAt && !p.archivedAt);
-      setActiveProjects(active);
-    }
+    setFavoriteTimetables(safeParse('timetables').filter((t: Timetable) => t.favorite && !t.deletedAt));
+    setFavoriteLists(safeParse('lists').filter((l: List) => l.favorite && !l.deletedAt && !l.archivedAt));
+    setActiveProjects(safeParse('projects').filter((p: Project) => !p.deletedAt && !p.archivedAt));
   }, []);
 
   // Save tasks to localStorage only after initial load

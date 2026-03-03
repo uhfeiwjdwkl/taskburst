@@ -227,7 +227,9 @@ export const SubtaskList = ({
                   type="button"
                   variant="ghost"
                   size="sm"
+                  className="h-8 w-8 p-0"
                   onClick={() => handleEditSubtask(subtask)}
+                  title="Edit"
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
@@ -235,8 +237,9 @@ export const SubtaskList = ({
                   type="button"
                   variant="ghost"
                   size="sm"
+                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                   onClick={() => handleDeleteSubtask(subtask.id)}
-                  className="text-destructive hover:text-destructive"
+                  title="Delete"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
