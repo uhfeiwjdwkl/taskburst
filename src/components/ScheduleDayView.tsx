@@ -95,7 +95,7 @@ export const ScheduleDayView = ({
       )}
 
       {/* Time Grid */}
-      <div className="relative" style={{ height: '400px' }}>
+      <div className="relative overflow-y-auto" style={{ height: '400px' }}>
         {/* Hour lines */}
         {hours.map((hour, index) => (
           <div

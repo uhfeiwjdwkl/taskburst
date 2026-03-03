@@ -95,21 +95,20 @@ export default function Results() {
   }, []);
 
   const loadData = () => {
-    const savedTasks = localStorage.getItem('tasks');
-    const savedArchivedTasks = localStorage.getItem('archivedTasks');
-    const savedProjects = localStorage.getItem('projects');
-    const savedArchivedProjects = localStorage.getItem('archivedProjects');
-    const savedAssessments = localStorage.getItem('assessments');
+    const safeParse = (key: string): any[] => {
+      const raw = localStorage.getItem(key);
+      if (!raw) return [];
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch { return []; }
+    };
     
-    if (savedTasks) setTasks(JSON.parse(savedTasks));
-    if (savedArchivedTasks) setArchivedTasks(JSON.parse(savedArchivedTasks));
-    if (savedProjects) setProjects(JSON.parse(savedProjects));
-    if (savedArchivedProjects) setArchivedProjects(JSON.parse(savedArchivedProjects));
-    if (savedAssessments) {
-      const parsed = JSON.parse(savedAssessments);
-      const arr = Array.isArray(parsed) ? parsed : [];
-      setAssessments(arr.filter((a: Assessment) => !a.deletedAt));
-    }
+    setTasks(safeParse('tasks'));
+    setArchivedTasks(safeParse('archivedTasks'));
+    setProjects(safeParse('projects'));
+    setArchivedProjects(safeParse('archivedProjects'));
+    setAssessments(safeParse('assessments').filter((a: Assessment) => !a.deletedAt));
   };
 
   const saveColumnNames = (cols: Record<number, string>, total: string) => {
@@ -497,7 +496,8 @@ export default function Results() {
     const assessment = assessments.find(a => a.id === id);
     if (assessment) {
       const deleted = { ...assessment, deletedAt: new Date().toISOString() };
-      const allAssessments = JSON.parse(localStorage.getItem('assessments') || '[]');
+      const raw = localStorage.getItem('assessments');
+      const allAssessments = raw ? (Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : []) : [];
       const updated = allAssessments.map((a: Assessment) => a.id === id ? deleted : a);
       localStorage.setItem('assessments', JSON.stringify(updated));
       setAssessments(assessments.filter(a => a.id !== id));
@@ -767,21 +767,42 @@ export default function Results() {
               const totalMax = scored.reduce((s, p) => s + p.maxScore, 0);
               const pct = totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
               const daysUntil = a.dueDate ? Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+              
+              // Color-coded due date
+              const getDueBadgeClass = () => {
+                if (a.completed) return 'bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30';
+                if (daysUntil === null) return '';
+                if (daysUntil < 0) return 'bg-destructive/20 text-destructive border-destructive/30';
+                if (daysUntil === 0) return 'bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/30';
+                if (daysUntil <= 3) return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30';
+                if (daysUntil <= 7) return 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30';
+                return '';
+              };
+              
               return (
                 <Card key={a.id} className="p-4 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => { setSelectedAssessment(a); setAssessmentDetailsOpen(true); }}>
                   <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="font-semibold">{a.name}</h3>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold truncate">{a.name}</h3>
                       <p className="text-xs text-muted-foreground">{a.assessmentType} • {a.category || 'Uncategorized'}</p>
                     </div>
-                    <Badge variant={daysUntil !== null && daysUntil < 0 ? 'destructive' : 'secondary'} className="text-xs">
-                      {daysUntil !== null ? (daysUntil < 0 ? `${Math.abs(daysUntil)}d ago` : daysUntil === 0 ? 'Today' : `in ${daysUntil}d`) : 'No date'}
+                    <Badge className={`text-xs shrink-0 ml-2 ${getDueBadgeClass()}`} variant="outline">
+                      {a.completed ? '✓ Done' : daysUntil !== null ? (daysUntil < 0 ? `${Math.abs(daysUntil)}d overdue` : daysUntil === 0 ? 'Today!' : `${daysUntil}d left`) : 'No date'}
                     </Badge>
                   </div>
+                  {a.linkedTaskId && (
+                    <p className="text-xs text-muted-foreground mb-1">📋 Linked to task</p>
+                  )}
                   <div className="text-2xl font-bold text-center mt-2">
                     {scored.length > 0 ? `${totalScore}/${totalMax}` : '—'}
                   </div>
                   {scored.length > 0 && <div className="text-center text-sm text-muted-foreground">{pct}%</div>}
+                  {a.dueDate && (
+                    <div className="text-center text-xs text-muted-foreground mt-1">
+                      <Calendar className="h-3 w-3 inline mr-1" />
+                      {new Date(a.dueDate).toLocaleDateString('en-GB')}
+                    </div>
+                  )}
                 </Card>
               );
             })}
