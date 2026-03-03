@@ -12,8 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isToday } from 'date-fns';
+import { ScheduleDayView } from '@/components/ScheduleDayView';
+import { Calendar, Clock, ChevronLeft, ChevronRight, LayoutList } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isToday, parseISO } from 'date-fns';
 
 interface TaskScheduleDialogProps {
   task: Task | null;
@@ -29,12 +30,29 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
   const [editedTask, setEditedTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [selectedSubtaskId, setSelectedSubtaskId] = useState<string | null>(null);
+  const [showDayView, setShowDayView] = useState(false);
+  const [allEvents, setAllEvents] = useState<CalendarEvent[]>([]);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
 
   useEffect(() => {
     if (task) {
       setEditedTask({ ...task });
     }
   }, [task]);
+
+  useEffect(() => {
+    if (open) {
+      // Load all events for the day view
+      const savedEvents = localStorage.getItem('calendarEvents');
+      if (savedEvents) {
+        try { setAllEvents(JSON.parse(savedEvents)); } catch { setAllEvents([]); }
+      }
+      const savedTasks = localStorage.getItem('tasks');
+      if (savedTasks) {
+        try { setAllTasks(JSON.parse(savedTasks)); } catch { setAllTasks([]); }
+      }
+    }
+  }, [open]);
 
   // Auto-save on close
   const handleClose = () => {
@@ -70,6 +88,39 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
       }
       return e.date === dateStr;
     });
+  };
+
+  // Get all calendar events for a day (from all events, not just task-related)
+  const getAllEventsForDay = (date: Date): CalendarEvent[] => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return allEvents.filter(e => {
+      if (e.endDate) return dateStr >= e.date && dateStr <= e.endDate;
+      return e.date === dateStr;
+    });
+  };
+
+  // Get all subtasks across all tasks for a specific day  
+  const getAllSubtasksForDay = (date: Date): Subtask[] => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const result: Subtask[] = [];
+    allTasks.forEach(t => {
+      (t.subtasks || []).forEach(s => {
+        if (s.dueDate === dateStr) result.push(s);
+      });
+    });
+    // Also include this task's subtasks
+    subtasks.forEach(s => {
+      if (s.dueDate === dateStr && !result.find(r => r.id === s.id)) {
+        result.push(s);
+      }
+    });
+    return result;
+  };
+
+  // Get tasks due on a specific day
+  const getTasksForDay = (date: Date): Task[] => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    return allTasks.filter(t => t.dueDate === dateStr);
   };
 
   const handleScheduleSubtask = (subtaskId: string, date: Date | null, time?: string, duration?: number) => {
@@ -209,6 +260,35 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
               );
             })}
           </div>
+
+          {/* Day View Toggle & Full Day Schedule */}
+          {selectedDate && (
+            <div>
+              <Button
+                variant={showDayView ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowDayView(!showDayView)}
+                className="mb-3"
+              >
+                <LayoutList className="h-4 w-4 mr-1" />
+                Day Schedule
+              </Button>
+              {showDayView && (
+                <div className="border rounded-lg p-3 bg-muted/30">
+                  <h4 className="font-medium mb-2">{format(selectedDate, 'EEEE, MMMM d')}</h4>
+                  <ScheduleDayView
+                    date={selectedDate}
+                    subtasks={getAllSubtasksForDay(selectedDate)}
+                    events={getAllEventsForDay(selectedDate)}
+                    tasks={getTasksForDay(selectedDate)}
+                    onSubtaskClick={(s) => setSelectedSubtaskId(s.id)}
+                    onEventClick={() => {}}
+                    onTaskClick={() => {}}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Unscheduled Subtasks */}
           <div className="border-t pt-4">
