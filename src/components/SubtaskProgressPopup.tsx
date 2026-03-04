@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Subtask } from '@/types/subtask';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, X, Clock, Calendar as CalendarIcon, Edit, ChevronRight } from 'lucide-react';
+import { Check, X, Clock, Calendar as CalendarIcon, Edit, ChevronRight, GripHorizontal } from 'lucide-react';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 
 interface SubtaskProgressPopupProps {
@@ -16,17 +17,21 @@ interface SubtaskProgressPopupProps {
   position?: 'top' | 'bottom';
 }
 
-export const SubtaskProgressPopup = ({ 
-  subtask, 
+export const SubtaskProgressPopup = ({
+  subtask,
   estimatedRemaining,
-  onComplete, 
+  onComplete,
   onUncomplete,
   onClose,
   onViewDetails,
   onEdit,
   onSchedule,
-  position = 'top' 
+  position = 'top'
 }: SubtaskProgressPopupProps) => {
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+
   const priorityColors: Record<number, string> = {
     1: 'bg-slate-500',
     2: 'bg-blue-500',
@@ -35,24 +40,45 @@ export const SubtaskProgressPopup = ({
     5: 'bg-red-500',
   };
 
-  const positionClasses = position === 'top' 
-    ? 'bottom-full mb-2' 
+  const positionClasses = position === 'top'
+    ? 'bottom-full mb-2'
     : 'top-full mt-2';
 
-  // Calculate remaining time
-  const remainingMinutes = estimatedRemaining !== undefined 
-    ? estimatedRemaining 
+  const remainingMinutes = estimatedRemaining !== undefined
+    ? estimatedRemaining
     : subtask.estimatedMinutes || 0;
-  
+
   const mins = Math.floor(remainingMinutes);
   const secs = Math.round((remainingMinutes % 1) * 60);
 
+  const handleDragStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(true);
+    setDragStart({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y });
+  };
+
+  const handleDragMove = (e: React.MouseEvent) => {
+    if (!dragging || !dragStart) return;
+    setDragOffset({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+  };
+
+  const handleDragEnd = () => {
+    setDragging(false);
+    setDragStart(null);
+  };
+
   return (
-    <div 
-      className={`absolute z-20 left-1/2 -translate-x-1/2 ${positionClasses} w-64 bg-popover border border-border rounded-lg shadow-lg p-3`}
+    <div
+      className={`absolute z-20 left-1/2 ${positionClasses} w-64 bg-popover border border-border rounded-lg shadow-lg p-3`}
+      style={{ transform: `translate(calc(-50% + ${dragOffset.x}px), ${dragOffset.y}px)` }}
       onClick={(e) => e.stopPropagation()}
+      onMouseMove={handleDragMove}
+      onMouseUp={handleDragEnd}
+      onMouseLeave={handleDragEnd}
     >
-      <div className="flex justify-end mb-1">
+      <div className="flex justify-between items-center mb-1 cursor-move" onMouseDown={handleDragStart}>
+        <GripHorizontal className="h-3 w-3 text-muted-foreground" />
         <Button
           size="sm"
           variant="ghost"
@@ -63,7 +89,6 @@ export const SubtaskProgressPopup = ({
         </Button>
       </div>
 
-      {/* Remaining Time */}
       {remainingMinutes > 0 && (
         <div className="text-center mb-3 p-2 bg-muted rounded-md">
           <div className="text-lg font-bold">
@@ -72,8 +97,7 @@ export const SubtaskProgressPopup = ({
           <div className="text-xs text-muted-foreground">Estimated remaining</div>
         </div>
       )}
-      
-      {/* Full Name Button - opens full details */}
+
       <Button
         variant="outline"
         className="w-full justify-between mb-2 h-auto py-2"
@@ -83,7 +107,6 @@ export const SubtaskProgressPopup = ({
         <ChevronRight className="h-4 w-4 flex-shrink-0 ml-2" />
       </Button>
 
-      {/* Info badges */}
       <div className="flex flex-wrap gap-1 mb-2">
         {subtask.priority && (
           <Badge className={`${priorityColors[subtask.priority]} text-white text-xs h-5`}>
@@ -104,7 +127,6 @@ export const SubtaskProgressPopup = ({
         )}
       </div>
 
-      {/* Action buttons */}
       {(onEdit || onSchedule) && (
         <div className="flex gap-2 mt-3">
           {onEdit && (
@@ -112,10 +134,10 @@ export const SubtaskProgressPopup = ({
               size="sm"
               variant="outline"
               onClick={onEdit}
-              className="flex-1 h-7 text-xs"
+              className="h-7 w-7 p-0"
+              title="Edit"
             >
-              <Edit className="h-3 w-3 mr-1" />
-              Edit
+              <Edit className="h-3 w-3" />
             </Button>
           )}
           {onSchedule && (
@@ -123,16 +145,15 @@ export const SubtaskProgressPopup = ({
               size="sm"
               variant="outline"
               onClick={onSchedule}
-              className="flex-1 h-7 text-xs"
+              className="h-7 w-7 p-0"
+              title="Schedule"
             >
-              <CalendarIcon className="h-3 w-3 mr-1" />
-              Schedule
+              <CalendarIcon className="h-3 w-3" />
             </Button>
           )}
         </div>
       )}
 
-      {/* Complete/Uncomplete Button */}
       <div className="mt-2">
         {subtask.completed ? (
           onUncomplete && (

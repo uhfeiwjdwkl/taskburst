@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Subtask } from '@/types/subtask';
 import {
   Dialog,
@@ -8,7 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { X, Edit, Clock, Calendar as CalendarIcon, Check, Undo } from 'lucide-react';
+import { X, Edit, Clock, Calendar as CalendarIcon, Check, Undo, ArrowUpRight } from 'lucide-react';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 
 interface SubtaskFullDetailsDialogProps {
@@ -18,6 +19,8 @@ interface SubtaskFullDetailsDialogProps {
   onEdit?: () => void;
   onComplete?: () => void;
   onUncomplete?: () => void;
+  onGoToParentTask?: () => void;
+  parentTaskName?: string;
 }
 
 export const SubtaskFullDetailsDialog = ({
@@ -27,6 +30,8 @@ export const SubtaskFullDetailsDialog = ({
   onEdit,
   onComplete,
   onUncomplete,
+  onGoToParentTask,
+  parentTaskName,
 }: SubtaskFullDetailsDialogProps) => {
   if (!subtask) return null;
 
@@ -60,7 +65,7 @@ export const SubtaskFullDetailsDialog = ({
         <DialogHeader className="flex flex-row items-center justify-between">
           <div>
             <DialogTitle>Subtask Details</DialogTitle>
-            <DialogDescription>View subtask information</DialogDescription>
+            <DialogDescription>Full subtask information</DialogDescription>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
             <X className="h-4 w-4" />
@@ -68,7 +73,6 @@ export const SubtaskFullDetailsDialog = ({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Title with completion status */}
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-lg font-semibold flex-1">{subtask.title}</h3>
             {subtask.completed && (
@@ -76,11 +80,10 @@ export const SubtaskFullDetailsDialog = ({
             )}
           </div>
 
-          {/* Abbreviation and Color preview */}
           {(subtask.abbreviation || subtask.color) && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {subtask.abbreviation && (
-                <Badge variant="outline">Abbrev: {subtask.abbreviation}</Badge>
+                <Badge variant="outline">Icon/Letters: {subtask.abbreviation}</Badge>
               )}
               {subtask.color && (
                 <div className="flex items-center gap-1">
@@ -94,56 +97,57 @@ export const SubtaskFullDetailsDialog = ({
             </div>
           )}
 
-          {/* Description */}
           {subtask.description && (
             <div>
               <span className="text-sm font-medium text-muted-foreground">Description</span>
-              <p className="text-sm mt-1">{subtask.description}</p>
+              <p className="text-sm mt-1 whitespace-pre-wrap">{subtask.description}</p>
             </div>
           )}
 
-          {/* Info badges */}
-          <div className="flex flex-wrap gap-2">
-            {subtask.priority && (
-              <Badge className={`${priorityColors[subtask.priority]} text-white`}>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            {subtask.priority ? (
+              <Badge className={`${priorityColors[subtask.priority]} text-white col-span-2 w-fit`}>
                 {priorityLabels[subtask.priority]} Priority
               </Badge>
-            )}
-            {subtask.estimatedMinutes && subtask.estimatedMinutes > 0 && (
-              <Badge variant="outline">
-                <Clock className="h-3 w-3 mr-1" />
-                {mins}m {secs > 0 ? `${secs}s` : ''}
+            ) : null}
+
+            {subtask.dueDate && (
+              <Badge variant="secondary" className="justify-start">
+                <CalendarIcon className="h-3 w-3 mr-1" />
+                {new Date(subtask.dueDate).toLocaleDateString('en-GB')}
               </Badge>
             )}
+
+            {subtask.scheduledTime && (
+              <Badge variant="secondary" className="justify-start">
+                <Clock className="h-3 w-3 mr-1" />
+                {formatTimeTo12Hour(subtask.scheduledTime)}
+              </Badge>
+            )}
+
+            <Badge variant="outline" className="justify-start">
+              Duration: {mins}m {secs > 0 ? `${secs}s` : ''}
+            </Badge>
+
+            <Badge variant="outline" className="justify-start">
+              Time spent: Not tracked yet
+            </Badge>
           </div>
 
-          {/* Date and Time */}
-          {(subtask.dueDate || subtask.scheduledTime) && (
-            <div className="flex flex-wrap gap-2">
-              {subtask.dueDate && (
-                <Badge variant="secondary">
-                  <CalendarIcon className="h-3 w-3 mr-1" />
-                  {new Date(subtask.dueDate).toLocaleDateString('en-GB')}
-                </Badge>
-              )}
-              {subtask.scheduledTime && (
-                <Badge variant="secondary">
-                  <Clock className="h-3 w-3 mr-1" />
-                  {formatTimeTo12Hour(subtask.scheduledTime)}
-                </Badge>
-              )}
+          {subtask.linkedToProgressGrid && subtask.progressGridIndex !== undefined && (
+            <div className="text-sm text-muted-foreground">
+              Progress box: #{subtask.progressGridIndex + 1}
             </div>
           )}
 
-          {/* Grid link info */}
-          {subtask.linkedToProgressGrid && subtask.progressGridIndex !== undefined && (
-            <div className="text-sm text-muted-foreground">
-              Linked to progress grid box #{subtask.progressGridIndex + 1}
-            </div>
+          {onGoToParentTask && (
+            <Button variant="outline" className="w-full" onClick={onGoToParentTask}>
+              <ArrowUpRight className="h-4 w-4 mr-2" />
+              Go to Parent Task{parentTaskName ? `: ${parentTaskName}` : ''}
+            </Button>
           )}
         </div>
 
-        {/* Action buttons */}
         <div className="flex gap-2 justify-end border-t pt-4">
           {onEdit && (
             <Button variant="outline" onClick={onEdit}>

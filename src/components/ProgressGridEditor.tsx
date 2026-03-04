@@ -15,6 +15,7 @@ import { X } from 'lucide-react';
 import { ProgressGridBox } from './ProgressGridShape';
 import { SubtaskProgressPopup } from './SubtaskProgressPopup';
 import { SubtaskDialog } from './SubtaskDialog';
+import { SubtaskFullDetailsDialog } from './SubtaskFullDetailsDialog';
 import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface ProgressGridEditorProps {
@@ -29,24 +30,24 @@ interface ProgressGridEditorProps {
   description: string;
 }
 
-const ProgressGridEditor = ({ 
-  task, 
-  open, 
-  onClose, 
-  onSave, 
-  onCompleteSubtask, 
+const ProgressGridEditor = ({
+  task,
+  open,
+  onClose,
+  onSave,
+  onCompleteSubtask,
   onUncompleteSubtask,
   onUpdateSubtask,
-  title, 
-  description 
+  title,
+  description
 }: ProgressGridEditorProps) => {
   const [filledIndices, setFilledIndices] = useState<number[]>([]);
   const [selectedBox, setSelectedBox] = useState<number | null>(null);
   const [editingSubtask, setEditingSubtask] = useState<Subtask | null>(null);
+  const [detailsSubtask, setDetailsSubtask] = useState<Subtask | null>(null);
   const [localSubtasks, setLocalSubtasks] = useState<Subtask[]>([]);
   const settings = useAppSettings();
 
-  // Initialize from existing progressGridFilled 
   useEffect(() => {
     if (open) {
       const storedIndices = getStoredFilledIndices(task.id);
@@ -57,18 +58,18 @@ const ProgressGridEditor = ({
       }
       setSelectedBox(null);
       setEditingSubtask(null);
+      setDetailsSubtask(null);
       setLocalSubtasks(task.subtasks || []);
     }
   }, [open, task.id, task.progressGridFilled, task.subtasks]);
 
-  // Get subtask linked to a specific grid index
   const getSubtaskForIndex = (index: number): Subtask | undefined => {
     return localSubtasks.find(s => s.linkedToProgressGrid && s.progressGridIndex === index);
   };
 
   const handleGridClick = (index: number) => {
     const subtask = getSubtaskForIndex(index);
-    
+
     if (subtask) {
       setSelectedBox(selectedBox === index ? null : index);
     } else {
@@ -86,7 +87,7 @@ const ProgressGridEditor = ({
     if (!filledIndices.includes(index)) {
       setFilledIndices(prev => [...prev, index].sort((a, b) => a - b));
     }
-    setLocalSubtasks(prev => prev.map(s => 
+    setLocalSubtasks(prev => prev.map(s =>
       s.id === subtaskId ? { ...s, completed: true } : s
     ));
     onCompleteSubtask?.(subtaskId);
@@ -95,7 +96,7 @@ const ProgressGridEditor = ({
 
   const handleUncompleteSubtask = (subtaskId: string, index: number) => {
     setFilledIndices(prev => prev.filter(i => i !== index));
-    setLocalSubtasks(prev => prev.map(s => 
+    setLocalSubtasks(prev => prev.map(s =>
       s.id === subtaskId ? { ...s, completed: false } : s
     ));
     onUncompleteSubtask?.(subtaskId);
@@ -108,11 +109,12 @@ const ProgressGridEditor = ({
   };
 
   const handleSaveEditedSubtask = (updatedSubtask: Subtask) => {
-    setLocalSubtasks(prev => prev.map(s => 
+    setLocalSubtasks(prev => prev.map(s =>
       s.id === updatedSubtask.id ? updatedSubtask : s
     ));
     onUpdateSubtask?.(updatedSubtask);
     setEditingSubtask(null);
+    setDetailsSubtask(updatedSubtask);
   };
 
   const handleSave = () => {
@@ -128,7 +130,7 @@ const ProgressGridEditor = ({
   return (
     <>
       <Dialog open={open} onOpenChange={() => {}}>
-        <DialogContent 
+        <DialogContent
           className="max-w-md"
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
@@ -142,22 +144,22 @@ const ProgressGridEditor = ({
               <X className="h-4 w-4" />
             </Button>
           </DialogHeader>
-          
+
           <div className="py-4">
             <div className="text-center mb-4">
               <h3 className="font-semibold text-lg mb-2">{task.name}</h3>
             </div>
-            
+
             <div className="flex flex-col items-center gap-3">
               <div className="flex flex-wrap gap-1 justify-center max-w-xs">
                 {Array.from({ length: task.progressGridSize }).map((_, index) => {
                   const subtask = getSubtaskForIndex(index);
                   const isFilled = filledIndices.includes(index);
                   const isSelected = selectedBox === index;
-                  const displayText = subtask 
+                  const displayText = subtask
                     ? (subtask.abbreviation || subtask.title.charAt(0).toUpperCase())
                     : null;
-                  
+
                   return (
                     <div key={index} className="relative">
                       <ProgressGridBox
@@ -176,8 +178,7 @@ const ProgressGridEditor = ({
                       >
                         {subtask ? displayText : undefined}
                       </ProgressGridBox>
-                      
-                      {/* Subtask popup */}
+
                       {isSelected && subtask && (
                         <SubtaskProgressPopup
                           subtask={subtask}
@@ -185,7 +186,10 @@ const ProgressGridEditor = ({
                           onComplete={() => handleCompleteSubtask(subtask.id, index)}
                           onUncomplete={() => handleUncompleteSubtask(subtask.id, index)}
                           onClose={() => setSelectedBox(null)}
-                          onViewDetails={() => handleEditSubtask(subtask)}
+                          onViewDetails={() => {
+                            setDetailsSubtask(subtask);
+                            setSelectedBox(null);
+                          }}
                           onEdit={() => handleEditSubtask(subtask)}
                           position="bottom"
                         />
@@ -211,7 +215,6 @@ const ProgressGridEditor = ({
         </DialogContent>
       </Dialog>
 
-      {/* Edit Subtask Dialog */}
       <SubtaskDialog
         subtask={editingSubtask}
         open={!!editingSubtask}
@@ -220,23 +223,57 @@ const ProgressGridEditor = ({
         taskId={task.id}
         availableGridIndices={[]}
       />
+
+      <SubtaskFullDetailsDialog
+        subtask={detailsSubtask}
+        open={!!detailsSubtask}
+        onClose={() => setDetailsSubtask(null)}
+        parentTaskName={task.name}
+        onGoToParentTask={() => setDetailsSubtask(null)}
+        onEdit={() => {
+          if (!detailsSubtask) return;
+          setEditingSubtask(detailsSubtask);
+          setDetailsSubtask(null);
+        }}
+        onComplete={() => {
+          if (!detailsSubtask || detailsSubtask.progressGridIndex === undefined || detailsSubtask.completed) return;
+          handleCompleteSubtask(detailsSubtask.id, detailsSubtask.progressGridIndex);
+          setDetailsSubtask({ ...detailsSubtask, completed: true });
+        }}
+        onUncomplete={() => {
+          if (!detailsSubtask || detailsSubtask.progressGridIndex === undefined || !detailsSubtask.completed) return;
+          handleUncompleteSubtask(detailsSubtask.id, detailsSubtask.progressGridIndex);
+          setDetailsSubtask({ ...detailsSubtask, completed: false });
+        }}
+      />
     </>
   );
 };
 
-// Helper functions to store/retrieve non-sequential filled indices
 const FILLED_INDICES_KEY = 'progressGridFilledIndices';
 
 function getStoredFilledIndices(taskId: string): number[] | null {
   const stored = localStorage.getItem(FILLED_INDICES_KEY);
   if (!stored) return null;
-  const data = JSON.parse(stored);
-  return data[taskId] || null;
+  try {
+    const data = JSON.parse(stored);
+    return Array.isArray(data[taskId]) ? data[taskId] : null;
+  } catch {
+    return null;
+  }
 }
 
 function storeFilledIndices(taskId: string, indices: number[]): void {
   const stored = localStorage.getItem(FILLED_INDICES_KEY);
-  const data = stored ? JSON.parse(stored) : {};
+  let data: Record<string, number[]> = {};
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      data = typeof parsed === 'object' && parsed ? parsed : {};
+    } catch {
+      data = {};
+    }
+  }
   data[taskId] = indices;
   localStorage.setItem(FILLED_INDICES_KEY, JSON.stringify(data));
 }

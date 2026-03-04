@@ -5,32 +5,40 @@ import { cn } from '@/lib/utils';
 import { ProgressGridBox } from '@/components/ProgressGridShape';
 import { SubtaskProgressPopup } from './SubtaskProgressPopup';
 import { SubtaskDialog } from './SubtaskDialog';
+import { SubtaskFullDetailsDialog } from './SubtaskFullDetailsDialog';
 import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface UniversalProgressGridProps {
   task: Task;
   onUpdateTask?: (task: Task) => void;
-  /** Size of each grid box - 'sm' = 16px, 'md' = 24px, 'lg' = 28px */
   size?: 'sm' | 'md' | 'lg';
-  /** Whether to show the percentage text next to the grid */
   showPercentage?: boolean;
-  /** Layout direction for the grid container */
   layout?: 'inline' | 'centered';
-  /** Whether the grid boxes are interactive (clickable) */
   interactive?: boolean;
 }
 
-// Helper to get stored filled indices
 const getStoredFilledIndices = (taskId: string): number[] | null => {
   const stored = localStorage.getItem('progressGridFilledIndices');
   if (!stored) return null;
-  const data = JSON.parse(stored);
-  return data[taskId] || null;
+  try {
+    const data = JSON.parse(stored);
+    return Array.isArray(data[taskId]) ? data[taskId] : null;
+  } catch {
+    return null;
+  }
 };
 
 const storeFilledIndices = (taskId: string, indices: number[]): void => {
   const stored = localStorage.getItem('progressGridFilledIndices');
-  const data = stored ? JSON.parse(stored) : {};
+  let data: Record<string, number[]> = {};
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      data = typeof parsed === 'object' && parsed ? parsed : {};
+    } catch {
+      data = {};
+    }
+  }
   data[taskId] = indices;
   localStorage.setItem('progressGridFilledIndices', JSON.stringify(data));
 };
@@ -47,23 +55,17 @@ export const UniversalProgressGrid = ({
   const [filledIndices, setFilledIndices] = useState<number[]>([]);
   const [subtaskDialogOpen, setSubtaskDialogOpen] = useState(false);
   const [activeSubtask, setActiveSubtask] = useState<Subtask | null>(null);
+  const [detailsSubtask, setDetailsSubtask] = useState<Subtask | null>(null);
   const settings = useAppSettings();
 
-  // Size mapping
-  const sizeMap = {
-    sm: 16,
-    md: 24,
-    lg: 28,
-  };
+  const sizeMap = { sm: 16, md: 24, lg: 28 };
   const boxSize = sizeMap[size];
 
-  // Initialize filled indices when task changes
   useEffect(() => {
     const stored = getStoredFilledIndices(task.id);
     setFilledIndices(stored || Array.from({ length: task.progressGridFilled }, (_, i) => i));
   }, [task.id, task.progressGridFilled]);
 
-  // Get subtask for a specific grid index
   const getSubtaskForIndex = (index: number): Subtask | undefined => {
     return task.subtasks?.find(s => s.linkedToProgressGrid && s.progressGridIndex === index);
   };
@@ -73,21 +75,18 @@ export const UniversalProgressGrid = ({
     if (!interactive) return;
 
     const subtask = getSubtaskForIndex(index);
-
-    // Subtask boxes always open the subtask popup
     if (subtask) {
       setSelectedBox(selectedBox === index ? null : index);
       return;
     }
 
-    // Toggle the box (non-sequential)
     const newIndices = filledIndices.includes(index)
       ? filledIndices.filter(i => i !== index)
       : [...filledIndices, index].sort((a, b) => a - b);
-    
+
     storeFilledIndices(task.id, newIndices);
     setFilledIndices(newIndices);
-    
+
     if (onUpdateTask) {
       onUpdateTask({ ...task, progressGridFilled: newIndices.length });
     }
@@ -95,25 +94,26 @@ export const UniversalProgressGrid = ({
 
   const handleCompleteSubtask = (subtaskId: string, index: number) => {
     if (!onUpdateTask) return;
-    
+
     const updatedSubtasks = (task.subtasks || []).map(s =>
       s.id === subtaskId ? { ...s, completed: true } : s
     );
-    
+
     const newIndices = filledIndices.includes(index)
       ? filledIndices
       : [...filledIndices, index].sort((a, b) => a - b);
-    
+
     storeFilledIndices(task.id, newIndices);
     setFilledIndices(newIndices);
-    
+
     onUpdateTask({
       ...task,
       subtasks: updatedSubtasks,
       progressGridFilled: newIndices.length,
     });
-    
+
     setSelectedBox(null);
+    setDetailsSubtask((task.subtasks || []).find(s => s.id === subtaskId) || null);
   };
 
   const handleUncompleteSubtask = (subtaskId: string, index: number) => {
@@ -137,25 +137,27 @@ export const UniversalProgressGrid = ({
     });
 
     setSelectedBox(null);
+    setDetailsSubtask((task.subtasks || []).find(s => s.id === subtaskId) || null);
   };
 
   const handleSaveSubtask = (updatedSubtask: Subtask) => {
     if (!onUpdateTask) return;
-    
+
     const updatedSubtasks = (task.subtasks || []).map(s =>
       s.id === updatedSubtask.id ? updatedSubtask : s
     );
-    
+
     onUpdateTask({ ...task, subtasks: updatedSubtasks });
     setSubtaskDialogOpen(false);
     setActiveSubtask(null);
+    setDetailsSubtask(updatedSubtask);
   };
 
   const progressPercentage = task.progressGridSize > 0
     ? Math.round((filledIndices.length / task.progressGridSize) * 100)
     : 0;
 
-  const containerClass = layout === 'centered' 
+  const containerClass = layout === 'centered'
     ? 'flex flex-wrap gap-1 justify-center'
     : 'flex flex-wrap gap-1';
 
@@ -173,7 +175,7 @@ export const UniversalProgressGrid = ({
             const displayText = subtask
               ? (subtask.abbreviation || subtask.title.charAt(0).toUpperCase())
               : null;
-            
+
             return (
               <div key={index} className="relative">
                 <ProgressGridBox
@@ -194,22 +196,22 @@ export const UniversalProgressGrid = ({
                 >
                   {subtask ? displayText : undefined}
                 </ProgressGridBox>
-                
-                {/* Subtask popup */}
+
                 {isSelected && subtask && (
                   <SubtaskProgressPopup
                     subtask={subtask}
                     estimatedRemaining={subtask.estimatedMinutes}
                     onClose={() => setSelectedBox(null)}
                     onViewDetails={() => {
-                      setActiveSubtask(subtask);
-                      setSubtaskDialogOpen(true);
+                      setDetailsSubtask(subtask);
+                      setSelectedBox(null);
                     }}
                     onComplete={() => handleCompleteSubtask(subtask.id, index)}
                     onUncomplete={() => handleUncompleteSubtask(subtask.id, index)}
                     onEdit={() => {
                       setActiveSubtask(subtask);
                       setSubtaskDialogOpen(true);
+                      setSelectedBox(null);
                     }}
                     position={layout === 'inline' ? 'bottom' : 'top'}
                   />
@@ -218,20 +220,19 @@ export const UniversalProgressGrid = ({
             );
           })}
         </div>
-        
+
         {showPercentage && (
           <div className={cn(
-            "font-semibold bg-gradient-primary bg-clip-text text-transparent",
-            size === 'sm' && "text-sm",
-            size === 'md' && "text-base",
-            size === 'lg' && "text-lg"
+            'font-semibold bg-gradient-primary bg-clip-text text-transparent',
+            size === 'sm' && 'text-sm',
+            size === 'md' && 'text-base',
+            size === 'lg' && 'text-lg'
           )}>
             {progressPercentage}%
           </div>
         )}
       </div>
 
-      {/* Subtask Edit Dialog */}
       <SubtaskDialog
         subtask={activeSubtask}
         open={subtaskDialogOpen}
@@ -242,6 +243,28 @@ export const UniversalProgressGrid = ({
         onSave={handleSaveSubtask}
         taskId={task.id}
         availableGridIndices={[]}
+      />
+
+      <SubtaskFullDetailsDialog
+        subtask={detailsSubtask}
+        open={!!detailsSubtask}
+        onClose={() => setDetailsSubtask(null)}
+        onGoToParentTask={() => setDetailsSubtask(null)}
+        parentTaskName={task.name}
+        onEdit={() => {
+          if (!detailsSubtask) return;
+          setActiveSubtask(detailsSubtask);
+          setDetailsSubtask(null);
+          setSubtaskDialogOpen(true);
+        }}
+        onComplete={() => {
+          if (!detailsSubtask || detailsSubtask.completed || detailsSubtask.progressGridIndex === undefined) return;
+          handleCompleteSubtask(detailsSubtask.id, detailsSubtask.progressGridIndex);
+        }}
+        onUncomplete={() => {
+          if (!detailsSubtask || !detailsSubtask.completed || detailsSubtask.progressGridIndex === undefined) return;
+          handleUncompleteSubtask(detailsSubtask.id, detailsSubtask.progressGridIndex);
+        }}
       />
     </>
   );
