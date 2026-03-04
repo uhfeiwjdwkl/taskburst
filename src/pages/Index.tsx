@@ -13,7 +13,7 @@ import AddTaskDialog from '@/components/AddTaskDialog';
 import { TimetableCurrentBlock } from '@/components/TimetableCurrentBlock';
 import { CurrentEventDisplay } from '@/components/CurrentEventDisplay';
 import { CurrentScheduledTask } from '@/components/CurrentScheduledTask';
-import { HomeDayCalendar } from '@/components/HomeDayCalendar';
+import { UniversalDayCalendar } from '@/components/UniversalDayCalendar';
 import { ExportImportButton } from '@/components/ExportImportButton';
 import { exportAllData } from '@/lib/exportImport';
 import { ImportAllButton } from '@/components/ImportAllButton';
@@ -306,7 +306,7 @@ const Index = () => {
 
           {/* Day Calendar - shown beside timer on large screens */}
           <div className="hidden lg:block h-[550px]">
-            <HomeDayCalendar
+            <UniversalDayCalendar
               tasks={tasks}
               onTaskClick={(task) => {
                 setSelectedTask(task);
@@ -317,7 +317,6 @@ const Index = () => {
                 setSubtaskDetailsOpen(true);
               }}
               onStartSubtask={(subtask, task) => {
-                // Start the parent task for the subtask
                 setActiveTaskId(task.id);
                 toast.success(`Starting focus session for: ${subtask.title}`);
               }}
@@ -327,7 +326,7 @@ const Index = () => {
 
         {/* Day Calendar - shown above tasks on smaller screens */}
         <section className="lg:hidden mb-6">
-          <HomeDayCalendar
+          <UniversalDayCalendar
             tasks={tasks}
             onTaskClick={(task) => {
               setSelectedTask(task);
