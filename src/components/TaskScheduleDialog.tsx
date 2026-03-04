@@ -12,8 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ScheduleDayView } from '@/components/ScheduleDayView';
-import { Calendar, Clock, ChevronLeft, ChevronRight, LayoutList } from 'lucide-react';
+import { UniversalDayCalendar } from '@/components/UniversalDayCalendar';
+import { Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isToday, parseISO } from 'date-fns';
 
 interface TaskScheduleDialogProps {
@@ -30,7 +30,7 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
   const [editedTask, setEditedTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [selectedSubtaskId, setSelectedSubtaskId] = useState<string | null>(null);
-  const [showDayView, setShowDayView] = useState(false);
+  
   const [allEvents, setAllEvents] = useState<CalendarEvent[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
 
@@ -261,32 +261,15 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
             })}
           </div>
 
-          {/* Day View Toggle & Full Day Schedule */}
+          {/* Day Schedule View */}
           {selectedDate && (
-            <div>
-              <Button
-                variant={showDayView ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setShowDayView(!showDayView)}
-                className="mb-3"
-              >
-                <LayoutList className="h-4 w-4 mr-1" />
-                Day Schedule
-              </Button>
-              {showDayView && (
-                <div className="border rounded-lg p-3 bg-muted/30">
-                  <h4 className="font-medium mb-2">{format(selectedDate, 'EEEE, MMMM d')}</h4>
-                  <ScheduleDayView
-                    date={selectedDate}
-                    subtasks={getAllSubtasksForDay(selectedDate)}
-                    events={getAllEventsForDay(selectedDate)}
-                    tasks={getTasksForDay(selectedDate)}
-                    onSubtaskClick={(s) => setSelectedSubtaskId(s.id)}
-                    onEventClick={() => {}}
-                    onTaskClick={() => {}}
-                  />
-                </div>
-              )}
+            <div className="h-[350px]">
+              <UniversalDayCalendar
+                date={selectedDate}
+                onDateChange={(d) => setSelectedDate(d)}
+                showCard={false}
+                onSubtaskClick={(subtask) => setSelectedSubtaskId(subtask.id)}
+              />
             </div>
           )}
 

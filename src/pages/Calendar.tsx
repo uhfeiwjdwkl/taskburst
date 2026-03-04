@@ -6,7 +6,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Calendar as CalendarIcon, Clock, MapPin, Trash2, LayoutList } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar as CalendarIcon, Clock, MapPin, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import AddTaskDialog from '@/components/AddTaskDialog';
@@ -17,7 +17,7 @@ import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
 import TaskCard from '@/components/TaskCard';
 import { DayTimetableView } from '@/components/DayTimetableView';
-import { ScheduleDayView } from '@/components/ScheduleDayView';
+import { UniversalDayCalendar } from '@/components/UniversalDayCalendar';
 import { ExportImportButton } from '@/components/ExportImportButton';
 import { ExportEventButton } from '@/components/ExportEventButton';
 import { ImportEventButton } from '@/components/ImportEventButton';
@@ -49,7 +49,7 @@ const CalendarPage = () => {
   const [editEventDialogOpen, setEditEventDialogOpen] = useState(false);
   const [deleteEventDialog, setDeleteEventDialog] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<string | null>(null);
-  const [showScheduleView, setShowScheduleView] = useState(false);
+  
   useEffect(() => {
     const savedTasks = localStorage.getItem('tasks');
     if (savedTasks) {
@@ -336,14 +336,6 @@ const CalendarPage = () => {
                 <div className="flex gap-2">
                   <Button
                     size="sm"
-                    variant={showScheduleView ? 'default' : 'outline'}
-                    onClick={() => setShowScheduleView(!showScheduleView)}
-                  >
-                    <LayoutList className="h-4 w-4 mr-1" />
-                    Schedule
-                  </Button>
-                  <Button
-                    size="sm"
                     onClick={handleAddEventForDate}
                     variant="outline"
                     disabled={!selectedDate}
@@ -507,29 +499,18 @@ const CalendarPage = () => {
             </Card>
           </div>
 
-          {/* Schedule Day View - Full day calendar with times */}
-          {selectedDate && showScheduleView && (
-            <Card className="p-4">
-              <h3 className="font-semibold mb-3">Day Schedule — {format(selectedDate, 'MMMM d, yyyy')}</h3>
-              <ScheduleDayView
+          {/* Unified Day Calendar */}
+          {selectedDate && (
+            <div className="h-[500px]">
+              <UniversalDayCalendar
                 date={selectedDate}
-                subtasks={subtasksForSelectedDate}
-                events={eventsForSelectedDate}
-                tasks={tasksForSelectedDate}
+                onDateChange={(d) => setSelectedDate(d)}
+                tasks={tasks}
+                onTaskClick={(task) => handleShowDetails(task.id)}
                 onSubtaskClick={() => {}}
                 onEventClick={handleEventClick}
-                onTaskClick={(task) => handleShowDetails(task.id)}
               />
-            </Card>
-          )}
-
-          {/* Bottom Section: Day Timetable Full Width */}
-          {selectedDate && !showScheduleView && (
-            <DayTimetableView 
-              events={eventsForSelectedDate} 
-              selectedDate={selectedDate}
-              onEventClick={handleEventClick}
-            />
+            </div>
           )}
 
           {/* Legend */}
