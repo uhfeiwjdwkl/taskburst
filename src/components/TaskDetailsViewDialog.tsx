@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Clock, Calendar as CalendarIcon, Tag, Grid3X3, X, Edit } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, Tag, Grid3X3, X, Edit, Info } from 'lucide-react';
 import ProgressRing from '@/components/ProgressRing';
 import { ExportTaskButton } from '@/components/ExportTaskButton';
 import { cn } from '@/lib/utils';
@@ -354,25 +354,27 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-2"
+                      className="h-7 w-7 p-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         setDetailsSubtask(subtask);
                       }}
+                      title="Details"
                     >
-                      Details
+                      <Info className="h-3 w-3" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-2"
+                      className="h-7 w-7 p-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         setActiveSubtask(subtask);
                         setSubtaskDialogOpen(true);
                       }}
+                      title="Edit"
                     >
-                      Edit
+                      <Edit className="h-3 w-3" />
                     </Button>
                   </div>
                 ))}
@@ -421,6 +423,11 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
             subtask={detailsSubtask}
             open={!!detailsSubtask}
             onClose={() => setDetailsSubtask(null)}
+            parentTaskName={task.name}
+            onGoToParentTask={() => {
+              setDetailsSubtask(null);
+              onClose();
+            }}
             onEdit={() => {
               if (detailsSubtask) {
                 setActiveSubtask(detailsSubtask);
