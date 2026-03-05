@@ -19,22 +19,20 @@ const Archive = () => {
   const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
 
   useEffect(() => {
-    const archived = localStorage.getItem('archivedTasks');
-    if (archived) {
-      setArchivedTasks(JSON.parse(archived));
-    }
+    try {
+      const archived = JSON.parse(localStorage.getItem('archivedTasks') || '[]');
+      setArchivedTasks(Array.isArray(archived) ? archived : []);
+    } catch { setArchivedTasks([]); }
 
-    const lists = localStorage.getItem('lists');
-    if (lists) {
-      const allLists: List[] = JSON.parse(lists);
-      setArchivedLists(allLists.filter(l => l.archivedAt && !l.deletedAt));
-    }
+    try {
+      const allLists = JSON.parse(localStorage.getItem('lists') || '[]');
+      if (Array.isArray(allLists)) setArchivedLists(allLists.filter((l: List) => l.archivedAt && !l.deletedAt));
+    } catch {}
 
-    const projects = localStorage.getItem('projects');
-    if (projects) {
-      const allProjects: Project[] = JSON.parse(projects);
-      setArchivedProjects(allProjects.filter(p => p.archivedAt && !p.deletedAt));
-    }
+    try {
+      const allProjects = JSON.parse(localStorage.getItem('projects') || '[]');
+      if (Array.isArray(allProjects)) setArchivedProjects(allProjects.filter((p: Project) => p.archivedAt && !p.deletedAt));
+    } catch {}
   }, []);
 
   const handleUncomplete = (taskId: string) => {

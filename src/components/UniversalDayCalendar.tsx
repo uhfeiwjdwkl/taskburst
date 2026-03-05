@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import { CalendarEvent } from '@/types/event';
-import { Timetable, FlexibleEvent } from '@/types/timetable';
+import { Assessment } from '@/types/assessment';
+import { Timetable, FlexibleEvent, TimetableCell } from '@/types/timetable';
 import { cn } from '@/lib/utils';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 import { format, isSameDay, parseISO, addDays, subDays } from 'date-fns';
@@ -14,25 +15,33 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, CheckCircle2, Play } from 'lucide-react';
 
+const safeParse = (key: string): any[] => {
+  try {
+    const saved = localStorage.getItem(key);
+    if (!saved) return [];
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+};
+
 interface UniversalDayCalendarProps {
   initialDate?: Date;
-  /** If provided, overrides internal date state */
   date?: Date;
   onDateChange?: (date: Date) => void;
   tasks?: Task[];
   onTaskClick?: (task: Task) => void;
   onSubtaskClick?: (subtask: Subtask, task: Task) => void;
   onEventClick?: (event: CalendarEvent) => void;
+  onAssessmentClick?: (assessment: Assessment) => void;
+  onTimetableEventClick?: (event: FlexibleEvent, timetable: Timetable) => void;
   onStartSubtask?: (subtask: Subtask, task: Task) => void;
-  /** If true, show the card wrapper. Default true */
   showCard?: boolean;
-  /** Fixed height for the component */
   className?: string;
 }
 
 interface TimelineItem {
   id: string;
-  type: 'task' | 'subtask' | 'event' | 'timetable';
+  type: 'task' | 'subtask' | 'event' | 'timetable' | 'assessment' | 'rigid-timetable';
   title: string;
   time?: string;
   endTime?: string;
@@ -60,6 +69,8 @@ export const UniversalDayCalendar = ({
   onTaskClick,
   onSubtaskClick,
   onEventClick,
+  onAssessmentClick,
+  onTimetableEventClick,
   onStartSubtask,
   showCard = true,
   className,
@@ -74,28 +85,22 @@ export const UniversalDayCalendar = ({
     onDateChange?.(d);
   };
 
-  // Load data from localStorage
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [timetables, setTimetables] = useState<Timetable[]>([]);
   const [flexibleEvents, setFlexibleEvents] = useState<FlexibleEvent[]>([]);
   const [currentTimePosition, setCurrentTimePosition] = useState(0);
 
   useEffect(() => {
-    // Use external tasks if provided, otherwise load from localStorage
     if (externalTasks) {
       setTasks(externalTasks);
     } else {
-      try {
-        const saved = localStorage.getItem('tasks');
-        setTasks(saved ? (Array.isArray(JSON.parse(saved)) ? JSON.parse(saved) : []) : []);
-      } catch { setTasks([]); }
+      setTasks(safeParse('tasks') as Task[]);
     }
 
-    try {
-      const savedEvents = localStorage.getItem('calendarEvents');
-      setEvents(savedEvents ? (Array.isArray(JSON.parse(savedEvents)) ? JSON.parse(savedEvents) : []) : []);
-    } catch { setEvents([]); }
+    setEvents(safeParse('calendarEvents') as CalendarEvent[]);
+    setAssessments(safeParse('assessments') as Assessment[]);
 
     try {
       const savedTimetables = localStorage.getItem('timetables');
@@ -112,7 +117,6 @@ export const UniversalDayCalendar = ({
     } catch {}
   }, [externalTasks]);
 
-  // Update current time position every minute
   useEffect(() => {
     const updatePosition = () => {
       const now = new Date();
@@ -133,6 +137,7 @@ export const UniversalDayCalendar = ({
   const todayItems = useMemo(() => {
     const items: TimelineItem[] = [];
 
+    // Tasks & subtasks
     tasks.forEach(task => {
       if (task.dueDate && format(parseISO(task.dueDate), 'yyyy-MM-dd') === dateStr) {
         items.push({
@@ -143,7 +148,6 @@ export const UniversalDayCalendar = ({
           data: task,
         });
       }
-
       task.subtasks?.forEach(subtask => {
         if (subtask.dueDate === dateStr) {
           items.push({
@@ -161,6 +165,7 @@ export const UniversalDayCalendar = ({
       });
     });
 
+    // Calendar events
     events.forEach(event => {
       try {
         const eventDate = parseISO(event.date);
@@ -177,6 +182,24 @@ export const UniversalDayCalendar = ({
       } catch {}
     });
 
+    // Assessments (by due date, all-day items)
+    assessments.forEach(assessment => {
+      if (!assessment.deletedAt && assessment.dueDate) {
+        try {
+          if (format(parseISO(assessment.dueDate), 'yyyy-MM-dd') === dateStr) {
+            items.push({
+              id: `assessment-${assessment.id}`,
+              type: 'assessment',
+              title: assessment.name,
+              completed: assessment.completed,
+              data: assessment,
+            });
+          }
+        } catch {}
+      }
+    });
+
+    // Flexible timetable events
     flexibleEvents
       .filter(e => e.dayIndex === timetableDayIndex)
       .forEach(event => {
@@ -195,8 +218,38 @@ export const UniversalDayCalendar = ({
         });
       });
 
+    // Rigid timetable events
+    timetables
+      .filter(t => t.mode === 'rigid' && !t.deletedAt)
+      .forEach(timetable => {
+        const colIndex = timetable.columns.indexOf(
+          ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][timetableDayIndex]
+        );
+        if (colIndex === -1) return;
+
+        timetable.rows.forEach((row, rowIndex) => {
+          const cellKey = `${rowIndex}-${colIndex}`;
+          const cell = timetable.cells[cellKey];
+          if (!cell || cell.hidden) return;
+          const hasContent = cell.fields?.some(f => f && f.trim() !== '');
+          if (!hasContent) return;
+
+          const title = cell.fields.filter(f => f && f.trim()).join(' · ');
+          items.push({
+            id: `rigid-${timetable.id}-${cellKey}`,
+            type: 'rigid-timetable',
+            title,
+            time: row.startTime,
+            duration: row.duration,
+            color: cell.color,
+            parentTitle: timetable.name,
+            data: { cell, timetable, row },
+          });
+        });
+      });
+
     return items;
-  }, [tasks, events, timetables, flexibleEvents, dateStr, currentDate, timetableDayIndex]);
+  }, [tasks, events, assessments, timetables, flexibleEvents, dateStr, currentDate, timetableDayIndex]);
 
   const allDayItems = todayItems.filter(item => !item.time);
   const timedItems = todayItems.filter(item => item.time).sort((a, b) =>
@@ -238,6 +291,35 @@ export const UniversalDayCalendar = ({
       case 'event':
         onEventClick?.(item.data);
         break;
+      case 'assessment':
+        onAssessmentClick?.(item.data);
+        break;
+      case 'timetable':
+        onTimetableEventClick?.(item.data.event, item.data.timetable);
+        break;
+      case 'rigid-timetable':
+        // For rigid timetable, we can still fire timetable event click with a synthetic FlexibleEvent
+        break;
+    }
+  };
+
+  const getItemEmoji = (type: string) => {
+    switch (type) {
+      case 'task': return '📋 ';
+      case 'subtask': return '📝 ';
+      case 'assessment': return '📊 ';
+      case 'rigid-timetable': return '🕐 ';
+      default: return '';
+    }
+  };
+
+  const getItemBgClass = (item: TimelineItem) => {
+    switch (item.type) {
+      case 'event': return 'bg-blue-500/20 border-blue-500';
+      case 'timetable': return 'bg-purple-500/20 border-purple-500';
+      case 'rigid-timetable': return 'bg-indigo-500/20 border-indigo-500';
+      case 'assessment': return 'bg-amber-500/20 border-amber-500';
+      default: return item.completed ? 'bg-green-500/20 border-green-500' : 'bg-primary/20 border-primary';
     }
   };
 
@@ -319,8 +401,7 @@ export const UniversalDayCalendar = ({
                 )}
                 onClick={() => handleItemClick(item)}
               >
-                {item.type === 'task' && '📋 '}
-                {item.type === 'subtask' && '📝 '}
+                {getItemEmoji(item.type)}
                 {item.title}
               </Badge>
             ))}
@@ -360,20 +441,12 @@ export const UniversalDayCalendar = ({
               const top = getTimePosition(item.time!);
               const height = getHeightForDuration(item.duration || 30);
 
-              const bgColor = item.type === 'event'
-                ? 'bg-blue-500/20 border-blue-500'
-                : item.type === 'timetable'
-                ? 'bg-purple-500/20 border-purple-500'
-                : item.completed
-                ? 'bg-green-500/20 border-green-500'
-                : 'bg-primary/20 border-primary';
-
               return (
                 <div
                   key={item.id}
                   className={cn(
                     "absolute left-0 right-0 border-l-2 rounded-r px-2 py-0.5 cursor-pointer overflow-hidden transition-colors hover:opacity-80",
-                    bgColor,
+                    getItemBgClass(item),
                     item.completed && "opacity-60"
                   )}
                   style={{
