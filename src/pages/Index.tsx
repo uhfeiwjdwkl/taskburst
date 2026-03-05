@@ -55,6 +55,7 @@ const Index = () => {
     if (savedTasks) {
       try {
         const loadedTasks = JSON.parse(savedTasks);
+        if (!Array.isArray(loadedTasks)) throw new Error('Not array');
         const migratedTasks = loadedTasks.map((task: Task, index: number) => ({
           ...task,
           progressGridSize: task.progressGridSize ?? 10,
@@ -316,6 +317,9 @@ const Index = () => {
                 setSelectedSubtask({ subtask, task });
                 setSubtaskDetailsOpen(true);
               }}
+              onEventClick={() => navigate('/calendar')}
+              onAssessmentClick={() => navigate('/results')}
+              onTimetableEventClick={() => navigate('/timetable')}
               onStartSubtask={(subtask, task) => {
                 setActiveTaskId(task.id);
                 toast.success(`Starting focus session for: ${subtask.title}`);
@@ -326,21 +330,24 @@ const Index = () => {
 
         {/* Day Calendar - shown above tasks on smaller screens */}
         <section className="lg:hidden mb-6">
-          <UniversalDayCalendar
-            tasks={tasks}
-            onTaskClick={(task) => {
-              setSelectedTask(task);
-              setDetailsDialogOpen(true);
-            }}
-            onSubtaskClick={(subtask, task) => {
-              setSelectedSubtask({ subtask, task });
-              setSubtaskDetailsOpen(true);
-            }}
-            onStartSubtask={(subtask, task) => {
-              setActiveTaskId(task.id);
-              toast.success(`Starting focus session for: ${subtask.title}`);
-            }}
-          />
+            <UniversalDayCalendar
+              tasks={tasks}
+              onTaskClick={(task) => {
+                setSelectedTask(task);
+                setDetailsDialogOpen(true);
+              }}
+              onSubtaskClick={(subtask, task) => {
+                setSelectedSubtask({ subtask, task });
+                setSubtaskDetailsOpen(true);
+              }}
+              onEventClick={() => navigate('/calendar')}
+              onAssessmentClick={() => navigate('/results')}
+              onTimetableEventClick={() => navigate('/timetable')}
+              onStartSubtask={(subtask, task) => {
+                setActiveTaskId(task.id);
+                toast.success(`Starting focus session for: ${subtask.title}`);
+              }}
+            />
         </section>
 
         {/* Tasks Section with Drag & Drop */}

@@ -60,8 +60,9 @@ const Timetable = () => {
   useEffect(() => {
     const saved = localStorage.getItem('timetables');
     if (saved) {
-      const parsed = JSON.parse(saved) as TimetableType[];
-      const active = parsed.filter(t => !t.deletedAt);
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return;
+      const active = (parsed as TimetableType[]).filter(t => !t.deletedAt);
       setTimetables(active.sort((a, b) => 
         b.favorite === a.favorite ? new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() : b.favorite ? 1 : -1
       ));

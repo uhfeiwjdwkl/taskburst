@@ -507,8 +507,13 @@ const CalendarPage = () => {
                 onDateChange={(d) => setSelectedDate(d)}
                 tasks={tasks}
                 onTaskClick={(task) => handleShowDetails(task.id)}
-                onSubtaskClick={() => {}}
+                onSubtaskClick={(subtask, task) => {
+                  setSelectedTask(tasks.find(t => t.id === task.id) || null);
+                  setDetailsDialogOpen(true);
+                }}
                 onEventClick={handleEventClick}
+                onAssessmentClick={() => navigate('/results')}
+                onTimetableEventClick={() => navigate('/timetable')}
               />
             </div>
           )}

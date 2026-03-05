@@ -19,13 +19,16 @@ const Lists = () => {
   useEffect(() => {
     const savedLists = localStorage.getItem('lists');
     if (savedLists) {
-      const loadedLists: List[] = JSON.parse(savedLists);
-      setLists(loadedLists.filter(l => !l.deletedAt && !l.archivedAt).sort((a, b) => a.order - b.order));
+      const loadedLists = JSON.parse(savedLists);
+      if (Array.isArray(loadedLists)) {
+        setLists(loadedLists.filter((l: List) => !l.deletedAt && !l.archivedAt).sort((a: List, b: List) => a.order - b.order));
+      }
     }
   }, []);
 
   useEffect(() => {
-    const allLists = JSON.parse(localStorage.getItem('lists') || '[]');
+    const parsed = JSON.parse(localStorage.getItem('lists') || '[]');
+    const allLists = Array.isArray(parsed) ? parsed : [];
     const otherLists = allLists.filter((l: List) => l.deletedAt || l.archivedAt);
     localStorage.setItem('lists', JSON.stringify([...lists, ...otherLists]));
   }, [lists]);
