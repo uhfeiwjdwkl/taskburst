@@ -4,6 +4,7 @@ import { Session } from '@/types/session';
 import { Timetable } from '@/types/timetable';
 import { List, ListItem } from '@/types/list';
 import { Project } from '@/types/project';
+import { Assessment } from '@/types/assessment';
 import { TextBackup, getTextBackups, deleteTextBackup, clearTextBackups } from '@/lib/textBackup';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -40,6 +41,7 @@ const TABS = [
   { id: 'lists', label: 'Lists' },
   { id: 'list-items', label: 'List Items' },
   { id: 'projects', label: 'Projects' },
+  { id: 'assessments', label: 'Assessments' },
   { id: 'text-backups', label: 'Text', icon: FileText },
 ] as const;
 
@@ -54,6 +56,7 @@ const RecentlyDeletedUnified = () => {
   const [deletedLists, setDeletedLists] = useState<List[]>([]);
   const [deletedListItems, setDeletedListItems] = useState<(ListItem & { listId: string; deletedAt?: string })[]>([]);
   const [deletedProjects, setDeletedProjects] = useState<Project[]>([]);
+  const [deletedAssessments, setDeletedAssessments] = useState<Assessment[]>([]);
   const [textBackups, setTextBackups] = useState<TextBackup[]>([]);
   const [selectedTextBackups, setSelectedTextBackups] = useState<Set<string>>(new Set());
   const [permanentDeleteDialog, setPermanentDeleteDialog] = useState(false);
@@ -109,6 +112,12 @@ const RecentlyDeletedUnified = () => {
       .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
     setDeletedProjects(deletedP);
 
+    const allAssessments = JSON.parse(localStorage.getItem('assessments') || '[]');
+    const deletedA = (Array.isArray(allAssessments) ? allAssessments : [])
+      .filter((a: Assessment) => a.deletedAt && getDaysRemaining(a.deletedAt) > 0)
+      .sort((a: Assessment, b: Assessment) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
+    setDeletedAssessments(deletedA);
+
     const backups = getTextBackups();
     setTextBackups(backups.sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()));
   };
@@ -129,6 +138,7 @@ const RecentlyDeletedUnified = () => {
       case 'lists': return deletedLists.length;
       case 'list-items': return deletedListItems.length;
       case 'projects': return deletedProjects.length;
+      case 'assessments': return deletedAssessments.length;
       case 'text-backups': return textBackups.length;
       default: return 0;
     }
@@ -238,6 +248,11 @@ const RecentlyDeletedUnified = () => {
       const updated = allProjects.filter(p => p.id !== itemToDelete.id);
       localStorage.setItem('projects', JSON.stringify(updated));
       setDeletedProjects(updated.filter(p => p.deletedAt));
+    } else if (itemToDelete.type === 'assessment') {
+      const allAssessments = JSON.parse(localStorage.getItem('assessments') || '[]') as Assessment[];
+      const updated = allAssessments.filter(a => a.id !== itemToDelete.id);
+      localStorage.setItem('assessments', JSON.stringify(updated));
+      setDeletedAssessments(updated.filter(a => a.deletedAt));
     }
 
     toast.success('Permanently deleted');
@@ -287,6 +302,20 @@ const RecentlyDeletedUnified = () => {
       loadAllDeleted();
       toast.success('Project restored');
     }
+  };
+
+  const handleRestoreAssessment = (assessmentId: string) => {
+    const allAssessments = JSON.parse(localStorage.getItem('assessments') || '[]') as Assessment[];
+    const updated = allAssessments.map(a => {
+      if (a.id === assessmentId) {
+        const { deletedAt, ...clean } = a;
+        return clean;
+      }
+      return a;
+    });
+    localStorage.setItem('assessments', JSON.stringify(updated));
+    loadAllDeleted();
+    toast.success('Assessment restored');
   };
 
   const formatDuration = (minutes: number) => {
@@ -702,6 +731,43 @@ const RecentlyDeletedUnified = () => {
                     className="text-destructive hover:text-destructive"
                     onClick={() => {
                       setItemToDelete({ type: 'project', id: project.id });
+                      setPermanentDeleteDialog(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))
+        );
+
+      case 'assessments':
+        return deletedAssessments.length === 0 ? (
+          <Card className="p-8 text-center text-muted-foreground">No deleted assessments</Card>
+        ) : (
+          deletedAssessments.map(assessment => (
+            <Card key={assessment.id} className="p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">{assessment.name}</h3>
+                  <p className="text-sm text-muted-foreground mb-2">{assessment.assessmentType} • {assessment.category || 'Uncategorized'}</p>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>Deleted {formatDistanceToNow(new Date(assessment.deletedAt!))} ago</span>
+                    <Badge variant="outline">{getDaysRemaining(assessment.deletedAt!)} days left</Badge>
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => handleRestoreAssessment(assessment.id)}>
+                    <Undo2 className="h-4 w-4 mr-1" />
+                    Restore
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setItemToDelete({ type: 'assessment', id: assessment.id });
                       setPermanentDeleteDialog(true);
                     }}
                   >

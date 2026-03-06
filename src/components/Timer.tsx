@@ -265,23 +265,26 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     }
 
     // Save the session
+    const sessionName = prompt('Enter a name for this session (or leave blank):') || '';
+    
     const session: Session = {
       id: Date.now().toString(),
       taskId: activeTask.id,
       taskName: activeTask.name,
+      description: sessionName.trim() || undefined,
       dateEnded: new Date().toISOString(),
       duration: calculatedDuration,
       progressGridStart: sessionStartProgress,
       progressGridEnd: endProgress,
       progressGridSize: activeTask.progressGridSize,
-      phase: sessionStartPhase, // Use the phase when session started, not current phase
+      phase: sessionStartPhase,
     };
 
     const savedSessions = JSON.parse(localStorage.getItem('sessions') || '[]');
     localStorage.setItem('sessions', JSON.stringify([...savedSessions, session]));
     console.log('Session saved:', session);
     setPendingSessionData(null);
-    return true; // Session was saved
+    return true;
   };
 
   useEffect(() => {

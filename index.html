@@ -10,9 +10,40 @@
     />
     <meta name="author" content="Kommenszlapf" />
     
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/TaskBurst.svg" />
+    <!-- Favicon - dynamic SVG that reads theme color -->
+    <link rel="icon" type="image/svg+xml" href="/TaskBurst.svg" id="dynamic-favicon" />
     <link rel="apple-touch-icon" href="/TaskBurst.svg" />
+    
+    <script>
+      // Dynamic favicon color based on theme
+      function updateFavicon() {
+        try {
+          var settings = JSON.parse(localStorage.getItem('appSettings') || '{}');
+          var themeColors = {
+            'purple': '#7c3aed',
+            'blue': '#3b82f6',
+            'green': '#16a34a',
+            'red': '#dc2626',
+            'pink': '#ec4899',
+            'orange': '#f97316',
+            'teal': '#0d9488',
+            'indigo': '#6366f1',
+            'amber': '#d97706',
+            'cyan': '#06b6d4',
+            'emerald': '#059669',
+            'rose': '#e11d48',
+          };
+          var color = themeColors[settings.colorTheme] || '#7c3aed';
+          var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="' + color + '"/><text x="50" y="62" text-anchor="middle" font-size="40" font-weight="bold" fill="white" font-family="Arial">TB</text></svg>';
+          var blob = new Blob([svg], {type: 'image/svg+xml'});
+          var url = URL.createObjectURL(blob);
+          document.getElementById('dynamic-favicon').href = url;
+        } catch(e) {}
+      }
+      updateFavicon();
+      window.addEventListener('appSettingsUpdated', updateFavicon);
+      window.addEventListener('storage', updateFavicon);
+    </script>
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
