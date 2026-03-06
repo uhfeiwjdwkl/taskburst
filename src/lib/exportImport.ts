@@ -51,9 +51,9 @@ const ALL_STORAGE_KEYS = [
   // Results page column names
   'resultsColumnNames',
   
-  // Assessments
   'assessments',
   'assessmentTypes',
+  'deletedAssessments',
   
   // Flexible timetable events
   'flexibleTimetableEvents',

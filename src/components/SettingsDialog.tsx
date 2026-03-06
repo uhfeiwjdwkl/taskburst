@@ -52,8 +52,9 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
       try {
         const parsed = JSON.parse(saved);
         // Merge with defaults to ensure all pages exist
+        const savedPages = Array.isArray(parsed.pages) ? parsed.pages : [];
         const mergedPages = DEFAULT_PAGES.map(defaultPage => {
-          const savedPage = parsed.pages?.find((p: PageConfig) => p.id === defaultPage.id);
+          const savedPage = savedPages.find((p: PageConfig) => p.id === defaultPage.id);
           return savedPage || defaultPage;
         });
         setSettings({ ...DEFAULT_SETTINGS, ...parsed, pages: mergedPages });

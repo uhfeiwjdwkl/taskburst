@@ -473,6 +473,66 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
             />
           </div>
 
+          {/* Name Progress Boxes to Auto-Create Subtasks */}
+          {editedTask.progressGridSize > 0 && (
+            <div className="border rounded-lg p-3 space-y-2">
+              <Label className="text-sm font-medium">Name Progress Boxes (auto-creates linked subtasks)</Label>
+              <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto">
+                {Array.from({ length: editedTask.progressGridSize }, (_, i) => {
+                  const linkedSubtask = (editedTask.subtasks || []).find(
+                    s => s.linkedToProgressGrid && s.progressGridIndex === i
+                  );
+                  return (
+                    <div key={i} className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground w-6 text-right">{i + 1}.</span>
+                      <Input
+                        value={linkedSubtask?.title || ''}
+                        onChange={(e) => {
+                          const title = e.target.value;
+                          const existingSubtasks = editedTask.subtasks || [];
+                          if (linkedSubtask) {
+                            if (!title.trim()) {
+                              // Remove the subtask if name cleared
+                              setEditedTask({
+                                ...editedTask,
+                                subtasks: existingSubtasks.filter(s => s.id !== linkedSubtask.id),
+                              });
+                            } else {
+                              setEditedTask({
+                                ...editedTask,
+                                subtasks: existingSubtasks.map(s =>
+                                  s.id === linkedSubtask.id ? { ...s, title } : s
+                                ),
+                              });
+                            }
+                          } else if (title.trim()) {
+                            // Auto-create linked subtask
+                            const newSubtask: Subtask = {
+                              id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                              taskId: editedTask.id,
+                              title: title.trim(),
+                              completed: false,
+                              linkedToProgressGrid: true,
+                              progressGridIndex: i,
+                              createdAt: new Date().toISOString(),
+                              estimatedMinutes: 0,
+                            };
+                            setEditedTask({
+                              ...editedTask,
+                              subtasks: [...existingSubtasks, newSubtask],
+                            });
+                          }
+                        }}
+                        placeholder={`Box ${i + 1}`}
+                        className="h-7 text-xs"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Results Section */}
           <div className="border-t pt-4 space-y-3">
             <div className="flex items-center space-x-2">

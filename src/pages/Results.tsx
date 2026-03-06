@@ -780,7 +780,14 @@ export default function Results() {
               };
               
               return (
-                <Card key={a.id} className="p-4 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => { setSelectedAssessment(a); setAssessmentDetailsOpen(true); }}>
+                <Card key={a.id} className="p-4 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => {
+                  // If linked to a task, redirect to task details
+                  if (a.linkedTaskId) {
+                    const task = [...tasks, ...archivedTasks].find(t => t.id === a.linkedTaskId);
+                    if (task) { setViewingTask(task); setDetailsDialogOpen(true); return; }
+                  }
+                  setSelectedAssessment(a); setAssessmentDetailsOpen(true);
+                }}>
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold truncate">{a.name}</h3>
