@@ -80,11 +80,12 @@ export const SubtaskDialog = ({
       setPriority(undefined);
       setDueDate('');
       setScheduledTime('');
-      setLinkedToProgressGrid(autoLink && availableGridIndices.length > 0);
-      setProgressGridIndex(autoLink && availableGridIndices.length > 0 ? availableGridIndices[0] : undefined);
+      const shouldAutoLink = autoLink && availableGridIndices.length > 0;
+      setLinkedToProgressGrid(shouldAutoLink);
+      setProgressGridIndex(shouldAutoLink ? availableGridIndices[0] : undefined);
       setColor(undefined);
     }
-  }, [subtask, open]);
+  }, [subtask, open, availableGridIndices]);
 
   const handleSave = () => {
     if (!title.trim()) return;
