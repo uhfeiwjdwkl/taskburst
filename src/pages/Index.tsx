@@ -554,14 +554,19 @@ const Index = () => {
               setSubtaskDetailsOpen(false);
               setSelectedSubtask(null);
             }}
+            parentTaskName={selectedSubtask.task.name}
+            onGoToParentTask={() => {
+              setSubtaskDetailsOpen(false);
+              setSelectedTask(selectedSubtask.task);
+              setDetailsDialogOpen(true);
+              setSelectedSubtask(null);
+            }}
             onEdit={() => {
-              // Open task edit dialog with subtask focused
               setSelectedTask(selectedSubtask.task);
               setEditDialogOpen(true);
               setSubtaskDetailsOpen(false);
             }}
             onComplete={() => {
-              // Complete the subtask
               const updatedSubtasks = (selectedSubtask.task.subtasks || []).map(s =>
                 s.id === selectedSubtask.subtask.id ? { ...s, completed: true } : s
               );
