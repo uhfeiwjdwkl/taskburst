@@ -683,6 +683,37 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
         </DialogContent>
       </Dialog>
 
+      {/* Session Name Dialog */}
+      <Dialog open={showSessionNameDialog} onOpenChange={(open) => {
+        if (!open) finishSessionSave(false);
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Name This Session</DialogTitle>
+            <DialogDescription>
+              Enter a name for this session (or leave blank). Cancelling will discard the session time.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              value={sessionNameInput}
+              onChange={(e) => setSessionNameInput(e.target.value)}
+              placeholder="Session name (optional)"
+              onKeyDown={(e) => { if (e.key === 'Enter') finishSessionSave(true); }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => finishSessionSave(false)}>
+              Discard
+            </Button>
+            <Button onClick={() => finishSessionSave(true)} className="bg-gradient-primary">
+              Save Session
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Rewind Option Dialog */}
       {showRewindOption && activeTask && (
         <Dialog open={showRewindOption} onOpenChange={setShowRewindOption}>

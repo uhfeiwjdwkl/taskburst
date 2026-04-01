@@ -232,40 +232,43 @@ const Timetable = () => {
               data={timetables}
               filename={`timetables-${new Date().toISOString().split('T')[0]}.json`}
               onImport={(data) => {
-                if (Array.isArray(data) && data.every(item => 'name' in item)) {
-                  const allTimetables = JSON.parse(localStorage.getItem('timetables') || '[]') as TimetableType[];
-                  const deletedTimetables = allTimetables.filter((t: TimetableType) => t.deletedAt);
+                // Handle single timetable object or array
+                const items = Array.isArray(data) ? data : [data];
+                if (!items.every(item => item && typeof item === 'object' && 'name' in item)) {
+                  toast.error('Invalid timetables file. Please upload a valid timetables JSON file.');
+                  return;
+                }
+                const allTimetables = JSON.parse(localStorage.getItem('timetables') || '[]') as TimetableType[];
+                const deletedTimetables = Array.isArray(allTimetables) ? allTimetables.filter((t: TimetableType) => t.deletedAt) : [];
                   
-                  const importedTimetables = data.map((item: any) => {
-                    const newId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+                const importedTimetables = items.map((item: any) => {
+                  const newId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
                     
-                    // Handle flexible timetable with events
-                    if (item.mode === 'flexible' && item.events) {
-                      const { timetable: ttData, events } = importFlexibleFromJSON(item, newId);
-                      if (events.length > 0) {
-                        saveFlexibleEventsForTimetable(newId, events);
-                      }
-                      return {
-                        ...ttData,
-                        id: newId,
-                        createdAt: item.createdAt || new Date().toISOString(),
-                      } as TimetableType;
+                  // Handle flexible timetable with events
+                  if (item.mode === 'flexible' && item.events) {
+                    const { timetable: ttData, events } = importFlexibleFromJSON(item, newId);
+                    if (events.length > 0) {
+                      saveFlexibleEventsForTimetable(newId, events);
                     }
-                    
-                    // Regular timetable
                     return {
-                      ...item,
+                      ...ttData,
                       id: newId,
                       createdAt: item.createdAt || new Date().toISOString(),
                     } as TimetableType;
-                  });
+                  }
+                    
+                  // Regular/rigid timetable
+                  return {
+                    ...item,
+                    id: newId,
+                    favorite: item.favorite || false,
+                    createdAt: item.createdAt || new Date().toISOString(),
+                  } as TimetableType;
+                });
                   
-                  localStorage.setItem('timetables', JSON.stringify([...importedTimetables, ...deletedTimetables]));
-                  saveTimetables(importedTimetables);
-                  toast.success('Timetables imported successfully!');
-                } else {
-                  toast.error('Invalid timetables file. Please upload a valid timetables JSON file.');
-                }
+                localStorage.setItem('timetables', JSON.stringify([...importedTimetables, ...deletedTimetables]));
+                saveTimetables(importedTimetables);
+                toast.success(`Imported ${importedTimetables.length} timetable(s) successfully!`);
               }}
               storageKey="timetables"
               label="All Timetables"
