@@ -323,6 +323,21 @@ export const UniversalDayCalendar = ({
     }
   };
 
+  // Compute dates with tasks and events for calendar modifiers
+  const datesWithTasks = useMemo(() => {
+    const dates: Date[] = [];
+    tasks.forEach(task => {
+      if (task.dueDate) { try { dates.push(parseISO(task.dueDate)); } catch {} }
+    });
+    return dates;
+  }, [tasks]);
+
+  const datesWithEvents = useMemo(() => {
+    const dates: Date[] = [];
+    events.forEach(event => { try { dates.push(parseISO(event.date)); } catch {} });
+    return dates;
+  }, [events]);
+
   const isToday = isSameDay(currentDate, new Date());
 
   const content = (
@@ -348,6 +363,12 @@ export const UniversalDayCalendar = ({
                 selected={currentDate}
                 onSelect={(d) => {
                   if (d) { setDate(d); setCalendarOpen(false); }
+                }}
+                className="pointer-events-auto"
+                modifiers={{ hasTask: datesWithTasks, hasEvent: datesWithEvents }}
+                modifiersStyles={{
+                  hasTask: { textDecoration: 'underline', textDecorationColor: 'hsl(var(--primary))', textDecorationThickness: '2px' },
+                  hasEvent: { fontWeight: 'bold' },
                 }}
               />
             </PopoverContent>
