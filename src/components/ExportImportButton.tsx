@@ -59,15 +59,16 @@ export const ExportImportButton = ({ data, filename, onImport, storageKey, label
       
       if (mergeOnImport && Array.isArray(importedData)) {
         // Merge with existing data instead of replacing
-        const existingData = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        const mergedData = mergeImportedData(existingData, importedData);
+        const existingRaw = localStorage.getItem(storageKey);
+        const existingData = existingRaw ? JSON.parse(existingRaw) : [];
+        const existingArr = Array.isArray(existingData) ? existingData : [];
+        const mergedData = mergeImportedData(existingArr, importedData);
         localStorage.setItem(storageKey, JSON.stringify(mergedData));
         onImport(mergedData);
         toast.success(`Imported ${importedData.length} items (merged with existing data)`);
       } else {
-        localStorage.setItem(storageKey, JSON.stringify(importedData));
+        // Could be a single object (e.g., individual timetable export)
         onImport(importedData);
-        toast.success('Data imported successfully!');
       }
       setShowImportDialog(false);
     } catch (error) {

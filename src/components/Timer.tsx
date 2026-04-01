@@ -104,6 +104,10 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const [tempBreakDuration, setTempBreakDuration] = useState(breakDuration);
   const [tempTimerMode, setTempTimerMode] = useState(timerMode);
   const intervalRef = useRef<number>();
+  // Session naming dialog state
+  const [showSessionNameDialog, setShowSessionNameDialog] = useState(false);
+  const [sessionNameInput, setSessionNameInput] = useState('');
+  const [pendingSessionSave, setPendingSessionSave] = useState<{ endProgress: number; calculatedDuration: number } | null>(null);
 
   const totalDuration = phase === 'focus' 
     ? FOCUS_DURATION 
@@ -264,27 +268,50 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       return false; // Session not saved yet, pending user decision
     }
 
-    // Save the session
-    const sessionName = prompt('Enter a name for this session (or leave blank):') || '';
+    // Show session naming dialog instead of prompt
+    setPendingSessionSave({ endProgress, calculatedDuration });
+    setSessionNameInput('');
+    setShowSessionNameDialog(true);
+    setPendingSessionData(null);
+    return true; // Consider it saved (will finalize in dialog)
+  };
+
+  const finishSessionSave = (saveName: boolean) => {
+    if (!activeTask || !pendingSessionSave) return;
     
+    if (!saveName) {
+      // User cancelled - delete the progress time
+      if (onUpdateTask) {
+        onUpdateTask({
+          ...activeTask,
+          spentMinutes: sessionStartSpentMinutes,
+          progressGridFilled: sessionStartProgress,
+        });
+      }
+      setPendingSessionSave(null);
+      setShowSessionNameDialog(false);
+      setCurrentSessionStartTime(null);
+      return;
+    }
+
     const session: Session = {
       id: Date.now().toString(),
       taskId: activeTask.id,
       taskName: activeTask.name,
-      description: sessionName.trim() || undefined,
+      description: sessionNameInput.trim() || undefined,
       dateEnded: new Date().toISOString(),
-      duration: calculatedDuration,
+      duration: pendingSessionSave.calculatedDuration,
       progressGridStart: sessionStartProgress,
-      progressGridEnd: endProgress,
+      progressGridEnd: pendingSessionSave.endProgress,
       progressGridSize: activeTask.progressGridSize,
       phase: sessionStartPhase,
     };
 
     const savedSessions = JSON.parse(localStorage.getItem('sessions') || '[]');
     localStorage.setItem('sessions', JSON.stringify([...savedSessions, session]));
-    console.log('Session saved:', session);
-    setPendingSessionData(null);
-    return true;
+    setPendingSessionSave(null);
+    setShowSessionNameDialog(false);
+    setCurrentSessionStartTime(null);
   };
 
   useEffect(() => {
@@ -651,6 +678,37 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
             </Button>
             <Button onClick={handleSaveSettings} className="bg-gradient-primary">
               Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Session Name Dialog */}
+      <Dialog open={showSessionNameDialog} onOpenChange={(open) => {
+        if (!open) finishSessionSave(false);
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Name This Session</DialogTitle>
+            <DialogDescription>
+              Enter a name for this session (or leave blank). Cancelling will discard the session time.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              value={sessionNameInput}
+              onChange={(e) => setSessionNameInput(e.target.value)}
+              placeholder="Session name (optional)"
+              onKeyDown={(e) => { if (e.key === 'Enter') finishSessionSave(true); }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => finishSessionSave(false)}>
+              Discard
+            </Button>
+            <Button onClick={() => finishSessionSave(true)} className="bg-gradient-primary">
+              Save Session
             </Button>
           </DialogFooter>
         </DialogContent>
