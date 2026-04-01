@@ -268,27 +268,50 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       return false; // Session not saved yet, pending user decision
     }
 
-    // Save the session
-    const sessionName = prompt('Enter a name for this session (or leave blank):') || '';
+    // Show session naming dialog instead of prompt
+    setPendingSessionSave({ endProgress, calculatedDuration });
+    setSessionNameInput('');
+    setShowSessionNameDialog(true);
+    setPendingSessionData(null);
+    return true; // Consider it saved (will finalize in dialog)
+  };
+
+  const finishSessionSave = (saveName: boolean) => {
+    if (!activeTask || !pendingSessionSave) return;
     
+    if (!saveName) {
+      // User cancelled - delete the progress time
+      if (onUpdateTask) {
+        onUpdateTask({
+          ...activeTask,
+          spentMinutes: sessionStartSpentMinutes,
+          progressGridFilled: sessionStartProgress,
+        });
+      }
+      setPendingSessionSave(null);
+      setShowSessionNameDialog(false);
+      setCurrentSessionStartTime(null);
+      return;
+    }
+
     const session: Session = {
       id: Date.now().toString(),
       taskId: activeTask.id,
       taskName: activeTask.name,
-      description: sessionName.trim() || undefined,
+      description: sessionNameInput.trim() || undefined,
       dateEnded: new Date().toISOString(),
-      duration: calculatedDuration,
+      duration: pendingSessionSave.calculatedDuration,
       progressGridStart: sessionStartProgress,
-      progressGridEnd: endProgress,
+      progressGridEnd: pendingSessionSave.endProgress,
       progressGridSize: activeTask.progressGridSize,
       phase: sessionStartPhase,
     };
 
     const savedSessions = JSON.parse(localStorage.getItem('sessions') || '[]');
     localStorage.setItem('sessions', JSON.stringify([...savedSessions, session]));
-    console.log('Session saved:', session);
-    setPendingSessionData(null);
-    return true;
+    setPendingSessionSave(null);
+    setShowSessionNameDialog(false);
+    setCurrentSessionStartTime(null);
   };
 
   useEffect(() => {

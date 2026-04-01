@@ -76,44 +76,53 @@ const RecentlyDeletedUnified = () => {
     return () => window.removeEventListener('resize', checkWidth);
   }, []);
 
+  const safeParse = (key: string): any[] => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  };
+
   const loadAllDeleted = () => {
-    const tasks = JSON.parse(localStorage.getItem('deletedTasks') || '[]') as Task[];
-    setDeletedTasks(tasks.filter(t => getDaysRemaining(t.deletedAt!) > 0).sort((a, b) => 
+    const tasks = safeParse('deletedTasks') as Task[];
+    setDeletedTasks(tasks.filter(t => t.deletedAt && getDaysRemaining(t.deletedAt) > 0).sort((a, b) => 
       new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime()
     ));
 
-    const sessions = JSON.parse(localStorage.getItem('deletedSessions') || '[]') as Session[];
-    setDeletedSessions(sessions.filter(s => getDaysRemaining(s.deletedAt!) > 0).sort((a, b) => 
+    const sessions = safeParse('deletedSessions') as Session[];
+    setDeletedSessions(sessions.filter(s => s.deletedAt && getDaysRemaining(s.deletedAt) > 0).sort((a, b) => 
       new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime()
     ));
 
-    const archive = JSON.parse(localStorage.getItem('deletedArchive') || '[]') as Task[];
-    setDeletedArchive(archive.filter(t => getDaysRemaining(t.deletedAt!) > 0).sort((a, b) => 
+    const archive = safeParse('deletedArchive') as Task[];
+    setDeletedArchive(archive.filter(t => t.deletedAt && getDaysRemaining(t.deletedAt) > 0).sort((a, b) => 
       new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime()
     ));
 
-    const timetables = JSON.parse(localStorage.getItem('timetables') || '[]') as Timetable[];
+    const timetables = safeParse('timetables') as Timetable[];
     const deletedTT = timetables.filter(t => t.deletedAt && getDaysRemaining(t.deletedAt) > 0)
       .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
     setDeletedTimetables(deletedTT);
 
-    const lists = JSON.parse(localStorage.getItem('lists') || '[]') as List[];
+    const lists = safeParse('lists') as List[];
     const deletedL = lists.filter(l => l.deletedAt && getDaysRemaining(l.deletedAt) > 0)
       .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
     setDeletedLists(deletedL);
 
-    const listItems = JSON.parse(localStorage.getItem('deletedListItems') || '[]') as (ListItem & { listId: string; deletedAt?: string })[];
+    const listItems = safeParse('deletedListItems') as (ListItem & { listId: string; deletedAt?: string })[];
     const deletedLI = listItems.filter(item => item.deletedAt && getDaysRemaining(item.deletedAt) > 0)
       .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
     setDeletedListItems(deletedLI);
 
-    const projects = JSON.parse(localStorage.getItem('projects') || '[]') as Project[];
+    const projects = safeParse('projects') as Project[];
     const deletedP = projects.filter(p => p.deletedAt && getDaysRemaining(p.deletedAt) > 0)
       .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
     setDeletedProjects(deletedP);
 
-    const allAssessments = JSON.parse(localStorage.getItem('assessments') || '[]');
-    const deletedA = (Array.isArray(allAssessments) ? allAssessments : [])
+    const allAssessments = safeParse('assessments');
+    const deletedA = allAssessments
       .filter((a: Assessment) => a.deletedAt && getDaysRemaining(a.deletedAt) > 0)
       .sort((a: Assessment, b: Assessment) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
     setDeletedAssessments(deletedA);
