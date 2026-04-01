@@ -104,6 +104,10 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const [tempBreakDuration, setTempBreakDuration] = useState(breakDuration);
   const [tempTimerMode, setTempTimerMode] = useState(timerMode);
   const intervalRef = useRef<number>();
+  // Session naming dialog state
+  const [showSessionNameDialog, setShowSessionNameDialog] = useState(false);
+  const [sessionNameInput, setSessionNameInput] = useState('');
+  const [pendingSessionSave, setPendingSessionSave] = useState<{ endProgress: number; calculatedDuration: number } | null>(null);
 
   const totalDuration = phase === 'focus' 
     ? FOCUS_DURATION 
