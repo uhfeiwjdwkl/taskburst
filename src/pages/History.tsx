@@ -293,11 +293,7 @@ const History = () => {
                                 Duration: {formatDuration(session.duration)}
                               </div>
                               <div>
-                                {session.phase === 'focus' 
-                                  ? (session.duration !== undefined && !Number.isNaN(session.duration) && session.duration > 0 
-                                    ? '🎯 Focus' : '🎯 Focus')
-                                  : '☕ Break'}
-                              </div>
+                                {session.phase === 'focus' ? '🎯 Focus' : '☕ Break'}
                               </div>
                             </div>
 
