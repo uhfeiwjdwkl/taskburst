@@ -763,14 +763,24 @@ export default function Results() {
                           <TableCell>
                             <div className="flex gap-1">
                               {item.type === 'task' && item.originalTask && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleViewTask(item)}
-                                  title="View details"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleViewTask(item)}
+                                    title="View details"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleHideTaskInResults(item.id)}
+                                    title="Hide from results (scores retained)"
+                                  >
+                                    <EyeOff className="h-4 w-4" />
+                                  </Button>
+                                </>
                               )}
                               <Button
                                 variant="ghost"
