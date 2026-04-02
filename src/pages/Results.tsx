@@ -56,7 +56,8 @@ export default function Results() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
-  const [groupBy, setGroupBy] = useState<'none' | 'category' | 'subcategory'>('none');
+  const [assessmentViewMode, setAssessmentViewMode] = useState<'grid' | 'list'>('grid');
+  const [showCompletedAssessments, setShowCompletedAssessments] = useState(true);
   const [editingCell, setEditingCell] = useState<{
     itemId: string;
     itemType: 'task' | 'project';
