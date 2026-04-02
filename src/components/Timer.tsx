@@ -309,7 +309,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       progressGridStart: sessionStartProgress,
       progressGridEnd: pendingSessionSave.endProgress,
       progressGridSize: activeTask.progressGridSize,
-      phase: sessionStartPhase,
+      phase: timerMode === 'stopwatch' ? 'focus' : sessionStartPhase,
     };
 
     const savedSessions = JSON.parse(localStorage.getItem('sessions') || '[]');
