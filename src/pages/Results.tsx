@@ -26,7 +26,7 @@ import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
 import { AddAssessmentDialog } from '@/components/AddAssessmentDialog';
 import { AssessmentDetailsDialog } from '@/components/AssessmentDetailsDialog';
-import { Settings2, Plus, Minus, Eye, Edit2, Check, X, Calendar } from 'lucide-react';
+import { Settings2, Plus, Minus, Eye, EyeOff, Edit2, Check, X, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
