@@ -527,6 +527,29 @@ export default function Results() {
     setAssessmentDetailsOpen(false);
   };
 
+  const handleToggleAssessmentComplete = (id: string) => {
+    const updated = assessments.map(a => a.id === id ? { ...a, completed: !a.completed } : a);
+    setAssessments(updated);
+    const raw = localStorage.getItem('assessments');
+    const allAssessments = raw ? (Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : []) : [];
+    const allUpdated = allAssessments.map((a: Assessment) => a.id === id ? { ...a, completed: !a.completed } : a);
+    localStorage.setItem('assessments', JSON.stringify(allUpdated));
+    toast.success('Assessment updated');
+  };
+
+  const handleHideTaskInResults = (taskId: string) => {
+    const updateTasks = (taskList: Task[]) => taskList.map(task =>
+      task.id === taskId ? { ...task, hiddenInResults: !task.hiddenInResults } : task
+    );
+    const newTasks = updateTasks(tasks);
+    const newArchivedTasks = updateTasks(archivedTasks);
+    setTasks(newTasks);
+    setArchivedTasks(newArchivedTasks);
+    localStorage.setItem('tasks', JSON.stringify(newTasks));
+    localStorage.setItem('archivedTasks', JSON.stringify(newArchivedTasks));
+    toast.success('Task visibility updated');
+  };
+
   return (
     <div className="container mx-auto p-4 max-w-7xl">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
