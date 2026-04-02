@@ -771,70 +771,147 @@ export default function Results() {
 
       {/* Assessments Section */}
       <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="text-xl font-bold">Assessments</h2>
-          <Button onClick={() => setAddAssessmentOpen(true)} className="bg-gradient-primary">
-            <Plus className="h-4 w-4 mr-1" /> Add Assessment
-          </Button>
-        </div>
-        {assessments.length === 0 ? (
-          <Card className="p-6 text-center text-muted-foreground">No assessments yet. Add one to track results.</Card>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {assessments.map(a => {
-              const scored = a.result.parts.filter(p => p.score !== null);
-              const totalScore = scored.reduce((s, p) => s + (p.score || 0), 0);
-              const totalMax = scored.reduce((s, p) => s + p.maxScore, 0);
-              const pct = totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
-              const daysUntil = a.dueDate ? Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
-              
-              // Color-coded due date
-              const getDueBadgeClass = () => {
-                if (a.completed) return 'bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30';
-                if (daysUntil === null) return '';
-                if (daysUntil < 0) return 'bg-destructive/20 text-destructive border-destructive/30';
-                if (daysUntil === 0) return 'bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/30';
-                if (daysUntil <= 3) return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30';
-                if (daysUntil <= 7) return 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30';
-                return '';
-              };
-              
-              return (
-                <Card key={a.id} className="p-4 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => {
-                  // If linked to a task, redirect to task details
-                  if (a.linkedTaskId) {
-                    const task = [...tasks, ...archivedTasks].find(t => t.id === a.linkedTaskId);
-                    if (task) { setViewingTask(task); setDetailsDialogOpen(true); return; }
-                  }
-                  setSelectedAssessment(a); setAssessmentDetailsOpen(true);
-                }}>
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">{a.name}</h3>
-                      <p className="text-xs text-muted-foreground">{a.assessmentType} • {a.category || 'Uncategorized'}</p>
-                    </div>
-                    <Badge className={`text-xs shrink-0 ml-2 ${getDueBadgeClass()}`} variant="outline">
-                      {a.completed ? '✓ Done' : daysUntil !== null ? (daysUntil < 0 ? `${Math.abs(daysUntil)}d overdue` : daysUntil === 0 ? 'Today!' : `${daysUntil}d left`) : 'No date'}
-                    </Badge>
-                  </div>
-                  {a.linkedTaskId && (
-                    <p className="text-xs text-muted-foreground mb-1">📋 Linked to task</p>
-                  )}
-                  <div className="text-2xl font-bold text-center mt-2">
-                    {scored.length > 0 ? `${totalScore}/${totalMax}` : '—'}
-                  </div>
-                  {scored.length > 0 && <div className="text-center text-sm text-muted-foreground">{pct}%</div>}
-                  {a.dueDate && (
-                    <div className="text-center text-xs text-muted-foreground mt-1">
-                      <Calendar className="h-3 w-3 inline mr-1" />
-                      {new Date(a.dueDate).toLocaleDateString('en-GB')}
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
+          <div className="flex items-center gap-2">
+            <Button
+              variant={assessmentViewMode === 'grid' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setAssessmentViewMode('grid')}
+            >
+              Grid
+            </Button>
+            <Button
+              variant={assessmentViewMode === 'list' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setAssessmentViewMode('list')}
+            >
+              List
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCompletedAssessments(!showCompletedAssessments)}
+            >
+              {showCompletedAssessments ? 'Hide Done' : 'Show Done'}
+            </Button>
+            <Button onClick={() => setAddAssessmentOpen(true)} className="bg-gradient-primary" size="sm">
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
           </div>
-        )}
+        </div>
+        {(() => {
+          const filtered = assessments.filter(a => showCompletedAssessments || !a.completed);
+          if (filtered.length === 0) return (
+            <Card className="p-6 text-center text-muted-foreground">No assessments to display.</Card>
+          );
+          
+          if (assessmentViewMode === 'list') {
+            return (
+              <div className="space-y-2">
+                {filtered.map(a => {
+                  const scored = a.result.parts.filter(p => p.score !== null);
+                  const totalScore = scored.reduce((s, p) => s + (p.score || 0), 0);
+                  const totalMax = scored.reduce((s, p) => s + p.maxScore, 0);
+                  const pct = totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
+                  const daysUntil = a.dueDate ? Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+                  const getDueBadgeClass = () => {
+                    if (a.completed) return 'bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30';
+                    if (daysUntil === null) return '';
+                    if (daysUntil < 0) return 'bg-destructive/20 text-destructive border-destructive/30';
+                    if (daysUntil <= 3) return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30';
+                    return '';
+                  };
+                  return (
+                    <Card key={a.id} className={`p-3 cursor-pointer hover:shadow-md transition-shadow flex items-center gap-3 ${a.completed ? 'opacity-60' : ''}`} onClick={() => {
+                      if (a.linkedTaskId) {
+                        const task = [...tasks, ...archivedTasks].find(t => t.id === a.linkedTaskId);
+                        if (task) { setViewingTask(task); setDetailsDialogOpen(true); return; }
+                      }
+                      setSelectedAssessment(a); setAssessmentDetailsOpen(true);
+                    }}>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-sm">{a.name}</span>
+                        <span className="text-xs text-muted-foreground ml-2">{a.assessmentType}</span>
+                      </div>
+                      <span className="font-bold text-sm">{scored.length > 0 ? `${totalScore}/${totalMax} (${pct}%)` : '—'}</span>
+                      <Badge className={`text-xs ${getDueBadgeClass()}`} variant="outline">
+                        {a.completed ? '✓' : daysUntil !== null ? (daysUntil < 0 ? `${Math.abs(daysUntil)}d late` : `${daysUntil}d`) : '—'}
+                      </Badge>
+                      <Button variant="ghost" size="sm" className="h-7 px-2" onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleAssessmentComplete(a.id);
+                      }}>
+                        {a.completed ? <X className="h-3 w-3" /> : <Check className="h-3 w-3" />}
+                      </Button>
+                    </Card>
+                  );
+                })}
+              </div>
+            );
+          }
+          
+          return (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {filtered.map(a => {
+                const scored = a.result.parts.filter(p => p.score !== null);
+                const totalScore = scored.reduce((s, p) => s + (p.score || 0), 0);
+                const totalMax = scored.reduce((s, p) => s + p.maxScore, 0);
+                const pct = totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
+                const daysUntil = a.dueDate ? Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+                const getDueBadgeClass = () => {
+                  if (a.completed) return 'bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30';
+                  if (daysUntil === null) return '';
+                  if (daysUntil < 0) return 'bg-destructive/20 text-destructive border-destructive/30';
+                  if (daysUntil === 0) return 'bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/30';
+                  if (daysUntil <= 3) return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30';
+                  if (daysUntil <= 7) return 'bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30';
+                  return '';
+                };
+                return (
+                  <Card key={a.id} className={`p-4 cursor-pointer hover:shadow-lg transition-shadow ${a.completed ? 'opacity-60' : ''}`} onClick={() => {
+                    if (a.linkedTaskId) {
+                      const task = [...tasks, ...archivedTasks].find(t => t.id === a.linkedTaskId);
+                      if (task) { setViewingTask(task); setDetailsDialogOpen(true); return; }
+                    }
+                    setSelectedAssessment(a); setAssessmentDetailsOpen(true);
+                  }}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold truncate">{a.name}</h3>
+                        <p className="text-xs text-muted-foreground">{a.assessmentType} • {a.category || 'Uncategorized'}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Badge className={`text-xs shrink-0 ${getDueBadgeClass()}`} variant="outline">
+                          {a.completed ? '✓ Done' : daysUntil !== null ? (daysUntil < 0 ? `${Math.abs(daysUntil)}d overdue` : daysUntil === 0 ? 'Today!' : `${daysUntil}d left`) : 'No date'}
+                        </Badge>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleAssessmentComplete(a.id);
+                        }}>
+                          {a.completed ? <X className="h-3 w-3" /> : <Check className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    </div>
+                    {a.linkedTaskId && (
+                      <p className="text-xs text-muted-foreground mb-1">📋 Linked to task</p>
+                    )}
+                    <div className="text-2xl font-bold text-center mt-2">
+                      {scored.length > 0 ? `${totalScore}/${totalMax}` : '—'}
+                    </div>
+                    {scored.length > 0 && <div className="text-center text-sm text-muted-foreground">{pct}%</div>}
+                    {a.dueDate && (
+                      <div className="text-center text-xs text-muted-foreground mt-1">
+                        <Calendar className="h-3 w-3 inline mr-1" />
+                        {new Date(a.dueDate).toLocaleDateString('en-GB')}
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
 
       <ResultCellDialog
