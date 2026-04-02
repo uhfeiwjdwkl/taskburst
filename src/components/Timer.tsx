@@ -255,13 +255,18 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       return false;
     }
 
-    // Calculate duration based on timer seconds, not wall-clock time
-    // This excludes time spent in the progress grid editor
-    const calculatedDuration = duration ?? (currentSessionStartSeconds - seconds) / 60; // Convert to minutes
+    // Calculate duration based on timer mode
+    let calculatedDuration: number;
+    if (timerMode === 'stopwatch') {
+      calculatedDuration = duration ?? stopwatchSeconds / 60;
+    } else {
+      calculatedDuration = duration ?? (currentSessionStartSeconds - seconds) / 60;
+    }
     console.log('Saving session with duration:', calculatedDuration, 'minutes');
     
     // If session is <2 minutes and we haven't skipped the check, show rewind option
-    if (calculatedDuration < 2 && !skipRewindCheck) {
+    // For stopwatch, only show if actually short
+    if (calculatedDuration < 2 && !skipRewindCheck && timerMode === 'countdown') {
       console.log('Session too short, showing rewind option');
       setPendingSessionData({ endProgress, duration: calculatedDuration });
       setShowRewindOption(true);
@@ -304,7 +309,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       progressGridStart: sessionStartProgress,
       progressGridEnd: pendingSessionSave.endProgress,
       progressGridSize: activeTask.progressGridSize,
-      phase: sessionStartPhase,
+      phase: timerMode === 'stopwatch' ? 'focus' : sessionStartPhase,
     };
 
     const savedSessions = JSON.parse(localStorage.getItem('sessions') || '[]');
@@ -406,6 +411,9 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     setSessionStartProgress(filled);
     setSessionStartSpentMinutes(activeTask?.spentMinutes || 0);
     setCurrentSessionStartTime(new Date());
+    if (timerMode === 'stopwatch') {
+      setStopwatchSeconds(0);
+    }
     setCurrentSessionStartSeconds(seconds);
     setSessionStartPhase(phase); // Track which phase we're starting
     setIsRunning(true);
@@ -768,7 +776,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
 
       <div className="flex items-center gap-8">
         {/* Task Progress Ring */}
-        {activeTask && phase === 'focus' && (
+        {activeTask && phase === 'focus' && timerMode === 'countdown' && (
           <div className="relative">
             <ProgressRing progress={taskProgress} size={180} strokeWidth={10} />
             <div className="absolute inset-0 flex items-center justify-center">
@@ -784,20 +792,31 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
           </div>
         )}
 
-        {/* Main Timer Ring */}
-        <div className="relative">
-          <ProgressRing progress={progress} />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                {timerMode === 'stopwatch' ? formatTime(stopwatchSeconds) : formatTime(seconds)}
-              </div>
-              <div className="text-sm text-muted-foreground mt-2">
-                {timerMode === 'stopwatch' ? 'Elapsed time' : (phase === 'focus' ? 'Stay focused!' : 'Take a break!')}
+        {/* Main Timer Ring (countdown only) / Stopwatch display */}
+        {timerMode === 'stopwatch' ? (
+          <div className="text-center">
+            <div className="text-7xl font-bold bg-gradient-primary bg-clip-text text-transparent tabular-nums">
+              {formatTime(stopwatchSeconds)}
+            </div>
+            <div className="text-sm text-muted-foreground mt-2">
+              Elapsed time
+            </div>
+          </div>
+        ) : (
+          <div className="relative">
+            <ProgressRing progress={progress} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                  {formatTime(seconds)}
+                </div>
+                <div className="text-sm text-muted-foreground mt-2">
+                  {phase === 'focus' ? 'Stay focused!' : 'Take a break!'}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="flex gap-4 flex-wrap justify-center relative z-50">

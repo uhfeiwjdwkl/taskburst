@@ -48,6 +48,7 @@ export interface Task {
   subtasks?: Subtask[]; // Array of subtasks
   // Results fields
   showInResults?: boolean;
+  hiddenInResults?: boolean; // Hide from results table but retain scores
   resultShortName?: string;
   result?: TaskResult;
   // Manual ordering
