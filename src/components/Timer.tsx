@@ -411,6 +411,9 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     setSessionStartProgress(filled);
     setSessionStartSpentMinutes(activeTask?.spentMinutes || 0);
     setCurrentSessionStartTime(new Date());
+    if (timerMode === 'stopwatch') {
+      setStopwatchSeconds(0);
+    }
     setCurrentSessionStartSeconds(seconds);
     setSessionStartPhase(phase); // Track which phase we're starting
     setIsRunning(true);
