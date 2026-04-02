@@ -773,7 +773,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
 
       <div className="flex items-center gap-8">
         {/* Task Progress Ring */}
-        {activeTask && phase === 'focus' && (
+        {activeTask && phase === 'focus' && timerMode === 'countdown' && (
           <div className="relative">
             <ProgressRing progress={taskProgress} size={180} strokeWidth={10} />
             <div className="absolute inset-0 flex items-center justify-center">
@@ -789,20 +789,31 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
           </div>
         )}
 
-        {/* Main Timer Ring */}
-        <div className="relative">
-          <ProgressRing progress={progress} />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                {timerMode === 'stopwatch' ? formatTime(stopwatchSeconds) : formatTime(seconds)}
-              </div>
-              <div className="text-sm text-muted-foreground mt-2">
-                {timerMode === 'stopwatch' ? 'Elapsed time' : (phase === 'focus' ? 'Stay focused!' : 'Take a break!')}
+        {/* Main Timer Ring (countdown only) / Stopwatch display */}
+        {timerMode === 'stopwatch' ? (
+          <div className="text-center">
+            <div className="text-7xl font-bold bg-gradient-primary bg-clip-text text-transparent tabular-nums">
+              {formatTime(stopwatchSeconds)}
+            </div>
+            <div className="text-sm text-muted-foreground mt-2">
+              Elapsed time
+            </div>
+          </div>
+        ) : (
+          <div className="relative">
+            <ProgressRing progress={progress} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                  {formatTime(seconds)}
+                </div>
+                <div className="text-sm text-muted-foreground mt-2">
+                  {phase === 'focus' ? 'Stay focused!' : 'Take a break!'}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="flex gap-4 flex-wrap justify-center relative z-50">
