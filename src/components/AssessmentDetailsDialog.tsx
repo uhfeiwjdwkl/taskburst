@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Assessment, AssessmentResultPart } from '@/types/assessment';
 import { Task } from '@/types/task';
 import {
@@ -13,7 +13,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { X, Calendar, Edit, ExternalLink, Trash2 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { X, Calendar, Edit, ExternalLink, Trash2, Plus } from 'lucide-react';
 
 interface AssessmentDetailsDialogProps {
   assessment: Assessment | null;
@@ -34,6 +41,14 @@ export const AssessmentDetailsDialog = ({
 }: AssessmentDetailsDialogProps) => {
   const [editing, setEditing] = useState(false);
   const [editedAssessment, setEditedAssessment] = useState<Assessment | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('taskCategories');
+    if (saved) {
+      try { setCategories(JSON.parse(saved)); } catch { setCategories([]); }
+    }
+  }, [open]);
 
   if (!assessment) return null;
 
@@ -79,6 +94,18 @@ export const AssessmentDetailsDialog = ({
     setEditedAssessment({ ...editedAssessment, result: { ...editedAssessment.result, parts } });
   };
 
+  const handleAddPart = () => {
+    if (!editedAssessment) return;
+    const newPart: AssessmentResultPart = { name: `Part ${editedAssessment.result.parts.length + 1}`, score: null, maxScore: 25 };
+    setEditedAssessment({ ...editedAssessment, result: { ...editedAssessment.result, parts: [...editedAssessment.result.parts, newPart] } });
+  };
+
+  const handleRemovePart = (index: number) => {
+    if (!editedAssessment || editedAssessment.result.parts.length <= 1) return;
+    const parts = editedAssessment.result.parts.filter((_, i) => i !== index);
+    setEditedAssessment({ ...editedAssessment, result: { ...editedAssessment.result, parts } });
+  };
+
   return (
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" showClose={false}
@@ -94,8 +121,35 @@ export const AssessmentDetailsDialog = ({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          {/* Editing fields */}
+          {editing && editedAssessment && (
+            <div className="space-y-3 border rounded-lg p-3">
+              <div>
+                <Label>Name</Label>
+                <Input value={editedAssessment.name} onChange={(e) => setEditedAssessment({ ...editedAssessment, name: e.target.value })} className="mt-1" />
+              </div>
+              <div>
+                <Label>Category</Label>
+                <Select value={editedAssessment.category || ''} onValueChange={(v) => setEditedAssessment({ ...editedAssessment, category: v })}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectContent>
+                    {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Description</Label>
+                <Input value={editedAssessment.description || ''} onChange={(e) => setEditedAssessment({ ...editedAssessment, description: e.target.value })} className="mt-1" />
+              </div>
+              <div>
+                <Label>Due Date</Label>
+                <Input type="date" value={editedAssessment.dueDate || ''} onChange={(e) => setEditedAssessment({ ...editedAssessment, dueDate: e.target.value })} className="mt-1" />
+              </div>
+            </div>
+          )}
+
           {/* Due date & countdown */}
-          {a.dueDate && (
+          {!editing && a.dueDate && (
             <div className="flex items-center gap-2">
               <Badge variant={daysUntilDue !== null && daysUntilDue < 0 ? 'destructive' : 'secondary'}>
                 <Calendar className="h-3 w-3 mr-1" />
@@ -109,13 +163,36 @@ export const AssessmentDetailsDialog = ({
             </div>
           )}
 
-          {a.description && <p className="text-sm text-muted-foreground">{a.description}</p>}
+          {!editing && a.description && <p className="text-sm text-muted-foreground">{a.description}</p>}
 
-          {/* Total */}
+          {/* Total + mode toggle */}
           <Card className="p-4 text-center">
             <div className="text-3xl font-bold">{totals.display}</div>
             {totals.percentage !== totals.display && (
               <div className="text-lg text-muted-foreground">{totals.percentage}</div>
+            )}
+            {editing && editedAssessment && (
+              <div className="flex items-center gap-2 justify-center mt-2">
+                <Button
+                  variant={editedAssessment.result.totalMode === 'marks' || !editedAssessment.result.totalMode ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setEditedAssessment({ ...editedAssessment, result: { ...editedAssessment.result, totalMode: 'marks' } })}
+                >
+                  Sum
+                </Button>
+                <Button
+                  variant={editedAssessment.result.totalMode === 'average' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setEditedAssessment({ ...editedAssessment, result: { ...editedAssessment.result, totalMode: 'average' } })}
+                >
+                  Average
+                </Button>
+              </div>
+            )}
+            {!editing && (
+              <Badge variant="outline" className="mt-2 text-xs">
+                {a.result.totalMode === 'average' ? 'Avg' : 'Sum'}
+              </Badge>
             )}
           </Card>
 
@@ -130,6 +207,9 @@ export const AssessmentDetailsDialog = ({
                     <Input type="number" value={part.score ?? ''} onChange={(e) => handlePartChange(i, 'score', e.target.value)} placeholder="—" className="w-16 h-8 text-sm" />
                     <span className="text-muted-foreground">/</span>
                     <Input type="number" value={part.maxScore} onChange={(e) => handlePartChange(i, 'maxScore', e.target.value)} className="w-16 h-8 text-sm" />
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleRemovePart(i)} disabled={a.result.parts.length <= 1}>
+                      <X className="h-3 w-3 text-destructive" />
+                    </Button>
                   </>
                 ) : (
                   <>
@@ -146,6 +226,11 @@ export const AssessmentDetailsDialog = ({
                 )}
               </div>
             ))}
+            {editing && (
+              <Button variant="outline" size="sm" onClick={handleAddPart} className="w-full">
+                <Plus className="h-3 w-3 mr-1" /> Add Part
+              </Button>
+            )}
           </div>
 
           {/* Linked task */}
