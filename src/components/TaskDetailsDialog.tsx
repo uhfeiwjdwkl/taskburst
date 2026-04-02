@@ -477,7 +477,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
           {editedTask.progressGridSize > 0 && (
             <div className="border rounded-lg p-3 space-y-2">
               <Label className="text-sm font-medium">Name Progress Boxes (auto-creates linked subtasks)</Label>
-              <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto">
+              <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto">
                 {Array.from({ length: editedTask.progressGridSize }, (_, i) => {
                   const linkedSubtask = (editedTask.subtasks || []).find(
                     s => s.linkedToProgressGrid && s.progressGridIndex === i
@@ -485,6 +485,30 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
                   return (
                     <div key={i} className="flex items-center gap-1">
                       <span className="text-xs text-muted-foreground w-6 text-right">{i + 1}.</span>
+                      {/* Color ring around abbreviation */}
+                      <div 
+                        className="relative w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold cursor-pointer border-2 shrink-0"
+                        style={{ 
+                          borderColor: linkedSubtask?.color || 'hsl(var(--border))',
+                          backgroundColor: linkedSubtask?.color ? `${linkedSubtask.color}20` : undefined,
+                        }}
+                        onClick={() => {
+                          if (!linkedSubtask) return;
+                          // Cycle through colors
+                          const COLORS = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#3b82f6','#8b5cf6','#ec4899'];
+                          const currentIdx = COLORS.indexOf(linkedSubtask.color || '');
+                          const nextColor = currentIdx >= 0 ? (currentIdx + 1 < COLORS.length ? COLORS[currentIdx + 1] : undefined) : COLORS[0];
+                          setEditedTask({
+                            ...editedTask,
+                            subtasks: (editedTask.subtasks || []).map(s =>
+                              s.id === linkedSubtask.id ? { ...s, color: nextColor } : s
+                            ),
+                          });
+                        }}
+                        title="Click to change color"
+                      >
+                        {linkedSubtask?.abbreviation || linkedSubtask?.title?.charAt(0)?.toUpperCase() || ''}
+                      </div>
                       <Input
                         value={linkedSubtask?.title || ''}
                         onChange={(e) => {
@@ -492,7 +516,6 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
                           const existingSubtasks = editedTask.subtasks || [];
                           if (linkedSubtask) {
                             if (!title.trim()) {
-                              // Remove the subtask if name cleared
                               setEditedTask({
                                 ...editedTask,
                                 subtasks: existingSubtasks.filter(s => s.id !== linkedSubtask.id),
@@ -506,7 +529,6 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
                               });
                             }
                           } else if (title.trim()) {
-                            // Auto-create linked subtask
                             const newSubtask: Subtask = {
                               id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                               taskId: editedTask.id,
@@ -524,7 +546,23 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
                           }
                         }}
                         placeholder={`Box ${i + 1}`}
-                        className="h-7 text-xs"
+                        className="flex-1 h-7 text-xs"
+                      />
+                      <Input
+                        value={linkedSubtask?.abbreviation || ''}
+                        onChange={(e) => {
+                          if (!linkedSubtask) return;
+                          setEditedTask({
+                            ...editedTask,
+                            subtasks: (editedTask.subtasks || []).map(s =>
+                              s.id === linkedSubtask.id ? { ...s, abbreviation: e.target.value.slice(0, 3) } : s
+                            ),
+                          });
+                        }}
+                        placeholder="Abbr"
+                        maxLength={3}
+                        className="w-14 h-7 text-xs"
+                        disabled={!linkedSubtask}
                       />
                     </div>
                   );
