@@ -255,13 +255,18 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       return false;
     }
 
-    // Calculate duration based on timer seconds, not wall-clock time
-    // This excludes time spent in the progress grid editor
-    const calculatedDuration = duration ?? (currentSessionStartSeconds - seconds) / 60; // Convert to minutes
+    // Calculate duration based on timer mode
+    let calculatedDuration: number;
+    if (timerMode === 'stopwatch') {
+      calculatedDuration = duration ?? stopwatchSeconds / 60;
+    } else {
+      calculatedDuration = duration ?? (currentSessionStartSeconds - seconds) / 60;
+    }
     console.log('Saving session with duration:', calculatedDuration, 'minutes');
     
     // If session is <2 minutes and we haven't skipped the check, show rewind option
-    if (calculatedDuration < 2 && !skipRewindCheck) {
+    // For stopwatch, only show if actually short
+    if (calculatedDuration < 2 && !skipRewindCheck && timerMode === 'countdown') {
       console.log('Session too short, showing rewind option');
       setPendingSessionData({ endProgress, duration: calculatedDuration });
       setShowRewindOption(true);
