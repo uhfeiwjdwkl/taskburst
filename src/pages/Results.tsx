@@ -120,7 +120,7 @@ export default function Results() {
     
     const allTasks = [...tasks, ...archivedTasks];
     allTasks.forEach(task => {
-      if (task.showInResults) {
+      if (task.showInResults && !task.hiddenInResults) {
         const result = task.result || {
           totalScore: null,
           totalMaxScore: 100,
@@ -167,6 +167,25 @@ export default function Results() {
           category: 'Projects',
           result,
           originalProject: project
+        });
+      }
+    });
+
+    // Include unlinked assessments (those without linkedTaskId) as result items
+    assessments.forEach(a => {
+      if (!a.linkedTaskId && a.showInResults !== false) {
+        items.push({
+          id: a.id,
+          type: 'task', // treat as task for table rendering
+          name: a.name,
+          shortName: a.resultShortName,
+          category: a.category || 'Uncategorized',
+          result: {
+            totalScore: a.result.totalScore,
+            totalMaxScore: a.result.totalMaxScore,
+            totalMode: a.result.totalMode || 'marks',
+            parts: a.result.parts,
+          },
         });
       }
     });
