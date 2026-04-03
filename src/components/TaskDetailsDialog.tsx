@@ -26,6 +26,8 @@ import {
 import { X, Plus, Calendar, Trash2, Wand2 } from 'lucide-react';
 import { SubtaskList } from './SubtaskList';
 import { TaskScheduleDialog } from './TaskScheduleDialog';
+import { TaskLinkedAssessmentsSection } from './TaskLinkedAssessmentsSection';
+import { syncLinkedAssessmentsForTask } from '@/lib/assessmentUtils';
 import { toast } from 'sonner';
 
 interface TaskDetailsDialogProps {
@@ -68,7 +70,12 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
   useEffect(() => {
     const saved = localStorage.getItem('taskCategories');
     if (saved) {
-      setCategories(JSON.parse(saved));
+      try {
+        const parsed = JSON.parse(saved);
+        setCategories(Array.isArray(parsed) ? parsed : []);
+      } catch {
+        setCategories([]);
+      }
     } else {
       const defaultCategories = ['Work', 'Study', 'Personal', 'Health', 'Projects', 'Other'];
       setCategories(defaultCategories);
@@ -112,6 +119,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
         });
       }
     }
+    syncLinkedAssessmentsForTask(editedTask);
     onSave(editedTask);
     onClose();
   };
@@ -123,7 +131,13 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
       // Save to taskCategories (for the select dropdown)
       localStorage.setItem('taskCategories', JSON.stringify(updated));
       // Also update the main categories storage used by Categories page
-      const mainCategories = JSON.parse(localStorage.getItem('categories') || '[]');
+      let mainCategories: string[] = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem('categories') || '[]');
+        mainCategories = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        mainCategories = [];
+      }
       if (!mainCategories.includes(newCategory.trim())) {
         mainCategories.push(newCategory.trim());
         localStorage.setItem('categories', JSON.stringify(mainCategories));
@@ -570,6 +584,8 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
               </div>
             </div>
           )}
+
+          <TaskLinkedAssessmentsSection task={editedTask} />
 
           {/* Results Section */}
           <div className="border-t pt-4 space-y-3">
