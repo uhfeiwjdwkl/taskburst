@@ -6,6 +6,7 @@ import { Assessment } from '@/types/assessment';
 import { Timetable, FlexibleEvent, TimetableCell } from '@/types/timetable';
 import { cn } from '@/lib/utils';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
+import { eventOccursOnDate, getEventDatesForRange } from '@/lib/eventUtils';
 import { format, isSameDay, parseISO, addDays, subDays } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +30,8 @@ interface UniversalDayCalendarProps {
   date?: Date;
   onDateChange?: (date: Date) => void;
   tasks?: Task[];
+  events?: CalendarEvent[];
+  assessments?: Assessment[];
   onTaskClick?: (task: Task) => void;
   onSubtaskClick?: (subtask: Subtask, task: Task) => void;
   onEventClick?: (event: CalendarEvent) => void;
@@ -66,6 +69,8 @@ export const UniversalDayCalendar = ({
   date: controlledDate,
   onDateChange,
   tasks: externalTasks,
+  events: externalEvents,
+  assessments: externalAssessments,
   onTaskClick,
   onSubtaskClick,
   onEventClick,
@@ -99,8 +104,17 @@ export const UniversalDayCalendar = ({
       setTasks(safeParse('tasks') as Task[]);
     }
 
-    setEvents(safeParse('calendarEvents') as CalendarEvent[]);
-    setAssessments(safeParse('assessments') as Assessment[]);
+    if (externalEvents) {
+      setEvents(externalEvents);
+    } else {
+      setEvents(safeParse('calendarEvents') as CalendarEvent[]);
+    }
+
+    if (externalAssessments) {
+      setAssessments(externalAssessments);
+    } else {
+      setAssessments(safeParse('assessments') as Assessment[]);
+    }
 
     try {
       const savedTimetables = localStorage.getItem('timetables');
@@ -115,7 +129,7 @@ export const UniversalDayCalendar = ({
         setFlexibleEvents(allFlexEvents);
       }
     } catch {}
-  }, [externalTasks]);
+  }, [externalTasks, externalEvents, externalAssessments]);
 
   useEffect(() => {
     const updatePosition = () => {
@@ -167,19 +181,16 @@ export const UniversalDayCalendar = ({
 
     // Calendar events
     events.forEach(event => {
-      try {
-        const eventDate = parseISO(event.date);
-        if (isSameDay(eventDate, currentDate)) {
-          items.push({
-            id: `event-${event.id}`,
-            type: 'event',
-            title: event.title,
-            time: event.time,
-            duration: event.duration,
-            data: event,
-          });
-        }
-      } catch {}
+      if (eventOccursOnDate(event, currentDate)) {
+        items.push({
+          id: `event-${event.id}`,
+          type: 'event',
+          title: event.title,
+          time: event.time,
+          duration: event.duration,
+          data: event,
+        });
+      }
     });
 
     // Assessments (by due date, all-day items)
@@ -333,10 +344,8 @@ export const UniversalDayCalendar = ({
   }, [tasks]);
 
   const datesWithEvents = useMemo(() => {
-    const dates: Date[] = [];
-    events.forEach(event => { try { dates.push(parseISO(event.date)); } catch {} });
-    return dates;
-  }, [events]);
+    return getEventDatesForRange(events, addDays(currentDate, -120), addDays(currentDate, 120));
+  }, [events, currentDate]);
 
   const isToday = isSameDay(currentDate, new Date());
 

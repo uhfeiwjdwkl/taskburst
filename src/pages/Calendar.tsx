@@ -23,6 +23,7 @@ import { UniversalDayCalendar } from '@/components/UniversalDayCalendar';
 import { ExportImportButton } from '@/components/ExportImportButton';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
+import { eventOccursOnDate, getEventDatesForRange } from '@/lib/eventUtils';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -140,6 +141,7 @@ const CalendarPage = () => {
   };
 
   const handleEventClick = (event: CalendarEvent) => {
+    setEditEventDialogOpen(false);
     setSelectedEvent(event);
     setEventDetailsDialogOpen(true);
   };
@@ -181,9 +183,7 @@ const CalendarPage = () => {
 
   const getEventsForDate = (date: Date | undefined) => {
     if (!date) return [];
-    return events.filter(event => {
-      try { return isSameDay(parseISO(event.date), date); } catch { return false; }
-    });
+    return events.filter(event => eventOccursOnDate(event, date));
   };
 
   const getSubtasksForDate = (date: Date | undefined): { subtask: Subtask; task: Task }[] => {
@@ -218,9 +218,12 @@ const CalendarPage = () => {
   };
 
   const getDatesWithEvents = () => {
-    const dates: Date[] = [];
-    events.forEach(event => { try { dates.push(parseISO(event.date)); } catch {} });
-    return dates;
+    const anchor = selectedDate || new Date();
+    return getEventDatesForRange(
+      events,
+      new Date(anchor.getTime() - 1000 * 60 * 60 * 24 * 120),
+      new Date(anchor.getTime() + 1000 * 60 * 60 * 24 * 120)
+    );
   };
 
   const tasksForSelectedDate = getTasksForDate(selectedDate);
@@ -451,6 +454,8 @@ const CalendarPage = () => {
                 date={selectedDate}
                 onDateChange={(d) => setSelectedDate(d)}
                 tasks={tasks}
+                events={events}
+                assessments={assessments}
                 onTaskClick={(task) => handleShowDetails(task.id)}
                 onSubtaskClick={handleSubtaskClick}
                 onEventClick={handleEventClick}
@@ -468,7 +473,7 @@ const CalendarPage = () => {
           prefilledDate={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined} />
 
         <TaskDetailsDialog task={selectedTask} open={editDialogOpen} onClose={() => setEditDialogOpen(false)} onSave={handleUpdateTask} />
-        <TaskDetailsViewDialog task={selectedTask} open={detailsDialogOpen} onClose={() => setDetailsDialogOpen(false)} />
+        <TaskDetailsViewDialog task={selectedTask} open={detailsDialogOpen} onClose={() => setDetailsDialogOpen(false)} onUpdateTask={handleUpdateTask} onEdit={handleEdit} />
         
         <EventDetailsViewDialog event={selectedEvent} open={eventDetailsDialogOpen}
           onClose={() => { setEventDetailsDialogOpen(false); setSelectedEvent(null); }} onEdit={handleEditEvent} />

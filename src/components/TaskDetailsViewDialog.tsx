@@ -20,6 +20,7 @@ import { formatTimeTo12Hour } from '@/lib/dateFormat';
 import { UniversalProgressGrid } from './UniversalProgressGrid';
 import { SubtaskDialog } from './SubtaskDialog';
 import { SubtaskFullDetailsDialog } from './SubtaskFullDetailsDialog';
+import { TaskLinkedAssessmentsSection } from './TaskLinkedAssessmentsSection';
 
 interface TaskDetailsViewDialogProps {
   task: Task | null;
@@ -33,13 +34,26 @@ interface TaskDetailsViewDialogProps {
 const getStoredFilledIndices = (taskId: string): number[] | null => {
   const stored = localStorage.getItem('progressGridFilledIndices');
   if (!stored) return null;
-  const data = JSON.parse(stored);
-  return data[taskId] || null;
+  try {
+    const data = JSON.parse(stored);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    return Array.isArray(data[taskId]) ? data[taskId] : null;
+  } catch {
+    return null;
+  }
 };
 
 const storeFilledIndices = (taskId: string, indices: number[]): void => {
   const stored = localStorage.getItem('progressGridFilledIndices');
-  const data = stored ? JSON.parse(stored) : {};
+  let data: Record<string, number[]> = {};
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      data = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      data = {};
+    }
+  }
   data[taskId] = indices;
   localStorage.setItem('progressGridFilledIndices', JSON.stringify(data));
 };
@@ -285,6 +299,8 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
               </div>
             </div>
           )}
+
+          <TaskLinkedAssessmentsSection task={task} />
 
           {/* Subtasks List */}
           {subtasks.length > 0 && (
