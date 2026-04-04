@@ -128,12 +128,20 @@ export function Navigation() {
                 >
                   TaskBurst
                 </Button>
-                <a
-                  href="https://kommenszlapf.website"
-                  className="absolute left-0 top-full mt-1 bg-popover text-sm px-3 py-1 rounded-md shadow-lg border border-border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50"
-                >
-                  Return to kommenszlapf.website
-                </a>
+                <div className="absolute left-0 top-full mt-1 bg-popover rounded-md shadow-lg border border-border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[200px]">
+                  <a
+                    href="https://kommenszlapf.website"
+                    className="block px-3 py-2 text-sm hover:bg-muted rounded-t-md transition-colors"
+                  >
+                    Return to kommenszlapf.website
+                  </a>
+                  <button
+                    onClick={() => navigate('/guide')}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-muted rounded-b-md transition-colors"
+                  >
+                    📖 TaskBurst Guide
+                  </button>
+                </div>
               </div>
               <div className="px-3 py-1 rounded-md bg-muted border">
                 <div className="font-mono text-xs font-bold leading-tight text-center">

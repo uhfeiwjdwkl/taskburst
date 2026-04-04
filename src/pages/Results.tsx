@@ -383,6 +383,18 @@ export default function Results() {
   const handleToggleTotalMode = (item: ResultItem) => {
     const newMode: 'marks' | 'average' = item.result.totalMode === 'average' ? 'marks' : 'average';
     
+    // Check if this is an unlinked assessment
+    const matchingAssessment = assessments.find(a => a.id === item.id && !a.linkedTaskId);
+    if (matchingAssessment) {
+      const updated = assessments.map(a => a.id === item.id ? { ...a, result: { ...a.result, totalMode: newMode } } : a);
+      setAssessments(updated);
+      const raw = localStorage.getItem('assessments');
+      const allAssessments = raw ? (Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : []) : [];
+      const allUpdated = allAssessments.map((a: Assessment) => a.id === item.id ? { ...a, result: { ...a.result, totalMode: newMode } } : a);
+      localStorage.setItem('assessments', JSON.stringify(allUpdated));
+      return;
+    }
+
     if (item.type === 'task') {
       const updateTasks = (taskList: Task[]): Task[] => taskList.map(task => {
         if (task.id === item.id) {
@@ -847,7 +859,11 @@ export default function Results() {
                   const scored = a.result.parts.filter(p => p.score !== null);
                   const totalScore = scored.reduce((s, p) => s + (p.score || 0), 0);
                   const totalMax = scored.reduce((s, p) => s + p.maxScore, 0);
-                  const pct = totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
+                  const mode = a.result.totalMode || 'marks';
+                  const pct = mode === 'average' && scored.length > 0
+                    ? (scored.reduce((s, p) => s + ((p.score || 0) / p.maxScore) * 100, 0) / scored.length).toFixed(1)
+                    : totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
+                  const displayTotal = mode === 'average' && scored.length > 0 ? `${pct}% avg` : scored.length > 0 ? `${totalScore}/${totalMax}` : '—';
                   const daysUntil = a.dueDate ? Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
                   const getDueBadgeClass = () => {
                     if (a.completed) return 'bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30';
@@ -868,7 +884,7 @@ export default function Results() {
                         <span className="font-medium text-sm">{a.name}</span>
                         <span className="text-xs text-muted-foreground ml-2">{a.assessmentType}</span>
                       </div>
-                      <span className="font-bold text-sm">{scored.length > 0 ? `${totalScore}/${totalMax} (${pct}%)` : '—'}</span>
+                      <span className="font-bold text-sm">{displayTotal}{mode !== 'average' && scored.length > 0 ? ` (${pct}%)` : ''}</span>
                       <Badge className={`text-xs ${getDueBadgeClass()}`} variant="outline">
                         {a.completed ? '✓' : daysUntil !== null ? (daysUntil < 0 ? `${Math.abs(daysUntil)}d late` : `${daysUntil}d`) : '—'}
                       </Badge>
@@ -891,7 +907,11 @@ export default function Results() {
                 const scored = a.result.parts.filter(p => p.score !== null);
                 const totalScore = scored.reduce((s, p) => s + (p.score || 0), 0);
                 const totalMax = scored.reduce((s, p) => s + p.maxScore, 0);
-                const pct = totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
+                const mode = a.result.totalMode || 'marks';
+                const pct = mode === 'average' && scored.length > 0
+                  ? (scored.reduce((s, p) => s + ((p.score || 0) / p.maxScore) * 100, 0) / scored.length).toFixed(1)
+                  : totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
+                const displayTotal = mode === 'average' && scored.length > 0 ? `${pct}% avg` : scored.length > 0 ? `${totalScore}/${totalMax}` : '—';
                 const daysUntil = a.dueDate ? Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
                 const getDueBadgeClass = () => {
                   if (a.completed) return 'bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30';
@@ -931,9 +951,10 @@ export default function Results() {
                       <p className="text-xs text-muted-foreground mb-1">📋 Linked to task</p>
                     )}
                     <div className="text-2xl font-bold text-center mt-2">
-                      {scored.length > 0 ? `${totalScore}/${totalMax}` : '—'}
+                      {displayTotal}
                     </div>
-                    {scored.length > 0 && <div className="text-center text-sm text-muted-foreground">{pct}%</div>}
+                    {scored.length > 0 && mode !== 'average' && <div className="text-center text-sm text-muted-foreground">{pct}%</div>}
+                    <Badge variant="outline" className="mt-1 text-xs mx-auto block w-fit">{mode === 'average' ? 'Avg' : 'Sum'}</Badge>
                     {a.dueDate && (
                       <div className="text-center text-xs text-muted-foreground mt-1">
                         <Calendar className="h-3 w-3 inline mr-1" />
