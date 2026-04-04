@@ -597,6 +597,14 @@ const Index = () => {
             }}
           />
         )}
+        <EventDetailsViewDialog
+          event={selectedEvent}
+          open={eventDetailsOpen}
+          onClose={() => {
+            setEventDetailsOpen(false);
+            setSelectedEvent(null);
+          }}
+        />
       </div>
     </div>
   );
