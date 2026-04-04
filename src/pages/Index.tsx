@@ -28,6 +28,7 @@ import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
 import { ListCard } from '@/components/ListCard';
 import { ListDetailsDialog } from '@/components/ListDetailsDialog';
 import { SubtaskFullDetailsDialog } from '@/components/SubtaskFullDetailsDialog';
+import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 const Index = () => {
