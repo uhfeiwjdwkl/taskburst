@@ -951,9 +951,10 @@ export default function Results() {
                       <p className="text-xs text-muted-foreground mb-1">📋 Linked to task</p>
                     )}
                     <div className="text-2xl font-bold text-center mt-2">
-                      {scored.length > 0 ? `${totalScore}/${totalMax}` : '—'}
+                      {displayTotal}
                     </div>
-                    {scored.length > 0 && <div className="text-center text-sm text-muted-foreground">{pct}%</div>}
+                    {scored.length > 0 && mode !== 'average' && <div className="text-center text-sm text-muted-foreground">{pct}%</div>}
+                    <Badge variant="outline" className="mt-1 text-xs mx-auto block w-fit">{mode === 'average' ? 'Avg' : 'Sum'}</Badge>
                     {a.dueDate && (
                       <div className="text-center text-xs text-muted-foreground mt-1">
                         <Calendar className="h-3 w-3 inline mr-1" />
