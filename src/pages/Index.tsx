@@ -28,6 +28,7 @@ import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
 import { ListCard } from '@/components/ListCard';
 import { ListDetailsDialog } from '@/components/ListDetailsDialog';
 import { SubtaskFullDetailsDialog } from '@/components/SubtaskFullDetailsDialog';
+import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 const Index = () => {
@@ -47,6 +48,8 @@ const Index = () => {
   const [listDetailsOpen, setListDetailsOpen] = useState(false);
   const [selectedSubtask, setSelectedSubtask] = useState<{ subtask: Subtask; task: Task } | null>(null);
   const [subtaskDetailsOpen, setSubtaskDetailsOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [tasksLoaded, setTasksLoaded] = useState(false);
 
   // Load tasks from localStorage
@@ -317,7 +320,10 @@ const Index = () => {
                 setSelectedSubtask({ subtask, task });
                 setSubtaskDetailsOpen(true);
               }}
-              onEventClick={() => navigate('/calendar')}
+              onEventClick={(event) => {
+                setSelectedEvent(event);
+                setEventDetailsOpen(true);
+              }}
               onAssessmentClick={() => navigate('/results')}
               onTimetableEventClick={() => navigate('/timetable')}
               onStartSubtask={(subtask, task) => {
@@ -340,7 +346,10 @@ const Index = () => {
                 setSelectedSubtask({ subtask, task });
                 setSubtaskDetailsOpen(true);
               }}
-              onEventClick={() => navigate('/calendar')}
+              onEventClick={(event) => {
+                setSelectedEvent(event);
+                setEventDetailsOpen(true);
+              }}
               onAssessmentClick={() => navigate('/results')}
               onTimetableEventClick={() => navigate('/timetable')}
               onStartSubtask={(subtask, task) => {
@@ -588,6 +597,14 @@ const Index = () => {
             }}
           />
         )}
+        <EventDetailsViewDialog
+          event={selectedEvent}
+          open={eventDetailsOpen}
+          onClose={() => {
+            setEventDetailsOpen(false);
+            setSelectedEvent(null);
+          }}
+        />
       </div>
     </div>
   );
