@@ -346,7 +346,10 @@ const Index = () => {
                 setSelectedSubtask({ subtask, task });
                 setSubtaskDetailsOpen(true);
               }}
-              onEventClick={() => navigate('/calendar')}
+              onEventClick={(event) => {
+                setSelectedEvent(event);
+                setEventDetailsOpen(true);
+              }}
               onAssessmentClick={() => navigate('/results')}
               onTimetableEventClick={() => navigate('/timetable')}
               onStartSubtask={(subtask, task) => {
