@@ -493,6 +493,35 @@ const CalendarPage = () => {
               setDetailsDialogOpen(true);
             }
           }}
+          onEdit={() => {
+            if (selectedSubtask) {
+              setSubtaskDetailsOpen(false);
+              setSelectedTask(selectedSubtask.task);
+              setEditDialogOpen(true);
+            }
+          }}
+          onComplete={() => {
+            if (selectedSubtask && !selectedSubtask.subtask.completed) {
+              const updatedSubtasks = (selectedSubtask.task.subtasks || []).map(s =>
+                s.id === selectedSubtask.subtask.id ? { ...s, completed: true } : s
+              );
+              const updatedTask = { ...selectedSubtask.task, subtasks: updatedSubtasks };
+              handleUpdateTask(updatedTask);
+              setSubtaskDetailsOpen(false);
+              toast.success('Subtask completed!');
+            }
+          }}
+          onUncomplete={() => {
+            if (selectedSubtask && selectedSubtask.subtask.completed) {
+              const updatedSubtasks = (selectedSubtask.task.subtasks || []).map(s =>
+                s.id === selectedSubtask.subtask.id ? { ...s, completed: false } : s
+              );
+              const updatedTask = { ...selectedSubtask.task, subtasks: updatedSubtasks };
+              handleUpdateTask(updatedTask);
+              setSubtaskDetailsOpen(false);
+              toast.success('Subtask marked incomplete');
+            }
+          }}
         />
 
         <AssessmentDetailsDialog
