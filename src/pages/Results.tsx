@@ -383,6 +383,18 @@ export default function Results() {
   const handleToggleTotalMode = (item: ResultItem) => {
     const newMode: 'marks' | 'average' = item.result.totalMode === 'average' ? 'marks' : 'average';
     
+    // Check if this is an unlinked assessment
+    const matchingAssessment = assessments.find(a => a.id === item.id && !a.linkedTaskId);
+    if (matchingAssessment) {
+      const updated = assessments.map(a => a.id === item.id ? { ...a, result: { ...a.result, totalMode: newMode } } : a);
+      setAssessments(updated);
+      const raw = localStorage.getItem('assessments');
+      const allAssessments = raw ? (Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : []) : [];
+      const allUpdated = allAssessments.map((a: Assessment) => a.id === item.id ? { ...a, result: { ...a.result, totalMode: newMode } } : a);
+      localStorage.setItem('assessments', JSON.stringify(allUpdated));
+      return;
+    }
+
     if (item.type === 'task') {
       const updateTasks = (taskList: Task[]): Task[] => taskList.map(task => {
         if (task.id === item.id) {
