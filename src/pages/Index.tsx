@@ -48,6 +48,8 @@ const Index = () => {
   const [listDetailsOpen, setListDetailsOpen] = useState(false);
   const [selectedSubtask, setSelectedSubtask] = useState<{ subtask: Subtask; task: Task } | null>(null);
   const [subtaskDetailsOpen, setSubtaskDetailsOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [tasksLoaded, setTasksLoaded] = useState(false);
 
   // Load tasks from localStorage
