@@ -907,7 +907,11 @@ export default function Results() {
                 const scored = a.result.parts.filter(p => p.score !== null);
                 const totalScore = scored.reduce((s, p) => s + (p.score || 0), 0);
                 const totalMax = scored.reduce((s, p) => s + p.maxScore, 0);
-                const pct = totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
+                const mode = a.result.totalMode || 'marks';
+                const pct = mode === 'average' && scored.length > 0
+                  ? (scored.reduce((s, p) => s + ((p.score || 0) / p.maxScore) * 100, 0) / scored.length).toFixed(1)
+                  : totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
+                const displayTotal = mode === 'average' && scored.length > 0 ? `${pct}% avg` : scored.length > 0 ? `${totalScore}/${totalMax}` : '—';
                 const daysUntil = a.dueDate ? Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
                 const getDueBadgeClass = () => {
                   if (a.completed) return 'bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30';
