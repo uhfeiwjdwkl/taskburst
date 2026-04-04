@@ -19,6 +19,7 @@ import Results from "./pages/Results";
 import History from "./pages/History";
 import RecentlyDeletedUnified from "./pages/RecentlyDeletedUnified";
 import Timetable from "./pages/Timetable";
+import Guide from "./pages/Guide";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
