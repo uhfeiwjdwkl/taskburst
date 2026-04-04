@@ -884,7 +884,7 @@ export default function Results() {
                         <span className="font-medium text-sm">{a.name}</span>
                         <span className="text-xs text-muted-foreground ml-2">{a.assessmentType}</span>
                       </div>
-                      <span className="font-bold text-sm">{scored.length > 0 ? `${totalScore}/${totalMax} (${pct}%)` : '—'}</span>
+                      <span className="font-bold text-sm">{displayTotal}{mode !== 'average' && scored.length > 0 ? ` (${pct}%)` : ''}</span>
                       <Badge className={`text-xs ${getDueBadgeClass()}`} variant="outline">
                         {a.completed ? '✓' : daysUntil !== null ? (daysUntil < 0 ? `${Math.abs(daysUntil)}d late` : `${daysUntil}d`) : '—'}
                       </Badge>
