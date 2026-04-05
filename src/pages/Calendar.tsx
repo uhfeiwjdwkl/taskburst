@@ -692,6 +692,16 @@ const CalendarPage = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <FlexibleEventDetailsDialog
+          event={selectedTimetableEvent}
+          open={timetableEventDetailsOpen}
+          onOpenChange={setTimetableEventDetailsOpen}
+          onSave={() => {}}
+          onDelete={() => {}}
+          readOnly
+          onGoToTimetable={() => navigate('/timetable')}
+        />
       </div>
     </div>
   );
