@@ -422,12 +422,50 @@ const Index = () => {
 
         {/* Tasks Section with Drag & Drop */}
         <section>
-          <h2 className="text-2xl font-semibold mb-4">
-            Your Tasks ({sortedTasks.length})
-            <span className="text-sm font-normal text-muted-foreground ml-2">
-              Drag to reorder
-            </span>
-          </h2>
+          <div className="flex flex-col gap-3 mb-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold">
+                Your Tasks ({filteredTasks.length})
+                {!selectionMode && (
+                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                    Drag to reorder
+                  </span>
+                )}
+              </h2>
+              <Button
+                variant={selectionMode ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => { setSelectionMode(!selectionMode); setSelectedTaskIds(new Set()); }}
+              >
+                {selectionMode ? 'Cancel' : 'Select'}
+              </Button>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            {selectionMode && selectedTaskIds.size > 0 && (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleSelectAllTasks}>
+                  {selectedTaskIds.size === filteredTasks.length ? 'Deselect All' : 'Select All'}
+                </Button>
+                <span className="text-sm text-muted-foreground">{selectedTaskIds.size} selected</span>
+                <div className="ml-auto flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleBulkComplete} className="gap-1">
+                    <CheckCircle className="h-4 w-4" /> Complete
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={handleBulkDelete} className="gap-1">
+                    <Trash2 className="h-4 w-4" /> Delete
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="tasks">
               {(provided) => (
@@ -436,8 +474,8 @@ const Index = () => {
                   ref={provided.innerRef}
                   className="space-y-4"
                 >
-                  {sortedTasks.map((task, index) => (
-                    <Draggable key={task.id} draggableId={task.id} index={index}>
+                  {filteredTasks.map((task, index) => (
+                    <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={selectionMode}>
                       {(provided, snapshot) => (
                         <div
                           ref={provided.innerRef}
@@ -445,12 +483,21 @@ const Index = () => {
                           className={snapshot.isDragging ? 'opacity-80' : ''}
                         >
                           <div className="flex gap-2 items-start">
-                            <div
-                              {...provided.dragHandleProps}
-                              className="mt-4 p-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
-                            >
-                              <GripVertical className="h-5 w-5" />
-                            </div>
+                            {selectionMode ? (
+                              <div className="mt-4 p-1">
+                                <Checkbox
+                                  checked={selectedTaskIds.has(task.id)}
+                                  onCheckedChange={() => handleToggleTaskSelection(task.id)}
+                                />
+                              </div>
+                            ) : (
+                              <div
+                                {...provided.dragHandleProps}
+                                className="mt-4 p-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+                              >
+                                <GripVertical className="h-5 w-5" />
+                              </div>
+                            )}
                             <div className="flex-1">
                               <TaskCard
                                 task={task}
