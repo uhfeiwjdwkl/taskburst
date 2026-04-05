@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import { CalendarEvent } from '@/types/event';
-import { Timetable } from '@/types/timetable';
+import { Timetable, FlexibleEvent } from '@/types/timetable';
 import { List } from '@/types/list';
 import { Project } from '@/types/project';
 import Timer from '@/components/Timer';
@@ -18,8 +18,10 @@ import { ExportImportButton } from '@/components/ExportImportButton';
 import { exportAllData } from '@/lib/exportImport';
 import { ImportAllButton } from '@/components/ImportAllButton';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download, Briefcase, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download, Briefcase, ChevronDown, ChevronRight, GripVertical, Search, Trash2, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { playTaskCompleteSound } from '@/lib/sounds';
@@ -29,6 +31,7 @@ import { ListCard } from '@/components/ListCard';
 import { ListDetailsDialog } from '@/components/ListDetailsDialog';
 import { SubtaskFullDetailsDialog } from '@/components/SubtaskFullDetailsDialog';
 import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
+import { FlexibleEventDetailsDialog } from '@/components/FlexibleEventDetailsDialog';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 const Index = () => {
@@ -50,7 +53,12 @@ const Index = () => {
   const [subtaskDetailsOpen, setSubtaskDetailsOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+  const [selectedTimetableEvent, setSelectedTimetableEvent] = useState<FlexibleEvent | null>(null);
+  const [timetableEventDetailsOpen, setTimetableEventDetailsOpen] = useState(false);
   const [tasksLoaded, setTasksLoaded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
 
   // Load tasks from localStorage
   useEffect(() => {
@@ -250,6 +258,53 @@ const Index = () => {
     return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
   });
 
+  const filteredTasks = useMemo(() => {
+    if (!searchQuery.trim()) return sortedTasks;
+    const q = searchQuery.toLowerCase();
+    return sortedTasks.filter(t =>
+      t.name.toLowerCase().includes(q) ||
+      t.category?.toLowerCase().includes(q) ||
+      t.description?.toLowerCase().includes(q)
+    );
+  }, [sortedTasks, searchQuery]);
+
+  const handleToggleTaskSelection = (taskId: string) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  };
+
+  const handleSelectAllTasks = () => {
+    if (selectedTaskIds.size === filteredTasks.length) {
+      setSelectedTaskIds(new Set());
+    } else {
+      setSelectedTaskIds(new Set(filteredTasks.map(t => t.id)));
+    }
+  };
+
+  const handleBulkComplete = () => {
+    const toComplete = tasks.filter(t => selectedTaskIds.has(t.id));
+    const archived = JSON.parse(localStorage.getItem('archivedTasks') || '[]');
+    localStorage.setItem('archivedTasks', JSON.stringify([...archived, ...toComplete.map(t => ({ ...t, completed: true }))]));
+    setTasks(tasks.filter(t => !selectedTaskIds.has(t.id)));
+    toast.success(`${toComplete.length} tasks completed and archived!`);
+    setSelectedTaskIds(new Set());
+    setSelectionMode(false);
+  };
+
+  const handleBulkDelete = () => {
+    const toDelete = tasks.filter(t => selectedTaskIds.has(t.id));
+    const deleted = JSON.parse(localStorage.getItem('deletedTasks') || '[]');
+    localStorage.setItem('deletedTasks', JSON.stringify([...deleted, ...toDelete.map(t => ({ ...t, deletedAt: new Date().toISOString() }))]));
+    setTasks(tasks.filter(t => !selectedTaskIds.has(t.id)));
+    toast.success(`${toDelete.length} tasks moved to recently deleted`);
+    setSelectedTaskIds(new Set());
+    setSelectionMode(false);
+  };
+
   const activeTask = tasks.find(t => t.id === activeTaskId) || null;
 
   return (
@@ -325,7 +380,10 @@ const Index = () => {
                 setEventDetailsOpen(true);
               }}
               onAssessmentClick={() => navigate('/results')}
-              onTimetableEventClick={() => navigate('/timetable')}
+              onTimetableEventClick={(event) => {
+                setSelectedTimetableEvent(event);
+                setTimetableEventDetailsOpen(true);
+              }}
               onStartSubtask={(subtask, task) => {
                 setActiveTaskId(task.id);
                 toast.success(`Starting focus session for: ${subtask.title}`);
@@ -351,7 +409,10 @@ const Index = () => {
                 setEventDetailsOpen(true);
               }}
               onAssessmentClick={() => navigate('/results')}
-              onTimetableEventClick={() => navigate('/timetable')}
+              onTimetableEventClick={(event) => {
+                setSelectedTimetableEvent(event);
+                setTimetableEventDetailsOpen(true);
+              }}
               onStartSubtask={(subtask, task) => {
                 setActiveTaskId(task.id);
                 toast.success(`Starting focus session for: ${subtask.title}`);
@@ -361,12 +422,50 @@ const Index = () => {
 
         {/* Tasks Section with Drag & Drop */}
         <section>
-          <h2 className="text-2xl font-semibold mb-4">
-            Your Tasks ({sortedTasks.length})
-            <span className="text-sm font-normal text-muted-foreground ml-2">
-              Drag to reorder
-            </span>
-          </h2>
+          <div className="flex flex-col gap-3 mb-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-semibold">
+                Your Tasks ({filteredTasks.length})
+                {!selectionMode && (
+                  <span className="text-sm font-normal text-muted-foreground ml-2">
+                    Drag to reorder
+                  </span>
+                )}
+              </h2>
+              <Button
+                variant={selectionMode ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => { setSelectionMode(!selectionMode); setSelectedTaskIds(new Set()); }}
+              >
+                {selectionMode ? 'Cancel' : 'Select'}
+              </Button>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            {selectionMode && selectedTaskIds.size > 0 && (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleSelectAllTasks}>
+                  {selectedTaskIds.size === filteredTasks.length ? 'Deselect All' : 'Select All'}
+                </Button>
+                <span className="text-sm text-muted-foreground">{selectedTaskIds.size} selected</span>
+                <div className="ml-auto flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleBulkComplete} className="gap-1">
+                    <CheckCircle className="h-4 w-4" /> Complete
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={handleBulkDelete} className="gap-1">
+                    <Trash2 className="h-4 w-4" /> Delete
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="tasks">
               {(provided) => (
@@ -375,8 +474,8 @@ const Index = () => {
                   ref={provided.innerRef}
                   className="space-y-4"
                 >
-                  {sortedTasks.map((task, index) => (
-                    <Draggable key={task.id} draggableId={task.id} index={index}>
+                  {filteredTasks.map((task, index) => (
+                    <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={selectionMode}>
                       {(provided, snapshot) => (
                         <div
                           ref={provided.innerRef}
@@ -384,12 +483,21 @@ const Index = () => {
                           className={snapshot.isDragging ? 'opacity-80' : ''}
                         >
                           <div className="flex gap-2 items-start">
-                            <div
-                              {...provided.dragHandleProps}
-                              className="mt-4 p-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
-                            >
-                              <GripVertical className="h-5 w-5" />
-                            </div>
+                            {selectionMode ? (
+                              <div className="mt-4 p-1">
+                                <Checkbox
+                                  checked={selectedTaskIds.has(task.id)}
+                                  onCheckedChange={() => handleToggleTaskSelection(task.id)}
+                                />
+                              </div>
+                            ) : (
+                              <div
+                                {...provided.dragHandleProps}
+                                className="mt-4 p-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+                              >
+                                <GripVertical className="h-5 w-5" />
+                              </div>
+                            )}
                             <div className="flex-1">
                               <TaskCard
                                 task={task}
@@ -602,6 +710,15 @@ const Index = () => {
             setEventDetailsOpen(false);
             setSelectedEvent(null);
           }}
+        />
+        <FlexibleEventDetailsDialog
+          event={selectedTimetableEvent}
+          open={timetableEventDetailsOpen}
+          onOpenChange={setTimetableEventDetailsOpen}
+          onSave={() => {}}
+          onDelete={() => {}}
+          readOnly
+          onGoToTimetable={() => navigate('/timetable')}
         />
       </div>
     </div>

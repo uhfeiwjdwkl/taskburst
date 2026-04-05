@@ -226,7 +226,9 @@ export function FlexibleTimetableGrid({
     }
     
     if (isEditing) {
-      setSelectedForAction(selectedForAction === event.id ? null : event.id);
+      // In edit mode, open the edit dialog directly
+      setSelectedEvent(event);
+      setDetailsDialogOpen(true);
     } else {
       setSelectedEvent(event);
       setDetailsDialogOpen(true);

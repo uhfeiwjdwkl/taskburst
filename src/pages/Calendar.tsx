@@ -1,13 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import { CalendarEvent } from '@/types/event';
 import { Assessment } from '@/types/assessment';
+import { FlexibleEvent } from '@/types/timetable';
 import { Calendar } from '@/components/ui/calendar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Calendar as CalendarIcon, Clock, MapPin, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ArrowLeft, Plus, Calendar as CalendarIcon, Clock, MapPin, Trash2, ChevronDown, ChevronRight, Search, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import AddTaskDialog from '@/components/AddTaskDialog';
@@ -18,10 +21,12 @@ import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
 import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
 import { SubtaskFullDetailsDialog } from '@/components/SubtaskFullDetailsDialog';
 import { AssessmentDetailsDialog } from '@/components/AssessmentDetailsDialog';
+import { FlexibleEventDetailsDialog } from '@/components/FlexibleEventDetailsDialog';
 import TaskCard from '@/components/TaskCard';
 import { UniversalDayCalendar } from '@/components/UniversalDayCalendar';
 import { ExportImportButton } from '@/components/ExportImportButton';
-import { format, isSameDay, parseISO } from 'date-fns';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { format, isSameDay, parseISO, isAfter, startOfDay } from 'date-fns';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 import { eventOccursOnDate, getEventDatesForRange } from '@/lib/eventUtils';
 import { toast } from 'sonner';
@@ -69,6 +74,16 @@ const CalendarPage = () => {
   // Assessment details
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
   const [assessmentDetailsOpen, setAssessmentDetailsOpen] = useState(false);
+  
+  // Timetable event details
+  const [selectedTimetableEvent, setSelectedTimetableEvent] = useState<FlexibleEvent | null>(null);
+  const [timetableEventDetailsOpen, setTimetableEventDetailsOpen] = useState(false);
+  
+  // Upcoming events
+  const [upcomingOpen, setUpcomingOpen] = useState(false);
+  const [eventSearchQuery, setEventSearchQuery] = useState('');
+  const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
+  const [eventSelectionMode, setEventSelectionMode] = useState(false);
   
   useEffect(() => {
     setTasks(safeParse('tasks') as Task[]);
@@ -234,6 +249,49 @@ const CalendarPage = () => {
   const datesWithEvents = getDatesWithEvents();
 
   const totalItems = tasksForSelectedDate.length + eventsForSelectedDate.length + subtasksForSelectedDate.length + assessmentsForSelectedDate.length;
+
+  // Upcoming events sorted by date
+  const upcomingEvents = useMemo(() => {
+    const today = startOfDay(new Date());
+    const upcoming = events
+      .filter(e => {
+        try {
+          const eventDate = parseISO(e.date);
+          return isAfter(eventDate, today) || isSameDay(eventDate, today);
+        } catch { return false; }
+      })
+      .sort((a, b) => {
+        const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
+        if (dateCompare !== 0) return dateCompare;
+        return (a.time || '').localeCompare(b.time || '');
+      });
+    if (!eventSearchQuery.trim()) return upcoming;
+    const q = eventSearchQuery.toLowerCase();
+    return upcoming.filter(e =>
+      e.title.toLowerCase().includes(q) ||
+      e.description?.toLowerCase().includes(q) ||
+      e.location?.toLowerCase().includes(q)
+    );
+  }, [events, eventSearchQuery]);
+
+  const handleToggleEventSelection = (eventId: string) => {
+    setSelectedEventIds(prev => {
+      const next = new Set(prev);
+      if (next.has(eventId)) next.delete(eventId);
+      else next.add(eventId);
+      return next;
+    });
+  };
+
+  const handleBulkDeleteEvents = () => {
+    const toDelete = events.filter(e => selectedEventIds.has(e.id));
+    const deleted = safeParse('deletedEvents');
+    localStorage.setItem('deletedEvents', JSON.stringify([...deleted, ...toDelete.map(e => ({ ...e, deletedAt: new Date().toISOString() }))]));
+    setEvents(events.filter(e => !selectedEventIds.has(e.id)));
+    toast.success(`${toDelete.length} events moved to recently deleted`);
+    setSelectedEventIds(new Set());
+    setEventSelectionMode(false);
+  };
 
   // Build combined sorted list for the day panel
   type ListItem = 
@@ -447,6 +505,88 @@ const CalendarPage = () => {
             </Card>
           </div>
 
+          {/* Upcoming Events Dropdown */}
+          <Collapsible open={upcomingOpen} onOpenChange={setUpcomingOpen}>
+            <Card className="p-4">
+              <CollapsibleTrigger className="flex items-center justify-between w-full">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <CalendarIcon className="h-5 w-5" />
+                  Upcoming Events ({upcomingEvents.length})
+                </h2>
+                {upcomingOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search events..."
+                      value={eventSearchQuery}
+                      onChange={(e) => setEventSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <Button
+                    variant={eventSelectionMode ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => { setEventSelectionMode(!eventSelectionMode); setSelectedEventIds(new Set()); }}
+                  >
+                    {eventSelectionMode ? 'Cancel' : 'Select'}
+                  </Button>
+                </div>
+                {eventSelectionMode && selectedEventIds.size > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => {
+                      if (selectedEventIds.size === upcomingEvents.length) setSelectedEventIds(new Set());
+                      else setSelectedEventIds(new Set(upcomingEvents.map(e => e.id)));
+                    }}>
+                      {selectedEventIds.size === upcomingEvents.length ? 'Deselect All' : 'Select All'}
+                    </Button>
+                    <span className="text-sm text-muted-foreground">{selectedEventIds.size} selected</span>
+                    <Button variant="destructive" size="sm" onClick={handleBulkDeleteEvents} className="ml-auto gap-1">
+                      <Trash2 className="h-4 w-4" /> Delete
+                    </Button>
+                  </div>
+                )}
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {upcomingEvents.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No upcoming events</p>
+                  ) : upcomingEvents.map(event => (
+                    <div key={event.id} className="flex items-center gap-2">
+                      {eventSelectionMode && (
+                        <Checkbox
+                          checked={selectedEventIds.has(event.id)}
+                          onCheckedChange={() => handleToggleEventSelection(event.id)}
+                        />
+                      )}
+                      <Card
+                        className="p-3 cursor-pointer hover:bg-accent transition-colors flex-1"
+                        onClick={() => handleEventClick(event)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">{event.title}</p>
+                            <div className="flex gap-2 text-xs text-muted-foreground">
+                              <span>{format(parseISO(event.date), 'MMM d, yyyy')}</span>
+                              {event.time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatTimeTo12Hour(event.time)}</span>}
+                              {event.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{event.location}</span>}
+                            </div>
+                          </div>
+                          {!eventSelectionMode && (
+                            <Button size="sm" variant="ghost" className="text-destructive h-7 w-7 p-0"
+                              onClick={(e) => { e.stopPropagation(); setEventToDelete(event.id); setDeleteEventDialog(true); }}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </Card>
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+
           {/* Unified Day Calendar */}
           {selectedDate && (
             <div className="h-[500px]">
@@ -460,7 +600,10 @@ const CalendarPage = () => {
                 onSubtaskClick={handleSubtaskClick}
                 onEventClick={handleEventClick}
                 onAssessmentClick={handleAssessmentClick}
-                onTimetableEventClick={() => navigate('/timetable')}
+                onTimetableEventClick={(event) => {
+                  setSelectedTimetableEvent(event);
+                  setTimetableEventDetailsOpen(true);
+                }}
               />
             </div>
           )}
@@ -549,6 +692,16 @@ const CalendarPage = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <FlexibleEventDetailsDialog
+          event={selectedTimetableEvent}
+          open={timetableEventDetailsOpen}
+          onOpenChange={setTimetableEventDetailsOpen}
+          onSave={() => {}}
+          onDelete={() => {}}
+          readOnly
+          onGoToTimetable={() => navigate('/timetable')}
+        />
       </div>
     </div>
   );
