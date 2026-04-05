@@ -555,15 +555,14 @@ const Index = () => {
         )}
 
         {/* Subtask Details Dialog */}
-        {selectedSubtask && (
-          <SubtaskFullDetailsDialog
-            subtask={selectedSubtask.subtask}
-            open={subtaskDetailsOpen}
+        <SubtaskFullDetailsDialog
+          subtask={selectedSubtask?.subtask || null}
+          open={subtaskDetailsOpen && !!selectedSubtask}
             onClose={() => {
               setSubtaskDetailsOpen(false);
               setSelectedSubtask(null);
             }}
-            parentTaskName={selectedSubtask.task.name}
+            parentTaskName={selectedSubtask?.task.name}
             onGoToParentTask={() => {
               setSubtaskDetailsOpen(false);
               setSelectedTask(selectedSubtask.task);
@@ -596,7 +595,6 @@ const Index = () => {
               toast.success('Subtask marked incomplete');
             }}
           />
-        )}
         <EventDetailsViewDialog
           event={selectedEvent}
           open={eventDetailsOpen}
