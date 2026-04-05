@@ -595,7 +595,6 @@ const Index = () => {
               toast.success('Subtask marked incomplete');
             }}
           />
-        )}
         <EventDetailsViewDialog
           event={selectedEvent}
           open={eventDetailsOpen}
