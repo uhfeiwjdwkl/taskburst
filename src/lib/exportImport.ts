@@ -64,6 +64,9 @@ const ALL_STORAGE_KEYS = [
   
   // Settings
   'appSettings',
+  
+  // Text backups
+  'textBackups',
 ];
 
 export const exportAllData = async () => {
