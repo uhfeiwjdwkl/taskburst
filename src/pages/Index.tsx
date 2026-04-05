@@ -53,7 +53,12 @@ const Index = () => {
   const [subtaskDetailsOpen, setSubtaskDetailsOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+  const [selectedTimetableEvent, setSelectedTimetableEvent] = useState<FlexibleEvent | null>(null);
+  const [timetableEventDetailsOpen, setTimetableEventDetailsOpen] = useState(false);
   const [tasksLoaded, setTasksLoaded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
 
   // Load tasks from localStorage
   useEffect(() => {
