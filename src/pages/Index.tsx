@@ -258,6 +258,53 @@ const Index = () => {
     return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
   });
 
+  const filteredTasks = useMemo(() => {
+    if (!searchQuery.trim()) return sortedTasks;
+    const q = searchQuery.toLowerCase();
+    return sortedTasks.filter(t =>
+      t.name.toLowerCase().includes(q) ||
+      t.category?.toLowerCase().includes(q) ||
+      t.description?.toLowerCase().includes(q)
+    );
+  }, [sortedTasks, searchQuery]);
+
+  const handleToggleTaskSelection = (taskId: string) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  };
+
+  const handleSelectAllTasks = () => {
+    if (selectedTaskIds.size === filteredTasks.length) {
+      setSelectedTaskIds(new Set());
+    } else {
+      setSelectedTaskIds(new Set(filteredTasks.map(t => t.id)));
+    }
+  };
+
+  const handleBulkComplete = () => {
+    const toComplete = tasks.filter(t => selectedTaskIds.has(t.id));
+    const archived = JSON.parse(localStorage.getItem('archivedTasks') || '[]');
+    localStorage.setItem('archivedTasks', JSON.stringify([...archived, ...toComplete.map(t => ({ ...t, completed: true }))]));
+    setTasks(tasks.filter(t => !selectedTaskIds.has(t.id)));
+    toast.success(`${toComplete.length} tasks completed and archived!`);
+    setSelectedTaskIds(new Set());
+    setSelectionMode(false);
+  };
+
+  const handleBulkDelete = () => {
+    const toDelete = tasks.filter(t => selectedTaskIds.has(t.id));
+    const deleted = JSON.parse(localStorage.getItem('deletedTasks') || '[]');
+    localStorage.setItem('deletedTasks', JSON.stringify([...deleted, ...toDelete.map(t => ({ ...t, deletedAt: new Date().toISOString() }))]));
+    setTasks(tasks.filter(t => !selectedTaskIds.has(t.id)));
+    toast.success(`${toDelete.length} tasks moved to recently deleted`);
+    setSelectedTaskIds(new Set());
+    setSelectionMode(false);
+  };
+
   const activeTask = tasks.find(t => t.id === activeTaskId) || null;
 
   return (
