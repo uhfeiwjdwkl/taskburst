@@ -113,7 +113,6 @@ export const UniversalProgressGrid = ({
     });
 
     setSelectedBox(null);
-    setDetailsSubtask((task.subtasks || []).find(s => s.id === subtaskId) || null);
   };
 
   const handleUncompleteSubtask = (subtaskId: string, index: number) => {
@@ -137,7 +136,6 @@ export const UniversalProgressGrid = ({
     });
 
     setSelectedBox(null);
-    setDetailsSubtask((task.subtasks || []).find(s => s.id === subtaskId) || null);
   };
 
   const handleSaveSubtask = (updatedSubtask: Subtask) => {
