@@ -30,21 +30,6 @@ import { format, isSameDay, parseISO, isAfter, startOfDay } from 'date-fns';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 import { eventOccursOnDate, getEventDatesForRange } from '@/lib/eventUtils';
 import { toast } from 'sonner';
-import AddTaskDialog from '@/components/AddTaskDialog';
-import { AddEventDialog } from '@/components/AddEventDialog';
-import { EditEventDialog } from '@/components/EditEventDialog';
-import TaskDetailsDialog from '@/components/TaskDetailsDialog';
-import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
-import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
-import { SubtaskFullDetailsDialog } from '@/components/SubtaskFullDetailsDialog';
-import { AssessmentDetailsDialog } from '@/components/AssessmentDetailsDialog';
-import TaskCard from '@/components/TaskCard';
-import { UniversalDayCalendar } from '@/components/UniversalDayCalendar';
-import { ExportImportButton } from '@/components/ExportImportButton';
-import { format, isSameDay, parseISO } from 'date-fns';
-import { formatTimeTo12Hour } from '@/lib/dateFormat';
-import { eventOccursOnDate, getEventDatesForRange } from '@/lib/eventUtils';
-import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
