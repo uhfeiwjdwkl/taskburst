@@ -16,6 +16,8 @@ interface FlexibleEventDetailsDialogProps {
   onSave: (event: FlexibleEvent) => void;
   onDelete: (eventId: string) => void;
   timeFormat?: '12h' | '24h';
+  onGoToTimetable?: () => void;
+  readOnly?: boolean;
 }
 
 const PRESET_COLORS = [
@@ -29,7 +31,9 @@ export function FlexibleEventDetailsDialog({
   onOpenChange,
   onSave,
   onDelete,
-  timeFormat = '12h'
+  timeFormat = '12h',
+  onGoToTimetable,
+  readOnly = false,
 }: FlexibleEventDetailsDialogProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedEvent, setEditedEvent] = useState<FlexibleEvent | null>(null);
@@ -108,7 +112,7 @@ export function FlexibleEventDetailsDialog({
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle>{isEditing ? 'Edit Event' : 'Event Details'}</DialogTitle>
           <div className="flex items-center gap-1">
-            {!isEditing && (
+            {!isEditing && !readOnly && (
               <Button variant="ghost" size="sm" onClick={startEditing} className="h-8 w-8 p-0">
                 <Edit className="h-4 w-4" />
               </Button>
@@ -316,9 +320,16 @@ export function FlexibleEventDetailsDialog({
               </Button>
             </>
           ) : (
-            <Button variant="outline" onClick={() => handleOpenChange(false)}>
-              Close
-            </Button>
+            <div className="flex gap-2">
+              {onGoToTimetable && (
+                <Button variant="outline" onClick={() => { handleOpenChange(false); onGoToTimetable(); }}>
+                  Go to Timetable
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                Close
+              </Button>
+            </div>
           )}
         </DialogFooter>
       </DialogContent>
