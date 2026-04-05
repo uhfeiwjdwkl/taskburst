@@ -250,6 +250,49 @@ const CalendarPage = () => {
 
   const totalItems = tasksForSelectedDate.length + eventsForSelectedDate.length + subtasksForSelectedDate.length + assessmentsForSelectedDate.length;
 
+  // Upcoming events sorted by date
+  const upcomingEvents = useMemo(() => {
+    const today = startOfDay(new Date());
+    const upcoming = events
+      .filter(e => {
+        try {
+          const eventDate = parseISO(e.date);
+          return isAfter(eventDate, today) || isSameDay(eventDate, today);
+        } catch { return false; }
+      })
+      .sort((a, b) => {
+        const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
+        if (dateCompare !== 0) return dateCompare;
+        return (a.time || '').localeCompare(b.time || '');
+      });
+    if (!eventSearchQuery.trim()) return upcoming;
+    const q = eventSearchQuery.toLowerCase();
+    return upcoming.filter(e =>
+      e.title.toLowerCase().includes(q) ||
+      e.description?.toLowerCase().includes(q) ||
+      e.location?.toLowerCase().includes(q)
+    );
+  }, [events, eventSearchQuery]);
+
+  const handleToggleEventSelection = (eventId: string) => {
+    setSelectedEventIds(prev => {
+      const next = new Set(prev);
+      if (next.has(eventId)) next.delete(eventId);
+      else next.add(eventId);
+      return next;
+    });
+  };
+
+  const handleBulkDeleteEvents = () => {
+    const toDelete = events.filter(e => selectedEventIds.has(e.id));
+    const deleted = safeParse('deletedEvents');
+    localStorage.setItem('deletedEvents', JSON.stringify([...deleted, ...toDelete.map(e => ({ ...e, deletedAt: new Date().toISOString() }))]));
+    setEvents(events.filter(e => !selectedEventIds.has(e.id)));
+    toast.success(`${toDelete.length} events moved to recently deleted`);
+    setSelectedEventIds(new Set());
+    setEventSelectionMode(false);
+  };
+
   // Build combined sorted list for the day panel
   type ListItem = 
     | { type: 'task'; item: Task; time: string | null; title: string }
@@ -475,7 +518,10 @@ const CalendarPage = () => {
                 onSubtaskClick={handleSubtaskClick}
                 onEventClick={handleEventClick}
                 onAssessmentClick={handleAssessmentClick}
-                onTimetableEventClick={() => navigate('/timetable')}
+                onTimetableEventClick={(event) => {
+                  setSelectedTimetableEvent(event);
+                  setTimetableEventDetailsOpen(true);
+                }}
               />
             </div>
           )}
