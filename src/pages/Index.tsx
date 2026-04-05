@@ -562,7 +562,7 @@ const Index = () => {
               setSubtaskDetailsOpen(false);
               setSelectedSubtask(null);
             }}
-            parentTaskName={selectedSubtask.task.name}
+            parentTaskName={selectedSubtask?.task.name}
             onGoToParentTask={() => {
               setSubtaskDetailsOpen(false);
               setSelectedTask(selectedSubtask.task);
