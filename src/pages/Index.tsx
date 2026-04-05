@@ -409,7 +409,10 @@ const Index = () => {
                 setEventDetailsOpen(true);
               }}
               onAssessmentClick={() => navigate('/results')}
-              onTimetableEventClick={() => navigate('/timetable')}
+              onTimetableEventClick={(event) => {
+                setSelectedTimetableEvent(event);
+                setTimetableEventDetailsOpen(true);
+              }}
               onStartSubtask={(subtask, task) => {
                 setActiveTaskId(task.id);
                 toast.success(`Starting focus session for: ${subtask.title}`);
