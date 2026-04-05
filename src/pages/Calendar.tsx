@@ -75,6 +75,16 @@ const CalendarPage = () => {
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
   const [assessmentDetailsOpen, setAssessmentDetailsOpen] = useState(false);
   
+  // Timetable event details
+  const [selectedTimetableEvent, setSelectedTimetableEvent] = useState<FlexibleEvent | null>(null);
+  const [timetableEventDetailsOpen, setTimetableEventDetailsOpen] = useState(false);
+  
+  // Upcoming events
+  const [upcomingOpen, setUpcomingOpen] = useState(false);
+  const [eventSearchQuery, setEventSearchQuery] = useState('');
+  const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
+  const [eventSelectionMode, setEventSelectionMode] = useState(false);
+  
   useEffect(() => {
     setTasks(safeParse('tasks') as Task[]);
     setEvents(safeParse('calendarEvents') as CalendarEvent[]);
