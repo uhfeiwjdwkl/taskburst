@@ -164,7 +164,6 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
               placeholder="Add details about this task..."
               minHeight="80px"
             />
-            />
           </div>
 
           <div>
