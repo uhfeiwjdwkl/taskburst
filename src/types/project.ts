@@ -2,6 +2,7 @@ export interface ProjectResultPart {
   name: string;
   score: number | null;
   maxScore: number;
+  weight?: number;
   notes?: string;
 }
 
