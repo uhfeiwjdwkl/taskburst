@@ -60,7 +60,8 @@ export const AssessmentDetailsDialog = ({
     if (scored.length === 0) return { display: '-', percentage: '-' };
 
     if (mode === 'average') {
-      const avg = scored.reduce((sum, p) => sum + ((p.score || 0) / p.maxScore) * 100, 0) / scored.length;
+      const totalWeight = scored.reduce((sum, p) => sum + (p.weight ?? 1), 0);
+      const avg = scored.reduce((sum, p) => sum + ((p.score || 0) / p.maxScore) * 100 * (p.weight ?? 1), 0) / totalWeight;
       return { display: avg.toFixed(1) + '%', percentage: avg.toFixed(1) + '%' };
     }
     const total = scored.reduce((sum, p) => sum + (p.score || 0), 0);
