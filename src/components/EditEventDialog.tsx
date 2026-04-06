@@ -46,6 +46,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       setTime(event.time || '');
       setEndTime(event.endTime || '');
       setDuration(event.duration?.toString() || '60');
+      setUseEndTime(!!event.endTime && !event.endDate);
       setLocation(event.location || '');
       setIsRecurring(event.recurring?.enabled || false);
       setRecurringDays(event.recurring?.intervalDays?.toString() || '7');
