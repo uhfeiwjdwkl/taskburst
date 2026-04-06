@@ -350,10 +350,11 @@ export default function Guide() {
           <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
             <li><strong>Subtasks</strong> — break tasks into sub-items with their own details, priority, dates, and colours</li>
             <li><strong>Progress Grid</strong> — visual tracking with named/coloured boxes linked to subtasks</li>
-            <li><strong>Results</strong> — optional score tracking with parts and sum/average modes</li>
+            <li><strong>Results</strong> — optional score tracking with parts, sum/average modes, and per-part weighting</li>
             <li><strong>Linked Assessments</strong> — create assessments tied to tasks with synced results</li>
             <li><strong>Convert bullets to subtasks</strong> — write bullet points in description, convert with one click</li>
             <li><strong>Task Types</strong> — General, Study, Revision, Practice, Homework, Reading, Writing, Research</li>
+            <li><strong>Rich Text Descriptions</strong> — format text with bold, italic, headings, bullet/numbered lists, links, tables, highlight, and fullscreen editing</li>
           </ul>
 
           <h3 className="font-semibold text-sm mt-4">Subtask details:</h3>
@@ -369,11 +370,11 @@ export default function Guide() {
             TaskBurst offers two timer modes:
           </p>
           <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
-            <li><strong>Countdown</strong> — Pomodoro-style focus/break cycles. Configurable focus time (default 25 min) and break time. A progress ring shows time remaining. Sessions shorter than 10% of set time can be discarded.</li>
-            <li><strong>Stopwatch</strong> — unlimited, open-ended timer with no progress ring. Perfect for free-form study. No minimum session length restriction.</li>
+            <li><strong>Countdown</strong> — Pomodoro-style focus/break cycles. Configurable focus time (default 25 min) and break time. A progress ring shows time remaining. Sessions shorter than 2 minutes trigger a "rewind" option.</li>
+            <li><strong>Stopwatch</strong> — unlimited, open-ended timer with no progress ring. Perfect for free-form study. No minimum session length restriction or rewind prompts.</li>
           </ul>
           <p className="text-sm text-muted-foreground mt-2">
-            When a session ends, you're prompted to name it before it's saved to history. Press cancel or X to discard the time instead.
+            When a session ends, you're prompted to name it before it's saved to history. Cancelling or discarding sends the session to Recently Deleted (recoverable) and rewinds the task progress. The timer auto-pauses when you leave the page.
           </p>
           <DemoTimer />
         </Section>
@@ -456,7 +457,8 @@ export default function Guide() {
           </p>
           <h3 className="font-semibold text-sm mt-2">Results table:</h3>
           <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
-            <li><strong>Parts</strong> — configurable columns (default 4), each with score/maxScore</li>
+            <li><strong>Parts</strong> — configurable columns (default 4), each with score/maxScore and optional weight</li>
+            <li><strong>Weighting</strong> — assign custom weights to parts for weighted average calculations (shown as ×weight in cells)</li>
             <li><strong>Total mode</strong> — click the total cell to toggle between Sum and Average</li>
             <li><strong>Column renaming</strong> — click column headers to rename them</li>
             <li><strong>Group by</strong> — no grouping, by category, or by subcategory</li>
@@ -473,6 +475,7 @@ export default function Guide() {
             <li><strong>Colour-coded due dates</strong> — red for overdue, yellow for soon, blue for upcoming</li>
             <li><strong>Category and Sum/Avg</strong> — assessments support category editing and mode toggle</li>
             <li><strong>Complete/hide</strong> — mark assessments as done or filter completed ones</li>
+            <li><strong>Unlinked assessments in Results</strong> — independent assessments also appear in the results table</li>
           </ul>
         </Section>
 
@@ -492,9 +495,12 @@ export default function Guide() {
             Every study/timer session is recorded with task name, duration, date, and session name.
           </p>
           <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
-            <li>View all past sessions sorted by date</li>
-            <li>Group by task name or date</li>
+            <li>View all past sessions sorted by date or grouped by task</li>
+            <li>Each session shows <strong>start time</strong>, <strong>end time</strong>, duration, and mode (Focus/Break)</li>
+            <li>Progress grid numbers shown (start → end / total)</li>
             <li>Session names are prompted when finishing a timer session</li>
+            <li>Discarded sessions go to Recently Deleted and can be recovered (task time rewinds)</li>
+            <li>Edit session descriptions and delete sessions (time is subtracted from task)</li>
             <li>Stopwatch sessions correctly record total elapsed time</li>
           </ul>
         </Section>
