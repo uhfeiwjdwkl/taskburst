@@ -31,6 +31,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
   const [endTime, setEndTime] = useState('');
   const [duration, setDuration] = useState('60');
   const [location, setLocation] = useState('');
+  const [useEndTime, setUseEndTime] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringDays, setRecurringDays] = useState('7');
   const originalEventRef = useRef<CalendarEvent | null>(null);
