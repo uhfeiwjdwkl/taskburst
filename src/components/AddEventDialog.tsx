@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/RichTextEditor';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ImportEventButton } from '@/components/ImportEventButton';
 import {
@@ -120,12 +121,11 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
 
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
+              <RichTextEditor
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={setDescription}
                 placeholder="Event description (optional)"
-                rows={3}
+                minHeight="60px"
               />
             </div>
 

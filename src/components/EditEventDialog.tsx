@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/RichTextEditor';
 import { Checkbox } from '@/components/ui/checkbox';
 import { saveTextBackup, createFieldId } from '@/lib/textBackup';
 import {
@@ -31,6 +32,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
   const [endTime, setEndTime] = useState('');
   const [duration, setDuration] = useState('60');
   const [location, setLocation] = useState('');
+  const [useEndTime, setUseEndTime] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringDays, setRecurringDays] = useState('7');
   const originalEventRef = useRef<CalendarEvent | null>(null);
@@ -45,6 +47,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       setTime(event.time || '');
       setEndTime(event.endTime || '');
       setDuration(event.duration?.toString() || '60');
+      setUseEndTime(!!event.endTime && !event.endDate);
       setLocation(event.location || '');
       setIsRecurring(event.recurring?.enabled || false);
       setRecurringDays(event.recurring?.intervalDays?.toString() || '7');
@@ -95,6 +98,17 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       }
     }
 
+    const useEnd = !isMultiDay && endTime && time;
+    const calculatedDuration = useEnd
+      ? (() => {
+          const [sH, sM] = time.split(':').map(Number);
+          const [eH, eM] = endTime.split(':').map(Number);
+          let d = (eH * 60 + eM) - (sH * 60 + sM);
+          if (d < 0) d += 24 * 60;
+          return d;
+        })()
+      : parseInt(duration) || 60;
+
     onSave({
       ...event,
       title: title.trim(),
@@ -102,8 +116,8 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       date,
       endDate: isMultiDay && endDate ? endDate : undefined,
       time: time || undefined,
-      endTime: isMultiDay && endTime ? endTime : undefined,
-      duration: !isMultiDay && time ? parseInt(duration) || 60 : undefined,
+      endTime: isMultiDay && endTime ? endTime : (useEnd ? endTime : undefined),
+      duration: !isMultiDay && time ? calculatedDuration : undefined,
       location: location.trim() || undefined,
       recurring: isRecurring ? {
         enabled: true,
@@ -146,12 +160,11 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
 
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
+              <RichTextEditor
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={setDescription}
                 placeholder="Event description (optional)"
-                rows={3}
+                minHeight="60px"
               />
             </div>
 
@@ -230,47 +243,37 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="duration">Duration (minutes)</Label>
-                    <Input
-                      id="duration"
-                      type="number"
-                      min="15"
-                      step="15"
-                      value={duration}
-                      onChange={(e) => setDuration(e.target.value)}
-                      disabled={!time}
-                      placeholder="60"
-                    />
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="useEndTime"
+                        checked={useEndTime}
+                        onCheckedChange={(checked) => setUseEndTime(checked as boolean)}
+                      />
+                      <Label htmlFor="useEndTime" className="cursor-pointer text-sm">Use end time</Label>
+                    </div>
+                    {useEndTime ? (
+                      <Input
+                        id="endTimeNonMulti"
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        disabled={!time}
+                      />
+                    ) : (
+                      <Input
+                        id="duration"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={duration}
+                        onChange={(e) => setDuration(e.target.value)}
+                        disabled={!time}
+                        placeholder="60"
+                      />
+                    )}
+                    {!useEndTime && <p className="text-xs text-muted-foreground">Duration (minutes)</p>}
                   </div>
                 </div>
-
-                {/* Visual Duration Preview */}
-                {time && (
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Duration Preview (drag to adjust)</Label>
-                    <div className="border rounded-lg p-2 bg-muted/30 relative h-16 overflow-hidden">
-                      <div className="relative h-full">
-                        <div className="absolute inset-0 flex">
-                          {[0, 6, 12, 18].map(h => (
-                            <div key={h} className="flex-1 border-r border-border text-xs text-muted-foreground">
-                              <span className="pl-0.5">{h === 0 ? '12a' : h < 12 ? `${h}a` : `${h-12}p`}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <div
-                          className="absolute top-3 h-8 bg-primary/80 text-primary-foreground rounded text-xs flex items-center justify-center cursor-ew-resize"
-                          style={{ 
-                            left: `${((parseInt(time.split(':')[0]) * 60 + parseInt(time.split(':')[1])) / (24 * 60)) * 100}%`, 
-                            width: `${Math.max(((parseInt(duration) || 60) / (24 * 60)) * 100, 3)}%`,
-                            minWidth: '30px'
-                          }}
-                        >
-                          {parseInt(duration) || 60}min
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </>
             )}
 

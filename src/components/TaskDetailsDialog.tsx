@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/RichTextEditor';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -404,12 +405,11 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
                 Convert bullets to subtasks
               </Button>
             </div>
-            <Textarea
-              id="description"
+            <RichTextEditor
               value={editedTask.description}
-              onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })}
-              className="mt-1 min-h-[100px]"
+              onChange={(val) => setEditedTask({ ...editedTask, description: val })}
               placeholder="Add details about this task... Use - or • to list items that can be converted to subtasks"
+              minHeight="100px"
             />
           </div>
 

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/RichTextEditor';
 import { Project } from '@/types/project';
 import { Task } from '@/types/task';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -147,12 +148,11 @@ export const EditProjectDialog = ({ open, onClose, onSave, project, tasks }: Edi
 
           <div>
             <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
+            <RichTextEditor
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={setDescription}
               placeholder="Brief description of the project"
-              rows={3}
+              minHeight="60px"
             />
           </div>
 
@@ -168,12 +168,11 @@ export const EditProjectDialog = ({ open, onClose, onSave, project, tasks }: Edi
 
           <div>
             <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
+            <RichTextEditor
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={setNotes}
               placeholder="Additional notes or details"
-              rows={3}
+              minHeight="60px"
             />
           </div>
 

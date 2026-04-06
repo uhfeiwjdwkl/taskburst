@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/RichTextEditor';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -157,12 +158,11 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
 
           <div>
             <Label htmlFor="add-description">Description</Label>
-            <Textarea
-              id="add-description"
+            <RichTextEditor
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 min-h-[100px]"
+              onChange={setDescription}
               placeholder="Add details about this task..."
+              minHeight="80px"
             />
           </div>
 
