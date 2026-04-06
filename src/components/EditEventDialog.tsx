@@ -95,6 +95,17 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       }
     }
 
+    const useEnd = !isMultiDay && endTime && time;
+    const calculatedDuration = useEnd
+      ? (() => {
+          const [sH, sM] = time.split(':').map(Number);
+          const [eH, eM] = endTime.split(':').map(Number);
+          let d = (eH * 60 + eM) - (sH * 60 + sM);
+          if (d < 0) d += 24 * 60;
+          return d;
+        })()
+      : parseInt(duration) || 60;
+
     onSave({
       ...event,
       title: title.trim(),
@@ -102,8 +113,8 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       date,
       endDate: isMultiDay && endDate ? endDate : undefined,
       time: time || undefined,
-      endTime: isMultiDay && endTime ? endTime : undefined,
-      duration: !isMultiDay && time ? parseInt(duration) || 60 : undefined,
+      endTime: isMultiDay && endTime ? endTime : (useEnd ? endTime : undefined),
+      duration: !isMultiDay && time ? calculatedDuration : undefined,
       location: location.trim() || undefined,
       recurring: isRecurring ? {
         enabled: true,
@@ -234,8 +245,8 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
                     <Input
                       id="duration"
                       type="number"
-                      min="15"
-                      step="15"
+                      min="1"
+                      step="1"
                       value={duration}
                       onChange={(e) => setDuration(e.target.value)}
                       disabled={!time}

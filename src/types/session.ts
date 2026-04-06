@@ -3,6 +3,7 @@ export interface Session {
   taskId: string;
   taskName: string;
   description?: string; // User-defined session description
+  startedAt?: string; // ISO string - when session started
   dateEnded: string; // ISO string
   duration: number; // in minutes
   progressGridStart: number; // number of squares filled at start
