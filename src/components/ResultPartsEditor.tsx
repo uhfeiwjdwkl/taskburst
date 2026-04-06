@@ -16,6 +16,7 @@ interface Part {
   name: string;
   score: number | null;
   maxScore: number;
+  weight?: number;
   notes?: string;
 }
 
@@ -60,6 +61,8 @@ export function ResultPartsEditor({ open, onClose, onSave, parts, itemName }: Re
     const updated = [...editedParts];
     if (field === 'maxScore') {
       updated[index][field] = parseFloat(value) || 0;
+    } else if (field === 'weight') {
+      updated[index][field] = parseFloat(value) || 1;
     } else if (field === 'name') {
       updated[index][field] = value;
     }
@@ -106,6 +109,17 @@ export function ResultPartsEditor({ open, onClose, onSave, parts, itemName }: Re
                   value={part.maxScore}
                   onChange={(e) => handlePartChange(index, 'maxScore', e.target.value)}
                   className="h-8"
+                />
+              </div>
+              <div className="w-16">
+                <Label className="text-xs text-muted-foreground">Weight</Label>
+                <Input
+                  type="number"
+                  value={part.weight ?? 1}
+                  onChange={(e) => handlePartChange(index, 'weight', e.target.value)}
+                  className="h-8"
+                  step="0.1"
+                  min="0"
                 />
               </div>
               <Button
