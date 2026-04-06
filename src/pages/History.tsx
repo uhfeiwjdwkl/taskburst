@@ -280,10 +280,15 @@ const History = () => {
                               </div>
                             </div>
                             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-3">
+                              {session.startedAt && (
+                                <div className="flex items-center gap-1">
+                                  <span>Started: {new Date(session.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                              )}
                               <div className="flex items-center gap-1">
                                 <Clock className="h-4 w-4" />
                                 <span>
-                                  {new Date(session.dateEnded).toLocaleTimeString([], { 
+                                  Ended: {new Date(session.dateEnded).toLocaleTimeString([], { 
                                     hour: '2-digit', 
                                     minute: '2-digit' 
                                   })}
@@ -294,6 +299,9 @@ const History = () => {
                               </div>
                               <div>
                                 {session.phase === 'focus' ? '🎯 Focus' : '☕ Break'}
+                              </div>
+                              <div>
+                                Grid: {session.progressGridStart} → {session.progressGridEnd} / {session.progressGridSize}
                               </div>
                             </div>
 
