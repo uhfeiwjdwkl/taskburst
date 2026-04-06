@@ -762,6 +762,11 @@ export default function Results() {
                                     <div className="text-xs text-muted-foreground">
                                       {calculatePercentage(part.score, part.maxScore)}
                                     </div>
+                                    {(part.weight ?? 1) !== 1 && (
+                                      <div className="text-xs text-primary/70 font-medium">
+                                        ×{part.weight}
+                                      </div>
+                                    )}
                                     <div className="text-xs text-muted-foreground truncate max-w-[100px]">
                                       {part.name}
                                     </div>
