@@ -664,6 +664,16 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
                           onChange={(e) => handlePartChange(index, 'maxScore', e.target.value)}
                           className="w-16 h-8 text-sm"
                         />
+                        <Input
+                          type="number"
+                          value={part.weight ?? 1}
+                          onChange={(e) => handlePartChange(index, 'weight', e.target.value)}
+                          placeholder="Wt"
+                          className="w-14 h-8 text-sm"
+                          title="Weight"
+                          step="0.1"
+                          min="0"
+                        />
                         <Button
                           type="button"
                           variant="ghost"
