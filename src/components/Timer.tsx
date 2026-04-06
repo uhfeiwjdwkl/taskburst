@@ -285,7 +285,25 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     if (!activeTask || !pendingSessionSave) return;
     
     if (!saveName) {
-      // User cancelled - delete the progress time
+      // User cancelled - save as deleted session for recovery, then rewind task
+      const discardedSession: Session = {
+        id: Date.now().toString(),
+        taskId: activeTask.id,
+        taskName: activeTask.name,
+        description: 'Discarded session',
+        startedAt: currentSessionStartTime?.toISOString(),
+        dateEnded: new Date().toISOString(),
+        duration: pendingSessionSave.calculatedDuration,
+        progressGridStart: sessionStartProgress,
+        progressGridEnd: pendingSessionSave.endProgress,
+        progressGridSize: activeTask.progressGridSize,
+        phase: timerMode === 'stopwatch' ? 'focus' : sessionStartPhase,
+        deletedAt: new Date().toISOString(),
+      };
+      const deletedSessions = JSON.parse(localStorage.getItem('deletedSessions') || '[]');
+      localStorage.setItem('deletedSessions', JSON.stringify([...deletedSessions, discardedSession]));
+
+      // Rewind task
       if (onUpdateTask) {
         onUpdateTask({
           ...activeTask,
@@ -304,6 +322,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
       taskId: activeTask.id,
       taskName: activeTask.name,
       description: sessionNameInput.trim() || undefined,
+      startedAt: currentSessionStartTime?.toISOString(),
       dateEnded: new Date().toISOString(),
       duration: pendingSessionSave.calculatedDuration,
       progressGridStart: sessionStartProgress,
