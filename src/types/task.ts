@@ -4,6 +4,7 @@ export interface TaskResultPart {
   name: string;
   score: number | null;
   maxScore: number;
+  weight?: number;
   notes?: string;
 }
 

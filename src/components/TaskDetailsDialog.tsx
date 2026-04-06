@@ -187,6 +187,8 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
       updatedParts[index] = { ...updatedParts[index], maxScore: Number(value) || 25 };
     } else if (field === 'name') {
       updatedParts[index] = { ...updatedParts[index], name: String(value) };
+    } else if (field === 'weight') {
+      updatedParts[index] = { ...updatedParts[index], weight: Number(value) || 1 };
     }
     
     setEditedTask({
@@ -641,7 +643,14 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
                 {/* Parts Editor */}
                 {editedTask.result && (
                   <div className="space-y-2">
-                    <Label>Result Parts</Label>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground px-2">
+                      <span className="flex-1">Name</span>
+                      <span className="w-20 text-center">Score</span>
+                      <span className="w-1"></span>
+                      <span className="w-16 text-center">Max</span>
+                      <span className="w-14 text-center">Weight</span>
+                      <span className="w-8"></span>
+                    </div>
                     {editedTask.result.parts.map((part, index) => (
                       <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
                         <Input
@@ -663,6 +672,16 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
                           value={part.maxScore}
                           onChange={(e) => handlePartChange(index, 'maxScore', e.target.value)}
                           className="w-16 h-8 text-sm"
+                        />
+                        <Input
+                          type="number"
+                          value={part.weight ?? 1}
+                          onChange={(e) => handlePartChange(index, 'weight', e.target.value)}
+                          placeholder="Wt"
+                          className="w-14 h-8 text-sm"
+                          title="Weight"
+                          step="0.1"
+                          min="0"
                         />
                         <Button
                           type="button"

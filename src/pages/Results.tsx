@@ -236,11 +236,11 @@ export default function Results() {
     if (scoredParts.length === 0) return { score: null, maxScore: item.result.totalMaxScore, percentage: '-', displayValue: '-' };
     
     if (mode === 'average') {
-      const avgPercentage = scoredParts.reduce((sum, p) => sum + ((p.score || 0) / p.maxScore) * 100, 0) / scoredParts.length;
-      return { score: null, maxScore: 100, percentage: avgPercentage.toFixed(2) + '%', displayValue: avgPercentage.toFixed(2) + '%' };
+      const totalWeight = scoredParts.reduce((sum, p) => sum + (p.weight ?? 1), 0);
+      const weightedAvg = scoredParts.reduce((sum, p) => sum + ((p.score || 0) / p.maxScore) * 100 * (p.weight ?? 1), 0) / totalWeight;
+      return { score: null, maxScore: 100, percentage: weightedAvg.toFixed(2) + '%', displayValue: weightedAvg.toFixed(2) + '%' };
     } else {
       const totalScore = scoredParts.reduce((sum, p) => sum + (p.score || 0), 0);
-      // Denominator should only include completed/scored parts
       const totalMax = scoredParts.reduce((sum, p) => sum + p.maxScore, 0);
       return { score: totalScore, maxScore: totalMax, percentage: ((totalScore / totalMax) * 100).toFixed(2) + '%', displayValue: `${totalScore}/${totalMax}` };
     }
@@ -861,7 +861,7 @@ export default function Results() {
                   const totalMax = scored.reduce((s, p) => s + p.maxScore, 0);
                   const mode = a.result.totalMode || 'marks';
                   const pct = mode === 'average' && scored.length > 0
-                    ? (scored.reduce((s, p) => s + ((p.score || 0) / p.maxScore) * 100, 0) / scored.length).toFixed(1)
+                    ? (() => { const tw = scored.reduce((s, p) => s + (p.weight ?? 1), 0); return (scored.reduce((s, p) => s + ((p.score || 0) / p.maxScore) * 100 * (p.weight ?? 1), 0) / tw).toFixed(1); })()
                     : totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
                   const displayTotal = mode === 'average' && scored.length > 0 ? `${pct}% avg` : scored.length > 0 ? `${totalScore}/${totalMax}` : '—';
                   const daysUntil = a.dueDate ? Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
@@ -909,7 +909,7 @@ export default function Results() {
                 const totalMax = scored.reduce((s, p) => s + p.maxScore, 0);
                 const mode = a.result.totalMode || 'marks';
                 const pct = mode === 'average' && scored.length > 0
-                  ? (scored.reduce((s, p) => s + ((p.score || 0) / p.maxScore) * 100, 0) / scored.length).toFixed(1)
+                  ? (() => { const tw = scored.reduce((s, p) => s + (p.weight ?? 1), 0); return (scored.reduce((s, p) => s + ((p.score || 0) / p.maxScore) * 100 * (p.weight ?? 1), 0) / tw).toFixed(1); })()
                   : totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
                 const displayTotal = mode === 'average' && scored.length > 0 ? `${pct}% avg` : scored.length > 0 ? `${totalScore}/${totalMax}` : '—';
                 const daysUntil = a.dueDate ? Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;

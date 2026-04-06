@@ -38,7 +38,8 @@ const getTotalDisplay = (assessment: Assessment) => {
   const scoredParts = assessment.result.parts.filter((part) => part.score !== null);
   if (scoredParts.length === 0) return 'No score';
   if (assessment.result.totalMode === 'average') {
-    const average = scoredParts.reduce((sum, part) => sum + ((part.score || 0) / part.maxScore) * 100, 0) / scoredParts.length;
+    const totalWeight = scoredParts.reduce((sum, part) => sum + (part.weight ?? 1), 0);
+    const average = scoredParts.reduce((sum, part) => sum + ((part.score || 0) / part.maxScore) * 100 * (part.weight ?? 1), 0) / totalWeight;
     return `${average.toFixed(1)}% avg`;
   }
   const total = scoredParts.reduce((sum, part) => sum + (part.score || 0), 0);
