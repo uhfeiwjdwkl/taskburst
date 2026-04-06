@@ -187,6 +187,8 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
       updatedParts[index] = { ...updatedParts[index], maxScore: Number(value) || 25 };
     } else if (field === 'name') {
       updatedParts[index] = { ...updatedParts[index], name: String(value) };
+    } else if (field === 'weight') {
+      updatedParts[index] = { ...updatedParts[index], weight: Number(value) || 1 };
     }
     
     setEditedTask({
