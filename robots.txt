@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://taskburst.kommenszlapf.website/sitemap.xml
+Sitemap: https://taskburst.kommenszlapf.website/sitemap-taskburst.xml
