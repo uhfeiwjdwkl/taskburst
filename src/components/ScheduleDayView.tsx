@@ -4,6 +4,7 @@ import { CalendarEvent } from '@/types/event';
 import { Task } from '@/types/task';
 import { cn } from '@/lib/utils';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface ScheduleDayViewProps {
   date: Date;
@@ -24,6 +25,8 @@ export const ScheduleDayView = ({
   onEventClick,
   onTaskClick
 }: ScheduleDayViewProps) => {
+  const settings = useAppSettings();
+  const mirrorColor = Boolean((settings as any).mirrorColorToProgressBox);
   // Hours from 6am to 10pm
   const hours = Array.from({ length: 17 }, (_, i) => i + 6);
   
@@ -147,8 +150,8 @@ export const ScheduleDayView = ({
                 style={{ 
                   top: `${top}%`, 
                   height: `${Math.max(height, 3)}%`,
-                  backgroundColor: subtask.color ? `${subtask.color}30` : undefined,
-                  borderColor: subtask.color || undefined,
+                  backgroundColor: mirrorColor && subtask.color ? `${subtask.color}30` : undefined,
+                  borderColor: mirrorColor && subtask.color ? subtask.color : undefined,
                 }}
               >
                 <div className="text-xs font-medium truncate">{subtask.title}</div>
