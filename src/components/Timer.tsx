@@ -798,27 +798,59 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Rewind Option Dialog */}
-      {showRewindOption && activeTask && (
-        <Dialog open={showRewindOption} onOpenChange={setShowRewindOption}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Session Too Short</DialogTitle>
-              <DialogDescription>
-                This session was less than 2 minutes and won't be recorded. Would you like to rewind to the start of this session?
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={handleContinueWithoutRewind}>
-                Continue
-              </Button>
-              <Button onClick={handleRewind} className="bg-gradient-primary">
-                Rewind
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Short-session permanent-delete confirmation */}
+      <AlertDialog open={showRewindOption} onOpenChange={setShowRewindOption}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this session?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This session was less than 2 minutes. Confirming will <strong>permanently delete</strong> it — it will be moved to Recently Deleted Sessions and the task progress will be rewound. Cancel to keep working without changes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowRewindOption(false);
+              setPendingSessionData(null);
+            }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                // Delete: send to deletedSessions and rewind task (same as existing discard logic)
+                if (activeTask && pendingSessionData) {
+                  const discardedSession: Session = {
+                    id: Date.now().toString(),
+                    taskId: activeTask.id,
+                    taskName: activeTask.name,
+                    description: 'Discarded session',
+                    startedAt: currentSessionStartTime?.toISOString(),
+                    dateEnded: new Date().toISOString(),
+                    duration: pendingSessionData.duration,
+                    progressGridStart: sessionStartProgress,
+                    progressGridEnd: pendingSessionData.endProgress,
+                    progressGridSize: activeTask.progressGridSize,
+                    phase: timerMode === 'stopwatch' ? 'focus' : sessionStartPhase,
+                    deletedAt: new Date().toISOString(),
+                  };
+                  const deletedSessions = JSON.parse(localStorage.getItem('deletedSessions') || '[]');
+                  localStorage.setItem('deletedSessions', JSON.stringify([...deletedSessions, discardedSession]));
+                  if (onUpdateTask) {
+                    onUpdateTask({
+                      ...activeTask,
+                      spentMinutes: sessionStartSpentMinutes,
+                      progressGridFilled: sessionStartProgress,
+                    });
+                  }
+                }
+                if (timerMode === 'stopwatch') setStopwatchSeconds(0);
+                setShowRewindOption(false);
+                setPendingSessionData(null);
+                setCurrentSessionStartTime(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <div className="flex flex-col items-center gap-8">
       <div className="text-center">
