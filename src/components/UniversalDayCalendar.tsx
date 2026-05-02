@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, CheckCircle2, Play } from 'lucide-react';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 const safeParse = (key: string): any[] => {
   try {
@@ -80,6 +81,8 @@ export const UniversalDayCalendar = ({
   showCard = true,
   className,
 }: UniversalDayCalendarProps) => {
+  const settings = useAppSettings();
+  const mirrorColor = Boolean((settings as any).mirrorColorToProgressBox);
   const [internalDate, setInternalDate] = useState(initialDate || new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
 
