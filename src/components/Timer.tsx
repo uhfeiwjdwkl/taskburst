@@ -11,6 +11,17 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import ProgressRing from './ProgressRing';
 import ProgressGridEditor from './ProgressGridEditor';
 import { BreakDurationMenu } from './BreakDurationMenu';
@@ -108,6 +119,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const [showSessionNameDialog, setShowSessionNameDialog] = useState(false);
   const [sessionNameInput, setSessionNameInput] = useState('');
   const [pendingSessionSave, setPendingSessionSave] = useState<{ endProgress: number; calculatedDuration: number } | null>(null);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const totalDuration = phase === 'focus' 
     ? FOCUS_DURATION 
@@ -731,7 +743,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => finishSessionSave(false)}>
+            <Button variant="outline" onClick={() => setShowDiscardConfirm(true)}>
               Discard
             </Button>
             <Button onClick={() => finishSessionSave(true)} className="bg-gradient-primary">
@@ -740,6 +752,42 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Discard Confirmation */}
+      <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard this session?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will discard the session time and reset the timer to your configured focus duration. The session will be moved to Recently Deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                finishSessionSave(false);
+                // Reset the pomodoro card display to original configured focus duration
+                const settings = localStorage.getItem('appSettings');
+                let configuredFocus = focusDuration;
+                if (settings) {
+                  try {
+                    configuredFocus = JSON.parse(settings).focusDuration || focusDuration;
+                  } catch {}
+                }
+                setPhase('focus');
+                setSeconds(configuredFocus * 60);
+                setStopwatchSeconds(0);
+                setBreakBonus(0);
+                setCustomBreakDuration(null);
+                setShowDiscardConfirm(false);
+              }}
+            >
+              Discard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Rewind Option Dialog */}
       {showRewindOption && activeTask && (
