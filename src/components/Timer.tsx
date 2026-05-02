@@ -630,15 +630,14 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
             task={activeTask}
             open={showEndEditor}
             onClose={() => {
-              setShowEndEditor(false);
-              // If timer hit 0, move to next phase
+              // Cancel/X must still save the session to history with current progress
+              const filled = activeTask?.progressGridFilled ?? 0;
               if (seconds === 0) {
-                const nextPhase = phase === 'focus' ? 'break' : 'focus';
-                setPhase(nextPhase);
-                setSeconds(nextPhase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);
-                setBreakBonus(0);
-                setCurrentSessionStartTime(null);
+                handlePhaseComplete(filled);
+              } else {
+                handleEndEditorSave(filled);
               }
+              setShowEndEditor(false);
             }}
             onSave={(filled, filledIndices) => {
               // Update task's progressGridFilled when ending session - synced with task
