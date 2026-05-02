@@ -8,6 +8,8 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { ColorPickerGrid } from './ColorPickerGrid';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface TimetableCellEditDialogProps {
   cell: {
@@ -28,6 +30,13 @@ const TimetableCellEditDialog = ({ cell, open, onClose, onSave }: TimetableCellE
   const [color, setColor] = useState('');
   const [startTime, setStartTime] = useState('');
   const [duration, setDuration] = useState(60);
+  const settings = useAppSettings();
+  const persistCustomColors = (next: string[]) => {
+    const saved = JSON.parse(localStorage.getItem('appSettings') || '{}');
+    saved.customColors = next;
+    localStorage.setItem('appSettings', JSON.stringify(saved));
+    window.dispatchEvent(new Event('appSettingsUpdated'));
+  };
 
   useEffect(() => {
     if (cell) {
@@ -98,17 +107,18 @@ const TimetableCellEditDialog = ({ cell, open, onClose, onSave }: TimetableCellE
 
           <div>
             <Label>Color</Label>
-            <div className="flex gap-2 mt-1">
-              <Input
-                type="color"
+            <div className="mt-1">
+              <ColorPickerGrid
                 value={color}
-                onChange={(e) => setColor(e.target.value)}
-                className="w-20 h-10"
-              />
-              <Input
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                placeholder="#000000"
+                onChange={(c) => setColor(c)}
+                customColors={settings.customColors || []}
+                onAddCustomColor={(c) => persistCustomColors([...(settings.customColors || []), c])}
+                onEditCustomColor={(oldC, newC) =>
+                  persistCustomColors((settings.customColors || []).map((x) => (x === oldC ? newC : x)))
+                }
+                onDeleteCustomColor={(c) =>
+                  persistCustomColors((settings.customColors || []).filter((x) => x !== c))
+                }
               />
             </div>
           </div>
