@@ -276,10 +276,10 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     }
     console.log('Saving session with duration:', calculatedDuration, 'minutes');
     
-    // If session is <2 minutes and we haven't skipped the check, show rewind option
-    // For stopwatch, only show if actually short
-    if (calculatedDuration < 2 && !skipRewindCheck && timerMode === 'countdown') {
-      console.log('Session too short, showing rewind option');
+    // If session is <2 minutes and we haven't skipped the check, prompt for permanent delete confirmation
+    // (applies to both countdown and stopwatch modes)
+    if (calculatedDuration < 2 && !skipRewindCheck) {
+      console.log('Session too short, showing delete confirmation');
       setPendingSessionData({ endProgress, duration: calculatedDuration });
       setShowRewindOption(true);
       return false; // Session not saved yet, pending user decision
