@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { X } from 'lucide-react';
+import { ColorPickerGrid } from './ColorPickerGrid';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface SubtaskDialogProps {
   subtask: Subtask | null;
@@ -25,17 +27,6 @@ interface SubtaskDialogProps {
   availableGridIndices?: number[]; // Available progress grid indices to link to
 }
 
-const SUBTASK_COLORS = [
-  '#ef4444', // red
-  '#f97316', // orange
-  '#eab308', // yellow
-  '#22c55e', // green
-  '#06b6d4', // cyan
-  '#3b82f6', // blue
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-];
-
 export const SubtaskDialog = ({ 
   subtask, 
   open, 
@@ -45,6 +36,13 @@ export const SubtaskDialog = ({
   taskId,
   availableGridIndices = []
 }: SubtaskDialogProps) => {
+  const settings = useAppSettings();
+  const persistCustomColors = (next: string[]) => {
+    const saved = JSON.parse(localStorage.getItem('appSettings') || '{}');
+    saved.customColors = next;
+    localStorage.setItem('appSettings', JSON.stringify(saved));
+    window.dispatchEvent(new Event('appSettingsUpdated'));
+  };
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [abbreviation, setAbbreviation] = useState('');
@@ -154,20 +152,19 @@ export const SubtaskDialog = ({
             </div>
             <div>
               <Label>Color</Label>
-              <div className="flex flex-wrap gap-1 mt-1">
-                <button
-                  onClick={() => setColor(undefined)}
-                  className={`w-6 h-6 rounded border-2 ${!color ? 'border-primary' : 'border-transparent'} bg-muted`}
-                  title="Default"
+              <div className="mt-1">
+                <ColorPickerGrid
+                  value={color || ''}
+                  onChange={(c) => setColor(c || undefined)}
+                  customColors={settings.customColors || []}
+                  onAddCustomColor={(c) => persistCustomColors([...(settings.customColors || []), c])}
+                  onEditCustomColor={(oldC, newC) =>
+                    persistCustomColors((settings.customColors || []).map((x) => (x === oldC ? newC : x)))
+                  }
+                  onDeleteCustomColor={(c) =>
+                    persistCustomColors((settings.customColors || []).filter((x) => x !== c))
+                  }
                 />
-                {SUBTASK_COLORS.map(c => (
-                  <button
-                    key={c}
-                    onClick={() => setColor(c)}
-                    className={`w-6 h-6 rounded border-2 ${color === c ? 'border-primary' : 'border-transparent'}`}
-                    style={{ backgroundColor: c }}
-                  />
-                ))}
               </div>
             </div>
           </div>
