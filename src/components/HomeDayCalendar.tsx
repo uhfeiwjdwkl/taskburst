@@ -124,7 +124,7 @@ export const HomeDayCalendar = ({
             time: subtask.scheduledTime,
             duration: subtask.estimatedMinutes,
             completed: subtask.completed,
-            color: subtask.color,
+            color: mirrorColor ? subtask.color : undefined,
             parentTitle: task.name,
             data: { subtask, task },
           });
