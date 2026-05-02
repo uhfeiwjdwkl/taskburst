@@ -441,6 +441,23 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   onCheckedChange={(checked) => setSettings({ ...settings, autoLinkSubtasksToGrid: checked })}
                 />
               </div>
+
+              {/* Mirror display colour to progress box colour */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="mirrorColorToProgressBox">Mirror event/subtask display colour to progress box colour</Label>
+                  <p className="text-xs text-muted-foreground">
+                    When on, subtasks use their progress box colour as their display colour
+                  </p>
+                </div>
+                <Switch
+                  id="mirrorColorToProgressBox"
+                  checked={Boolean((settings as any).mirrorColorToProgressBox)}
+                  onCheckedChange={(checked) =>
+                    setSettings({ ...(settings as any), mirrorColorToProgressBox: checked } as AppSettings)
+                  }
+                />
+              </div>
             </div>
 
             {/* Subtask Text Size */}
