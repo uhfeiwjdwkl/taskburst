@@ -506,6 +506,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const handleRewind = () => {
     // Restore timer
     setSeconds(currentSessionStartSeconds);
+    if (timerMode === 'stopwatch') setStopwatchSeconds(0);
     
     // Restore task progress and time
     if (activeTask && onUpdateTask) {
@@ -532,6 +533,15 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   };
 
   const handleReset = () => {
+    // Stopwatch reset: stop and zero elapsed time, do not touch session history
+    if (timerMode === 'stopwatch') {
+      setIsRunning(false);
+      onRunningChange?.(false);
+      setStopwatchSeconds(0);
+      setCurrentSessionStartTime(null);
+      return;
+    }
+
     if (isRunning && activeTask) {
       // If running, show end editor to save session
       setIsRunning(false);
