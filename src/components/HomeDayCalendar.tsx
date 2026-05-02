@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Clock, CheckCircle2, Play, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface HomeDayCalendarProps {
   date?: Date;
@@ -54,6 +55,8 @@ export const HomeDayCalendar = ({
   const [timetables, setTimetables] = useState<Timetable[]>([]);
   const [flexibleEvents, setFlexibleEvents] = useState<FlexibleEvent[]>([]);
   const [currentTimePosition, setCurrentTimePosition] = useState(0);
+  const settings = useAppSettings();
+  const mirrorColor = Boolean((settings as any).mirrorColorToProgressBox);
 
   const dateStr = format(date, 'yyyy-MM-dd');
   const dayOfWeek = date.getDay();
