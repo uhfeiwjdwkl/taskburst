@@ -73,8 +73,8 @@ export const ColorPickerGrid = ({
               title={color}
             />
             
-            {/* Edit/delete actions for custom colors */}
-            {isCustomColor(color) && onEditCustomColor && onDeleteCustomColor && (
+            {/* Edit (pencil) action for custom colors */}
+            {isCustomColor(color) && onEditCustomColor && (
               <Popover open={editingColor === color} onOpenChange={(open) => {
                 if (open) {
                   setEditingColor(color);
@@ -85,7 +85,7 @@ export const ColorPickerGrid = ({
               }}>
                 <PopoverTrigger asChild>
                   <button
-                    className="absolute -top-1 -right-1 w-4 h-4 bg-background border border-border rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                    className="absolute -top-1 -left-1 w-4 h-4 bg-background border border-border rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
                     title="Edit color"
                   >
                     <Edit2 className="h-2 w-2" />
@@ -109,26 +109,26 @@ export const ColorPickerGrid = ({
                         className="flex-1 h-8 text-xs"
                       />
                     </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                        className="flex-1 h-7" 
-                        onClick={() => handleEditCustom(color)}
-                      >
-                        Save
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="destructive"
-                        className="h-7 px-2" 
-                        onClick={() => handleDeleteCustom(color)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
+                    <Button
+                      size="sm"
+                      className="w-full h-7"
+                      onClick={() => handleEditCustom(color)}
+                    >
+                      Save
+                    </Button>
                   </div>
                 </PopoverContent>
               </Popover>
+            )}
+            {/* Delete (x) action for custom colors */}
+            {isCustomColor(color) && onDeleteCustomColor && (
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDeleteCustom(color); }}
+                className="absolute -top-1 -right-1 w-4 h-4 bg-background border border-border rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity hover:bg-destructive hover:text-destructive-foreground"
+                title="Remove color"
+              >
+                <X className="h-2 w-2" />
+              </button>
             )}
           </div>
         ))}

@@ -276,10 +276,10 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
     }
     console.log('Saving session with duration:', calculatedDuration, 'minutes');
     
-    // If session is <2 minutes and we haven't skipped the check, show rewind option
-    // For stopwatch, only show if actually short
-    if (calculatedDuration < 2 && !skipRewindCheck && timerMode === 'countdown') {
-      console.log('Session too short, showing rewind option');
+    // If session is <2 minutes and we haven't skipped the check, prompt for permanent delete confirmation
+    // (applies to both countdown and stopwatch modes)
+    if (calculatedDuration < 2 && !skipRewindCheck) {
+      console.log('Session too short, showing delete confirmation');
       setPendingSessionData({ endProgress, duration: calculatedDuration });
       setShowRewindOption(true);
       return false; // Session not saved yet, pending user decision
@@ -506,6 +506,7 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const handleRewind = () => {
     // Restore timer
     setSeconds(currentSessionStartSeconds);
+    if (timerMode === 'stopwatch') setStopwatchSeconds(0);
     
     // Restore task progress and time
     if (activeTask && onUpdateTask) {
@@ -532,6 +533,15 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   };
 
   const handleReset = () => {
+    // Stopwatch reset: stop and zero elapsed time, do not touch session history
+    if (timerMode === 'stopwatch') {
+      setIsRunning(false);
+      onRunningChange?.(false);
+      setStopwatchSeconds(0);
+      setCurrentSessionStartTime(null);
+      return;
+    }
+
     if (isRunning && activeTask) {
       // If running, show end editor to save session
       setIsRunning(false);
@@ -620,15 +630,14 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
             task={activeTask}
             open={showEndEditor}
             onClose={() => {
-              setShowEndEditor(false);
-              // If timer hit 0, move to next phase
+              // Cancel/X must still save the session to history with current progress
+              const filled = activeTask?.progressGridFilled ?? 0;
               if (seconds === 0) {
-                const nextPhase = phase === 'focus' ? 'break' : 'focus';
-                setPhase(nextPhase);
-                setSeconds(nextPhase === 'focus' ? FOCUS_DURATION : BREAK_DURATION);
-                setBreakBonus(0);
-                setCurrentSessionStartTime(null);
+                handlePhaseComplete(filled);
+              } else {
+                handleEndEditorSave(filled);
               }
+              setShowEndEditor(false);
             }}
             onSave={(filled, filledIndices) => {
               // Update task's progressGridFilled when ending session - synced with task
@@ -789,27 +798,59 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Rewind Option Dialog */}
-      {showRewindOption && activeTask && (
-        <Dialog open={showRewindOption} onOpenChange={setShowRewindOption}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Session Too Short</DialogTitle>
-              <DialogDescription>
-                This session was less than 2 minutes and won't be recorded. Would you like to rewind to the start of this session?
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={handleContinueWithoutRewind}>
-                Continue
-              </Button>
-              <Button onClick={handleRewind} className="bg-gradient-primary">
-                Rewind
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Short-session permanent-delete confirmation */}
+      <AlertDialog open={showRewindOption} onOpenChange={setShowRewindOption}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this session?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This session was less than 2 minutes. Confirming will <strong>permanently delete</strong> it — it will be moved to Recently Deleted Sessions and the task progress will be rewound. Cancel to keep working without changes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowRewindOption(false);
+              setPendingSessionData(null);
+            }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                // Delete: send to deletedSessions and rewind task (same as existing discard logic)
+                if (activeTask && pendingSessionData) {
+                  const discardedSession: Session = {
+                    id: Date.now().toString(),
+                    taskId: activeTask.id,
+                    taskName: activeTask.name,
+                    description: 'Discarded session',
+                    startedAt: currentSessionStartTime?.toISOString(),
+                    dateEnded: new Date().toISOString(),
+                    duration: pendingSessionData.duration,
+                    progressGridStart: sessionStartProgress,
+                    progressGridEnd: pendingSessionData.endProgress,
+                    progressGridSize: activeTask.progressGridSize,
+                    phase: timerMode === 'stopwatch' ? 'focus' : sessionStartPhase,
+                    deletedAt: new Date().toISOString(),
+                  };
+                  const deletedSessions = JSON.parse(localStorage.getItem('deletedSessions') || '[]');
+                  localStorage.setItem('deletedSessions', JSON.stringify([...deletedSessions, discardedSession]));
+                  if (onUpdateTask) {
+                    onUpdateTask({
+                      ...activeTask,
+                      spentMinutes: sessionStartSpentMinutes,
+                      progressGridFilled: sessionStartProgress,
+                    });
+                  }
+                }
+                if (timerMode === 'stopwatch') setStopwatchSeconds(0);
+                setShowRewindOption(false);
+                setPendingSessionData(null);
+                setCurrentSessionStartTime(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <div className="flex flex-col items-center gap-8">
       <div className="text-center">
