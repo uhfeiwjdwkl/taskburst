@@ -298,7 +298,9 @@ const History = () => {
                                 Duration: {formatDuration(session.duration)}
                               </div>
                               <div>
-                                {session.phase === 'focus' ? '🎯 Focus' : '☕ Break'}
+                                <span className="inline-flex items-center rounded-md border border-foreground/30 px-2 py-0.5 text-xs font-medium text-foreground">
+                                  Timer
+                                </span>
                               </div>
                               <div>
                                 Grid: {session.progressGridStart} → {session.progressGridEnd} / {session.progressGridSize}
