@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { X, Plus, Calendar, Trash2, Wand2 } from 'lucide-react';
+import { X, Plus, Calendar, Trash2, Wand2, Flag } from 'lucide-react';
 import { SubtaskList } from './SubtaskList';
 import { TaskScheduleDialog } from './TaskScheduleDialog';
 import { TaskLinkedAssessmentsSection } from './TaskLinkedAssessmentsSection';
@@ -239,12 +239,24 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
             <DialogTitle>Edit Task</DialogTitle>
             <DialogDescription>Modify task details and settings</DialogDescription>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant={editedTask.flagged ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setEditedTask({ ...editedTask, flagged: !editedTask.flagged })}
+              className="h-8 px-2"
+              title={editedTask.flagged ? 'Unflag' : 'Flag'}
+            >
+              <Flag className={`h-4 w-4 ${editedTask.flagged ? 'fill-current' : ''}`} />
+              {editedTask.flagged && <span className="ml-1 text-xs">Unflag</span>}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className={`space-y-4 py-4 ${editedTask.flagged ? '[&_label]:text-primary [&_input]:border-primary [&_textarea]:border-primary [&_button[role=combobox]]:border-primary' : ''}`}>
           <div>
             <Label htmlFor="name">Task Name</Label>
             <Input
