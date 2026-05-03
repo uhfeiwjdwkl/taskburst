@@ -37,10 +37,7 @@ export function ResultPartsEditor({ open, onClose, onSave, parts, itemName }: Re
       setEditedParts([...parts]);
     } else {
       setEditedParts([
-        { name: 'Part 1', score: null, maxScore: 25, notes: '' },
-        { name: 'Part 2', score: null, maxScore: 25, notes: '' },
-        { name: 'Part 3', score: null, maxScore: 25, notes: '' },
-        { name: 'Part 4', score: null, maxScore: 25, notes: '' },
+        { name: '', score: null, maxScore: null as unknown as number, notes: '' },
       ]);
     }
   }, [parts, open]);
@@ -61,7 +58,7 @@ export function ResultPartsEditor({ open, onClose, onSave, parts, itemName }: Re
   const handlePartChange = (index: number, field: keyof Part, value: string) => {
     const updated = [...editedParts];
     if (field === 'maxScore') {
-      updated[index][field] = parseFloat(value) || 0;
+      updated[index][field] = (value === '' ? (null as unknown as number) : (parseFloat(value) || 0));
     } else if (field === 'weight') {
       updated[index][field] = parseFloat(value) || 1;
     } else if (field === 'name') {
@@ -123,8 +120,9 @@ export function ResultPartsEditor({ open, onClose, onSave, parts, itemName }: Re
                 <Label className="text-xs text-muted-foreground">Max Score</Label>
                 <Input
                   type="number"
-                  value={part.maxScore}
+                  value={part.maxScore ?? ''}
                   onChange={(e) => handlePartChange(index, 'maxScore', e.target.value)}
+                  placeholder="Total marks"
                   className="h-8"
                 />
               </div>
