@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { RichTextEditor } from '@/components/RichTextEditor';
+import { RichTextField } from '@/components/RichTextField';
 import { Project } from '@/types/project';
 import { Task } from '@/types/task';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -110,7 +110,7 @@ export const AddProjectDialog = ({ open, onClose, onSave, tasks }: AddProjectDia
 
           <div>
             <Label htmlFor="description">Description</Label>
-            <RichTextEditor
+            <RichTextField
               value={description}
               onChange={setDescription}
               placeholder="Brief description of the project"
@@ -130,7 +130,7 @@ export const AddProjectDialog = ({ open, onClose, onSave, tasks }: AddProjectDia
 
           <div>
             <Label htmlFor="notes">Notes</Label>
-            <RichTextEditor
+            <RichTextField
               value={notes}
               onChange={setNotes}
               placeholder="Additional notes or details"
