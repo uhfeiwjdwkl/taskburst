@@ -16,6 +16,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+const PRIORITY_LABELS = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
+
 interface EditListDialogProps {
   list: List | null;
   open: boolean;
@@ -57,7 +59,7 @@ export const EditListDialog = ({ list, open, onClose, onSave }: EditListDialogPr
       return {
         id: `${Date.now()}-${index}`,
         title: cleanedLine,
-        priority: 3,
+        priority: 2,
         completed: false,
         createdAt: new Date().toISOString(),
       };
@@ -254,41 +256,46 @@ export const EditListDialog = ({ list, open, onClose, onSave }: EditListDialogPr
                   >
                     {selectedItems.size === items.length ? 'Deselect All' : 'Select All'}
                   </Button>
-                  {selectedItems.size > 0 && (
-                    <>
-                      <Select onValueChange={(value) => handleBulkSetPriority(parseInt(value))}>
-                        <SelectTrigger className="w-32 h-8">
-                          <SelectValue placeholder="Priority" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">Priority 1</SelectItem>
-                          <SelectItem value="2">Priority 2</SelectItem>
-                          <SelectItem value="3">Priority 3</SelectItem>
-                          <SelectItem value="4">Priority 4</SelectItem>
-                          <SelectItem value="5">Priority 5</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleBulkToggleComplete}
-                      >
-                        Toggle Complete
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleBulkDelete}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
                 </div>
               )}
             </div>
+
+            {selectedItems.size > 0 && (
+              <div className="mb-2 flex flex-wrap items-center gap-2 p-2 rounded-md border border-primary/40 bg-primary/5">
+                <span className="text-xs font-medium text-primary">{selectedItems.size} selected</span>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete Selected
+                </Button>
+                <Select onValueChange={(value) => handleBulkSetPriority(parseInt(value))}>
+                  <SelectTrigger className="w-40 h-9">
+                    <SelectValue placeholder="Set Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Low</SelectItem>
+                    <SelectItem value="2">Medium</SelectItem>
+                    <SelectItem value="3">High</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setItems(items.map(item =>
+                      selectedItems.has(item.id) ? { ...item, completed: true } : item
+                    ));
+                  }}
+                >
+                  Mark Complete
+                </Button>
+              </div>
+            )}
             
             {items.length > 0 ? (
               <div className="space-y-2 max-h-[400px] overflow-y-auto border rounded-md p-2">
@@ -327,15 +334,13 @@ export const EditListDialog = ({ list, open, onClose, onSave }: EditListDialogPr
                       value={item.priority.toString()}
                       onValueChange={(value) => handleUpdateItem(item.id, { priority: parseInt(value) })}
                     >
-                      <SelectTrigger className="w-24">
-                        <SelectValue />
+                      <SelectTrigger className="w-32">
+                        <SelectValue>{PRIORITY_LABELS[item.priority] ?? 'None'}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">P1</SelectItem>
-                        <SelectItem value="2">P2</SelectItem>
-                        <SelectItem value="3">P3</SelectItem>
-                        <SelectItem value="4">P4</SelectItem>
-                        <SelectItem value="5">P5</SelectItem>
+                        {PRIORITY_LABELS.map((label, i) => (
+                          <SelectItem key={i} value={i.toString()}>{label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <Button

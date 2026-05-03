@@ -7,6 +7,9 @@ import { Label } from '@/components/ui/label';
 import { ListItem } from '@/types/list';
 import { Trash2, Archive } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
+
+const importanceLabels = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
 
 interface ListItemDetailsDialogProps {
   item: ListItem | null;
@@ -73,19 +76,16 @@ export const ListItemDetailsDialog = ({ item, open, onClose, onUpdate, onDelete 
           </div>
 
           <div>
-            <Label htmlFor="priority">Priority</Label>
-            <div className="flex gap-2 mt-2">
-              {[1, 2, 3, 4, 5].map((p) => (
-                <Button
-                  key={p}
-                  variant={priority === p ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setPriority(p)}
-                >
-                  {p}
-                </Button>
-              ))}
-            </div>
+            <Label htmlFor="priority">Priority: {importanceLabels[priority] ?? 'None'}</Label>
+            <Slider
+              id="priority"
+              value={[priority]}
+              onValueChange={([v]) => setPriority(v)}
+              min={0}
+              max={5}
+              step={1}
+              className="mt-2"
+            />
           </div>
 
           <div>

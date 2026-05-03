@@ -57,7 +57,10 @@ export const ProjectDetailsDialog = ({ open, onClose, project, tasks, onEdit }: 
                 <FileText className="h-4 w-4 mt-1 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-medium mb-1">Description</p>
-                  <p className="text-sm text-muted-foreground">{project.description}</p>
+                  <div
+                    className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: project.description }}
+                  />
                 </div>
               </div>
             </Card>

@@ -71,12 +71,17 @@ const ALL_STORAGE_KEYS = [
 
 export const exportAllData = async () => {
   const zip = new JSZip();
-  
-  // Get all data from localStorage
+
+  // Always-export keys: categories and subcategories must be present even when
+  // empty so importers can rehydrate them as valid (empty) options.
+  const ALWAYS_EXPORT = new Set(['categories', 'subcategories']);
+
   ALL_STORAGE_KEYS.forEach(key => {
     const data = localStorage.getItem(key);
     if (data) {
       zip.file(`${key}.json`, data);
+    } else if (ALWAYS_EXPORT.has(key)) {
+      zip.file(`${key}.json`, '[]');
     }
   });
   
@@ -101,7 +106,33 @@ export const importAllData = async (file: File, merge = true): Promise<void> => 
     
     // Skip unknown keys
     if (!ALL_STORAGE_KEYS.includes(key)) return;
-    
+
+    // Categories/subcategories: always rehydrate the full array (including
+    // any empty categories) so they are selectable everywhere.
+    if (key === 'categories' || key === 'subcategories') {
+      try {
+        const incoming = JSON.parse(content);
+        if (Array.isArray(incoming)) {
+          if (merge) {
+            const existingRaw = localStorage.getItem(key);
+            const existing = existingRaw ? JSON.parse(existingRaw) : [];
+            const existingArr = Array.isArray(existing) ? existing : [];
+            const combined = Array.from(new Set([...existingArr, ...incoming]));
+            localStorage.setItem(key, JSON.stringify(combined));
+          } else {
+            localStorage.setItem(key, JSON.stringify(incoming));
+          }
+          if (key === 'categories') {
+            // Mirror to taskCategories so legacy consumers see the same data
+            localStorage.setItem('taskCategories', localStorage.getItem('categories') || '[]');
+          }
+        }
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
     if (merge) {
       // Merge with existing data instead of replacing
       const existingData = localStorage.getItem(key);

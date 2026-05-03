@@ -54,6 +54,8 @@ export interface Task {
   result?: TaskResult;
   // Manual ordering
   order?: number;
+  // Flag state — when true the details dialog highlights editable fields
+  flagged?: boolean;
 }
 
 export type TimerPhase = 'focus' | 'break';

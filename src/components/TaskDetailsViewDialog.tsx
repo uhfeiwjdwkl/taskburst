@@ -215,7 +215,10 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
           {task.description && (
             <div>
               <Label className="text-muted-foreground text-sm">Description</Label>
-              <p className="mt-1 text-sm whitespace-pre-wrap">{task.description}</p>
+              <div
+                className="mt-1 text-sm prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap"
+                dangerouslySetInnerHTML={{ __html: task.description }}
+              />
             </div>
           )}
 

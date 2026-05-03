@@ -50,7 +50,9 @@ export function CategoryManager({ open, onClose }: CategoryManagerProps) {
     const updated = [...categories, trimmed];
     setCategories(updated);
     localStorage.setItem('categories', JSON.stringify(updated));
-    setNewCategory('');
+    // Keep the typed value in the input so users can confirm what was added
+    // and continue editing. Mirror to legacy `taskCategories` key.
+    localStorage.setItem('taskCategories', JSON.stringify(updated));
     toast.success('Category added');
   };
 
@@ -58,6 +60,7 @@ export function CategoryManager({ open, onClose }: CategoryManagerProps) {
     const updated = categories.filter(c => c !== category);
     setCategories(updated);
     localStorage.setItem('categories', JSON.stringify(updated));
+    localStorage.setItem('taskCategories', JSON.stringify(updated));
     toast.success('Category deleted');
   };
 

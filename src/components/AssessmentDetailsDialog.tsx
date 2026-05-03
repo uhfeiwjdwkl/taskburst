@@ -134,13 +134,14 @@ export const AssessmentDetailsDialog = ({
           <div className="flex items-center gap-1">
             {editing && (
               <Button
-                variant="ghost"
+                variant={a.result.flagged ? 'default' : 'ghost'}
                 size="sm"
                 onClick={handleToggleAssessmentFlag}
-                className="h-8 w-8 p-0"
+                className="h-8 px-2"
                 aria-label={a.result.flagged ? 'Unflag assessment' : 'Flag assessment'}
               >
-                <Flag className={`h-4 w-4 ${a.result.flagged ? 'fill-primary text-primary' : ''}`} />
+                <Flag className={`h-4 w-4 ${a.result.flagged ? 'fill-current' : ''}`} />
+                {a.result.flagged && <span className="ml-1 text-xs">Unflag</span>}
               </Button>
             )}
             <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
@@ -149,7 +150,7 @@ export const AssessmentDetailsDialog = ({
           </div>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className={`space-y-4 py-2 ${editing && a.result.flagged ? '[&_label]:text-primary [&_input]:border-primary [&_textarea]:border-primary [&_button[role=combobox]]:border-primary' : ''}`}>
           {/* Editing fields */}
           {editing && editedAssessment && (
             <div className="space-y-3 border rounded-lg p-3">
