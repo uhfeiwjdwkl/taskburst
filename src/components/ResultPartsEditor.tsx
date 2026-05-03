@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Flag, Plus, Trash2, X } from 'lucide-react';
 
 interface Part {
   name: string;
@@ -18,6 +18,7 @@ interface Part {
   maxScore: number;
   weight?: number;
   notes?: string;
+  flagged?: boolean;
 }
 
 interface ResultPartsEditorProps {
@@ -69,6 +70,12 @@ export function ResultPartsEditor({ open, onClose, onSave, parts, itemName }: Re
     setEditedParts(updated);
   };
 
+  const handleToggleFlag = (index: number) => {
+    const updated = [...editedParts];
+    updated[index] = { ...updated[index], flagged: !updated[index].flagged };
+    setEditedParts(updated);
+  };
+
   const handleSave = () => {
     onSave(editedParts);
   };
@@ -92,7 +99,17 @@ export function ResultPartsEditor({ open, onClose, onSave, parts, itemName }: Re
         
         <div className="space-y-4 py-4">
           {editedParts.map((part, index) => (
-            <div key={index} className="flex items-center gap-2 p-3 border rounded-md">
+            <div key={index} className={`flex items-center gap-2 p-3 border rounded-md ${part.flagged ? 'text-primary' : ''}`}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="mt-5 h-8 w-8"
+                onClick={() => handleToggleFlag(index)}
+                aria-label={part.flagged ? 'Unflag part' : 'Flag part'}
+              >
+                <Flag className={`h-4 w-4 ${part.flagged ? 'fill-primary text-primary' : ''}`} />
+              </Button>
               <div className="flex-1">
                 <Label className="text-xs text-muted-foreground">Name</Label>
                 <Input
