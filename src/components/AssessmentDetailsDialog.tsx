@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { X, Calendar, Edit, ExternalLink, Trash2, Plus } from 'lucide-react';
+import { X, Calendar, Edit, ExternalLink, Trash2, Plus, Flag } from 'lucide-react';
 
 interface AssessmentDetailsDialogProps {
   assessment: Assessment | null;
@@ -107,18 +107,46 @@ export const AssessmentDetailsDialog = ({
     setEditedAssessment({ ...editedAssessment, result: { ...editedAssessment.result, parts } });
   };
 
+  const handleTogglePartFlag = (index: number) => {
+    if (!editedAssessment) return;
+    const parts = [...editedAssessment.result.parts];
+    parts[index] = { ...parts[index], flagged: !parts[index].flagged };
+    setEditedAssessment({ ...editedAssessment, result: { ...editedAssessment.result, parts } });
+  };
+
+  const handleToggleAssessmentFlag = () => {
+    if (!editedAssessment) return;
+    setEditedAssessment({
+      ...editedAssessment,
+      result: { ...editedAssessment.result, flagged: !editedAssessment.result.flagged },
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" showClose={false}
         onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader className="flex flex-row items-center justify-between">
-          <div>
-            <DialogTitle>{a.name}</DialogTitle>
-            <DialogDescription>{a.assessmentType} • {a.category || 'Uncategorized'}</DialogDescription>
+          <div className={a.result.flagged ? 'text-primary' : ''}>
+            <DialogTitle className={a.result.flagged ? 'text-primary' : ''}>{a.name}</DialogTitle>
+            <DialogDescription className={a.result.flagged ? 'text-primary' : ''}>{a.assessmentType} • {a.category || 'Uncategorized'}</DialogDescription>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {editing && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleAssessmentFlag}
+                className="h-8 w-8 p-0"
+                aria-label={a.result.flagged ? 'Unflag assessment' : 'Flag assessment'}
+              >
+                <Flag className={`h-4 w-4 ${a.result.flagged ? 'fill-primary text-primary' : ''}`} />
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -201,7 +229,18 @@ export const AssessmentDetailsDialog = ({
           <div className="space-y-2">
             <Label>Result Parts</Label>
             {a.result.parts.map((part, i) => (
-              <div key={i} className="flex items-center gap-2 p-2 border rounded-md">
+              <div key={i} className={`flex items-center gap-2 p-2 border rounded-md ${part.flagged ? 'text-primary' : ''}`}>
+                {editing && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => handleTogglePartFlag(i)}
+                    aria-label={part.flagged ? 'Unflag part' : 'Flag part'}
+                  >
+                    <Flag className={`h-3 w-3 ${part.flagged ? 'fill-primary text-primary' : ''}`} />
+                  </Button>
+                )}
                 {editing ? (
                   <>
                     <Input value={part.name} onChange={(e) => handlePartChange(i, 'name', e.target.value)} className="flex-1 h-8 text-sm" />
