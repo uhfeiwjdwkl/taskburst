@@ -76,7 +76,10 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit }: EventDetailsVi
           {event.description && (
             <div>
               <Label className="text-muted-foreground text-sm">Description</Label>
-              <p className="mt-1 text-sm whitespace-pre-wrap">{event.description}</p>
+              <div
+                className="mt-1 text-sm prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap"
+                dangerouslySetInnerHTML={{ __html: event.description }}
+              />
             </div>
           )}
 
