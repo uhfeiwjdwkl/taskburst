@@ -69,19 +69,28 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
   }, [task]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('taskCategories');
-    if (saved) {
+    // Prefer the unified `categories` key; fall back to legacy `taskCategories`.
+    const tryParse = (raw: string | null): string[] | null => {
+      if (!raw) return null;
       try {
-        const parsed = JSON.parse(saved);
-        setCategories(Array.isArray(parsed) ? parsed : []);
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : null;
       } catch {
-        setCategories([]);
+        return null;
       }
-    } else {
-      const defaultCategories = ['Work', 'Study', 'Personal', 'Health', 'Projects', 'Other'];
-      setCategories(defaultCategories);
-      localStorage.setItem('taskCategories', JSON.stringify(defaultCategories));
+    };
+    const main = tryParse(localStorage.getItem('categories'));
+    const legacy = tryParse(localStorage.getItem('taskCategories'));
+    let merged = main || legacy;
+    if (!merged) {
+      merged = ['Work', 'Study', 'Personal', 'Health', 'Projects', 'Other'];
+    } else if (main && legacy) {
+      // Union, preserving order from main first
+      merged = Array.from(new Set([...main, ...legacy]));
     }
+    setCategories(merged);
+    localStorage.setItem('categories', JSON.stringify(merged));
+    localStorage.setItem('taskCategories', JSON.stringify(merged));
   }, []);
 
   if (!editedTask) return null;
@@ -129,22 +138,12 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
     if (newCategory.trim() && !categories.includes(newCategory.trim())) {
       const updated = [...categories, newCategory.trim()];
       setCategories(updated);
-      // Save to taskCategories (for the select dropdown)
+      // Mirror to both keys — they are the same data.
+      localStorage.setItem('categories', JSON.stringify(updated));
       localStorage.setItem('taskCategories', JSON.stringify(updated));
-      // Also update the main categories storage used by Categories page
-      let mainCategories: string[] = [];
-      try {
-        const parsed = JSON.parse(localStorage.getItem('categories') || '[]');
-        mainCategories = Array.isArray(parsed) ? parsed : [];
-      } catch {
-        mainCategories = [];
-      }
-      if (!mainCategories.includes(newCategory.trim())) {
-        mainCategories.push(newCategory.trim());
-        localStorage.setItem('categories', JSON.stringify(mainCategories));
-      }
       setEditedTask({ ...editedTask, category: newCategory.trim() });
-      setNewCategory('');
+      // Persist input value so the user can confirm what they entered.
+      // (Field is hidden again on next add cycle by toggling showAddCategory.)
       setShowAddCategory(false);
     }
   };
@@ -152,6 +151,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
   const handleDeleteCategory = (category: string) => {
     const updated = categories.filter(c => c !== category);
     setCategories(updated);
+    localStorage.setItem('categories', JSON.stringify(updated));
     localStorage.setItem('taskCategories', JSON.stringify(updated));
     if (editedTask.category === category) {
       setEditedTask({ ...editedTask, category: undefined });
