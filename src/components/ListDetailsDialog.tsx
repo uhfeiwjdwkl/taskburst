@@ -97,7 +97,10 @@ export const ListDetailsDialog = ({ list, open, onClose, onUpdate, onDelete, onA
           <div className="space-y-4">
             {/* Description */}
             {list.description && (
-              <p className="text-muted-foreground">{list.description}</p>
+              <div
+                className="text-muted-foreground prose prose-sm dark:prose-invert max-w-none"
+                dangerouslySetInnerHTML={{ __html: list.description }}
+              />
             )}
 
             {/* Due date */}
