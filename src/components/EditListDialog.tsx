@@ -16,6 +16,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+const PRIORITY_LABELS = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
+
 interface EditListDialogProps {
   list: List | null;
   open: boolean;
@@ -57,7 +59,7 @@ export const EditListDialog = ({ list, open, onClose, onSave }: EditListDialogPr
       return {
         id: `${Date.now()}-${index}`,
         title: cleanedLine,
-        priority: 3,
+        priority: 2,
         completed: false,
         createdAt: new Date().toISOString(),
       };
@@ -257,15 +259,13 @@ export const EditListDialog = ({ list, open, onClose, onSave }: EditListDialogPr
                   {selectedItems.size > 0 && (
                     <>
                       <Select onValueChange={(value) => handleBulkSetPriority(parseInt(value))}>
-                        <SelectTrigger className="w-32 h-8">
-                          <SelectValue placeholder="Priority" />
+                        <SelectTrigger className="w-40 h-8">
+                          <SelectValue placeholder="Set Priority" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="1">Priority 1</SelectItem>
-                          <SelectItem value="2">Priority 2</SelectItem>
-                          <SelectItem value="3">Priority 3</SelectItem>
-                          <SelectItem value="4">Priority 4</SelectItem>
-                          <SelectItem value="5">Priority 5</SelectItem>
+                          {PRIORITY_LABELS.map((label, i) => (
+                            <SelectItem key={i} value={i.toString()}>{label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <Button
@@ -327,15 +327,13 @@ export const EditListDialog = ({ list, open, onClose, onSave }: EditListDialogPr
                       value={item.priority.toString()}
                       onValueChange={(value) => handleUpdateItem(item.id, { priority: parseInt(value) })}
                     >
-                      <SelectTrigger className="w-24">
-                        <SelectValue />
+                      <SelectTrigger className="w-32">
+                        <SelectValue>{PRIORITY_LABELS[item.priority] ?? 'None'}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">P1</SelectItem>
-                        <SelectItem value="2">P2</SelectItem>
-                        <SelectItem value="3">P3</SelectItem>
-                        <SelectItem value="4">P4</SelectItem>
-                        <SelectItem value="5">P5</SelectItem>
+                        {PRIORITY_LABELS.map((label, i) => (
+                          <SelectItem key={i} value={i.toString()}>{label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <Button
