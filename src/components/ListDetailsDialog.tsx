@@ -117,7 +117,10 @@ export const ListDetailsDialog = ({ list, open, onClose, onUpdate, onDelete, onA
             {list.notes && (
               <div className="bg-muted p-3 rounded-md">
                 <div className="text-sm font-medium mb-1">Notes</div>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{list.notes}</p>
+                <div
+                  className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap"
+                  dangerouslySetInnerHTML={{ __html: list.notes }}
+                />
               </div>
             )}
 
