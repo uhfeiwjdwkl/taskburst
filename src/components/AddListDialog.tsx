@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextField } from '@/components/RichTextField';
 import { Label } from '@/components/ui/label';
 import { List, ListItem } from '@/types/list';
 import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
@@ -134,11 +135,11 @@ export const AddListDialog = ({ open, onClose, onAdd }: AddListDialogProps) => {
 
           <div>
             <Label htmlFor="description">Description (Optional)</Label>
-            <Input
-              id="description"
+            <RichTextField
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={setDescription}
               placeholder="Enter description"
+              minHeight="60px"
             />
           </div>
 
