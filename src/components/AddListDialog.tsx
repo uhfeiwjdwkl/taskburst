@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/select';
 import { ImportListButton } from '@/components/ImportListButton';
 
+const PRIORITY_LABELS = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
+
 
 interface AddListDialogProps {
   open: boolean;
@@ -37,7 +39,7 @@ export const AddListDialog = ({ open, onClose, onAdd }: AddListDialogProps) => {
     const newItem: ListItem = {
       id: Date.now().toString(),
       title: currentInput.trim(),
-      priority: 3,
+      priority: 2,
       completed: false,
       createdAt: new Date().toISOString(),
     };
@@ -77,7 +79,7 @@ export const AddListDialog = ({ open, onClose, onAdd }: AddListDialogProps) => {
       return {
         id: `${Date.now()}-${index}`,
         title: cleanedLine,
-        priority: 3,
+        priority: 2,
         completed: false,
         createdAt: new Date().toISOString(),
       };
@@ -231,17 +233,15 @@ export const AddListDialog = ({ open, onClose, onAdd }: AddListDialogProps) => {
                       value={item.priority.toString()}
                       onValueChange={(value) => handleUpdateItem(item.id, { priority: parseInt(value) })}
                     >
-                      <SelectTrigger className="w-32">
-                        <SelectValue placeholder={`Priority: ${item.priority}`}>
-                          Priority: {item.priority}
+                      <SelectTrigger className="w-36">
+                        <SelectValue placeholder="Priority">
+                          {PRIORITY_LABELS[item.priority] ?? 'None'}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">1</SelectItem>
-                        <SelectItem value="2">2</SelectItem>
-                        <SelectItem value="3">3</SelectItem>
-                        <SelectItem value="4">4</SelectItem>
-                        <SelectItem value="5">5</SelectItem>
+                        {PRIORITY_LABELS.map((label, i) => (
+                          <SelectItem key={i} value={i.toString()}>{label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <Button
