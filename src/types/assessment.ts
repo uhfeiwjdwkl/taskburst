@@ -4,6 +4,7 @@ export interface AssessmentResultPart {
   maxScore: number;
   weight?: number;
   notes?: string;
+  flagged?: boolean;
 }
 
 export interface Assessment {
@@ -21,6 +22,7 @@ export interface Assessment {
     totalMaxScore: number;
     totalMode?: 'marks' | 'average';
     parts: AssessmentResultPart[];
+    flagged?: boolean;
   };
   showInResults: boolean;
   resultShortName?: string;
