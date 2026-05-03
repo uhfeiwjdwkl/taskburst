@@ -71,12 +71,17 @@ const ALL_STORAGE_KEYS = [
 
 export const exportAllData = async () => {
   const zip = new JSZip();
-  
-  // Get all data from localStorage
+
+  // Always-export keys: categories and subcategories must be present even when
+  // empty so importers can rehydrate them as valid (empty) options.
+  const ALWAYS_EXPORT = new Set(['categories', 'subcategories']);
+
   ALL_STORAGE_KEYS.forEach(key => {
     const data = localStorage.getItem(key);
     if (data) {
       zip.file(`${key}.json`, data);
+    } else if (ALWAYS_EXPORT.has(key)) {
+      zip.file(`${key}.json`, '[]');
     }
   });
   
