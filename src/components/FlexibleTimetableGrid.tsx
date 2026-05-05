@@ -56,6 +56,20 @@ export function FlexibleTimetableGrid({
     }
   }, [timetable.id]);
 
+  // Reactively group events by colour into colorKey entries
+  useEffect(() => {
+    if (!onUpdateTimetable) return;
+    const uniqueColors = Array.from(
+      new Set(events.map(e => e.color).filter((c): c is string => !!c))
+    );
+    const currentKey = timetable.colorKey || {};
+    const missing = uniqueColors.filter(c => !(c in currentKey));
+    if (missing.length === 0) return;
+    const updatedKey = { ...currentKey };
+    missing.forEach(c => { updatedKey[c] = currentKey[c] || ''; });
+    onUpdateTimetable({ ...timetable, colorKey: updatedKey });
+  }, [events, timetable, onUpdateTimetable]);
+
   // Save events to localStorage
   const saveEvents = (newEvents: FlexibleEvent[]) => {
     const saved = localStorage.getItem(FLEXIBLE_EVENTS_KEY);
