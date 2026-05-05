@@ -65,9 +65,8 @@ export const PROGRESS_GRID_ICONS = [
 
 // Preset colors for progress grid and other color pickers
 export const PRESET_COLORS = [
-  '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e',
-  '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1',
-  '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#94a3b8'
+  '#E63946', '#F4A261', '#2A9D8F', '#457B9D', '#6A4C93',
+  '#F4D35E', '#3D405B', '#81B29A', '#F2CC8F', '#E76F51'
 ];
 
 // Site-wide color themes
