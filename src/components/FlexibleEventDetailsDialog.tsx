@@ -18,6 +18,8 @@ interface FlexibleEventDetailsDialogProps {
   timeFormat?: '12h' | '24h';
   onGoToTimetable?: () => void;
   readOnly?: boolean;
+  /** When true, opens directly into the edit form (used for new-event creation). */
+  startInEdit?: boolean;
 }
 
 const PRESET_COLORS = [
@@ -34,10 +36,20 @@ export function FlexibleEventDetailsDialog({
   timeFormat = '12h',
   onGoToTimetable,
   readOnly = false,
+  startInEdit = false,
 }: FlexibleEventDetailsDialogProps) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(startInEdit);
   const [editedEvent, setEditedEvent] = useState<FlexibleEvent | null>(null);
   const [customColors, setCustomColors] = useState<string[]>([]);
+
+  // When asked to start in edit mode (or when a new event arrives), seed the
+  // edited copy so the form is interactive from the first render.
+  useEffect(() => {
+    if (open && startInEdit && event) {
+      setEditedEvent({ ...event, fields: event.fields ? [...event.fields] : [] });
+      setIsEditing(true);
+    }
+  }, [open, startInEdit, event]);
 
   // Reset edit state when dialog opens with new event
   const handleOpenChange = (newOpen: boolean) => {
