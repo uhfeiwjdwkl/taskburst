@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { X, Calendar, Edit, ExternalLink, Trash2, Plus, Flag } from 'lucide-react';
+import { ConfirmDelete } from './ConfirmDeleteButton';
 
 interface AssessmentDetailsDialogProps {
   assessment: Assessment | null;
@@ -285,9 +286,15 @@ export const AssessmentDetailsDialog = ({
 
         <div className="flex gap-2 justify-end border-t pt-4">
           {onDelete && (
-            <Button variant="ghost" className="text-destructive mr-auto" onClick={() => onDelete(a.id)}>
-              <Trash2 className="h-4 w-4 mr-1" /> Delete
-            </Button>
+            <ConfirmDelete
+              onConfirm={() => onDelete(a.id)}
+              title="Delete this assessment?"
+              trigger={(open) => (
+                <Button variant="ghost" className="text-destructive mr-auto" onClick={open}>
+                  <Trash2 className="h-4 w-4 mr-1" /> Delete
+                </Button>
+              )}
+            />
           )}
           {editing ? (
             <>
