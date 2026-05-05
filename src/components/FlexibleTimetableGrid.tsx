@@ -477,16 +477,26 @@ export function FlexibleTimetableGrid({
         <div className="flex-1 grid" style={{ gridTemplateColumns: `repeat(${timetable.columns.length}, 1fr)` }}>
           {/* Day headers */}
           {timetable.columns.map((day, dayIndex) => (
-            <div 
-              key={day} 
+            <div
+              key={day}
               className={cn(
-                "h-10 border-b border-r flex items-center justify-center font-medium text-sm bg-muted/30",
+                "border-b-2 border-r-2 flex flex-col items-center justify-center font-medium text-sm bg-muted/30 py-1 gap-1",
                 (copiedEvent || movingEvent) && "cursor-pointer hover:bg-primary/10",
                 dayIndex === adjustedCurrentDay && "bg-primary/10 font-semibold"
               )}
               onClick={() => (copiedEvent || movingEvent) && handleAddEvent(dayIndex)}
             >
               <span className={cn(dayIndex === adjustedCurrentDay && "text-primary")}>{day.slice(0, 3)}</span>
+              {isEditing && !copiedEvent && !movingEvent && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 px-2 text-[10px] opacity-70 hover:opacity-100"
+                  onClick={(e) => { e.stopPropagation(); handleAddEvent(dayIndex); }}
+                >
+                  <Plus className="h-3 w-3 mr-0.5" /> Add
+                </Button>
+              )}
             </div>
           ))}
 
@@ -503,7 +513,7 @@ export function FlexibleTimetableGrid({
               <div
                 key={`content-${dayIndex}`}
                 className={cn(
-                  "relative border-r",
+                  "relative border-r-2",
                   (copiedEvent || movingEvent) && "cursor-pointer hover:bg-primary/5",
                   isCurrentDay && "bg-primary/5",
                   dragOverDay === dayIndex && "bg-primary/10"
@@ -573,9 +583,10 @@ export function FlexibleTimetableGrid({
                         handleEventClick(event);
                       }}
                       className={cn(
-                        "absolute left-1 right-1 rounded-md px-2 py-1 cursor-pointer text-xs overflow-hidden",
+                        "absolute left-1 right-1 rounded-md px-2 py-1 cursor-pointer text-xs overflow-hidden border",
                         "hover:ring-2 hover:ring-ring transition-all",
                         isSelected && "ring-2 ring-primary",
+                        selectMode && selectedEventIds.includes(event.id) && "ring-2 ring-primary",
                         isMoving && "opacity-50 ring-2 ring-yellow-500",
                         isDragging && "opacity-30",
                         moveMode && "cursor-grab active:cursor-grabbing",
@@ -611,35 +622,26 @@ export function FlexibleTimetableGrid({
                           >
                             <Copy className="h-3 w-3" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteSelectedEvent(event.id);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          <ConfirmDelete
+                            onConfirm={() => handleDeleteSelectedEvent(event.id)}
+                            title="Delete this event?"
+                            trigger={(open) => (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-destructive"
+                                onClick={(e) => { e.stopPropagation(); open(); }}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            )}
+                          />
                         </div>
                       )}
                     </div>
                   );
                 })}
 
-                {/* Add event button (when editing and not in paste/move mode) */}
-                {isEditing && !copiedEvent && !movingEvent && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute bottom-2 left-1/2 -translate-x-1/2 h-6 text-xs opacity-50 hover:opacity-100"
-                    onClick={() => handleAddEvent(dayIndex)}
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add
-                  </Button>
-                )}
               </div>
             );
           })}
@@ -656,59 +658,16 @@ export function FlexibleTimetableGrid({
         timeFormat={timeFormat}
       />
 
-      {/* Add Event Dialog */}
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="max-w-sm" showClose={false}>
-          <DialogHeader className="flex flex-row items-center justify-between">
-            <DialogTitle>Add Event</DialogTitle>
-            <Button variant="ghost" size="sm" onClick={() => setAddDialogOpen(false)} className="h-8 w-8 p-0">
-              <X className="h-4 w-4" />
-            </Button>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Title</Label>
-              <Input
-                value={newEventTitle}
-                onChange={(e) => setNewEventTitle(e.target.value)}
-                placeholder="Event title"
-                className="mt-1"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Start Time</Label>
-                <Input
-                  type="time"
-                  value={newEventStartTime}
-                  onChange={(e) => setNewEventStartTime(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label>End Time</Label>
-                <Input
-                  type="time"
-                  value={newEventEndTime}
-                  onChange={(e) => setNewEventEndTime(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveNewEvent}>
-              Add Event
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Add Event Dialog — uses the same full settings form as edit */}
+      <FlexibleEventDetailsDialog
+        event={addDialogOpen ? newEventDraft : null}
+        open={addDialogOpen}
+        onOpenChange={(o) => { setAddDialogOpen(o); if (!o) setNewEventDraft(null); }}
+        onSave={handleSaveNewEvent}
+        onDelete={() => { setAddDialogOpen(false); setNewEventDraft(null); }}
+        timeFormat={timeFormat}
+        startInEdit
+      />
     </div>
   );
 }
