@@ -71,7 +71,9 @@ export const HomeDayCalendar = ({
     
     const savedTimetables = localStorage.getItem('timetables');
     if (savedTimetables) {
-      const allTimetables = JSON.parse(savedTimetables) as Timetable[];
+      let parsed: unknown;
+      try { parsed = JSON.parse(savedTimetables); } catch { parsed = []; }
+      const allTimetables = (Array.isArray(parsed) ? parsed : []) as Timetable[];
       setTimetables(allTimetables);
       
       // Load flexible events for all flexible timetables

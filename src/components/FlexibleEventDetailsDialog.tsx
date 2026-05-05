@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { FlexibleEvent } from '@/types/timetable';
 import { X, Edit, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ColorPickerGrid } from './ColorPickerGrid';
+import { ConfirmDelete } from './ConfirmDeleteButton';
 
 interface FlexibleEventDetailsDialogProps {
   event: FlexibleEvent | null;
@@ -18,6 +19,8 @@ interface FlexibleEventDetailsDialogProps {
   timeFormat?: '12h' | '24h';
   onGoToTimetable?: () => void;
   readOnly?: boolean;
+  /** When true, opens directly into the edit form (used for new-event creation). */
+  startInEdit?: boolean;
 }
 
 const PRESET_COLORS = [
@@ -34,10 +37,20 @@ export function FlexibleEventDetailsDialog({
   timeFormat = '12h',
   onGoToTimetable,
   readOnly = false,
+  startInEdit = false,
 }: FlexibleEventDetailsDialogProps) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(startInEdit);
   const [editedEvent, setEditedEvent] = useState<FlexibleEvent | null>(null);
   const [customColors, setCustomColors] = useState<string[]>([]);
+
+  // When asked to start in edit mode (or when a new event arrives), seed the
+  // edited copy so the form is interactive from the first render.
+  useEffect(() => {
+    if (open && startInEdit && event) {
+      setEditedEvent({ ...event, fields: event.fields ? [...event.fields] : [] });
+      setIsEditing(true);
+    }
+  }, [open, startInEdit, event]);
 
   // Reset edit state when dialog opens with new event
   const handleOpenChange = (newOpen: boolean) => {
@@ -303,12 +316,15 @@ export function FlexibleEventDetailsDialog({
         <DialogFooter className="gap-2">
           {isEditing ? (
             <>
-              <Button variant="destructive" onClick={() => {
-                onDelete(event.id);
-                handleOpenChange(false);
-              }}>
-                Delete
-              </Button>
+              <ConfirmDelete
+                onConfirm={() => { onDelete(event.id); handleOpenChange(false); }}
+                title="Delete this event?"
+                trigger={(open) => (
+                  <Button variant="destructive" onClick={open}>
+                    Delete
+                  </Button>
+                )}
+              />
               <Button variant="outline" onClick={() => {
                 setIsEditing(false);
                 setEditedEvent(null);

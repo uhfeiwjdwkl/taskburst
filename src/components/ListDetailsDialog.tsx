@@ -8,6 +8,7 @@ import { List, ListItem } from '@/types/list';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Star, Edit, Trash2, Archive, Info, Plus } from 'lucide-react';
+import { ConfirmDelete } from './ConfirmDeleteButton';
 import { ListItemDetailsDialog } from './ListItemDetailsDialog';
 import { EditListDialog } from './EditListDialog';
 import { ExportListButton } from './ExportListButton';
@@ -135,10 +136,16 @@ export const ListDetailsDialog = ({ list, open, onClose, onUpdate, onDelete, onA
                 <Archive className="h-4 w-4 mr-2" />
                 Archive
               </Button>
-              <Button variant="destructive" size="sm" onClick={onDelete}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
+              <ConfirmDelete
+                onConfirm={onDelete}
+                title="Delete this list?"
+                trigger={(open) => (
+                  <Button variant="destructive" size="sm" onClick={open}>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                )}
+              />
             </div>
 
             {/* List items */}

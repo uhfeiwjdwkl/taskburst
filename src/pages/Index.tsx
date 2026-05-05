@@ -32,6 +32,8 @@ import { ListDetailsDialog } from '@/components/ListDetailsDialog';
 import { SubtaskFullDetailsDialog } from '@/components/SubtaskFullDetailsDialog';
 import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
 import { FlexibleEventDetailsDialog } from '@/components/FlexibleEventDetailsDialog';
+import { AssessmentDetailsDialog } from '@/components/AssessmentDetailsDialog';
+import type { Assessment } from '@/types/assessment';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 const Index = () => {
@@ -55,6 +57,8 @@ const Index = () => {
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
   const [selectedTimetableEvent, setSelectedTimetableEvent] = useState<FlexibleEvent | null>(null);
   const [timetableEventDetailsOpen, setTimetableEventDetailsOpen] = useState(false);
+  const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
+  const [assessmentDetailsOpen, setAssessmentDetailsOpen] = useState(false);
   const [tasksLoaded, setTasksLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
@@ -379,7 +383,10 @@ const Index = () => {
                 setSelectedEvent(event);
                 setEventDetailsOpen(true);
               }}
-              onAssessmentClick={() => navigate('/results')}
+              onAssessmentClick={(assessment) => {
+                setSelectedAssessment(assessment);
+                setAssessmentDetailsOpen(true);
+              }}
               onTimetableEventClick={(event) => {
                 setSelectedTimetableEvent(event);
                 setTimetableEventDetailsOpen(true);
@@ -408,7 +415,10 @@ const Index = () => {
                 setSelectedEvent(event);
                 setEventDetailsOpen(true);
               }}
-              onAssessmentClick={() => navigate('/results')}
+              onAssessmentClick={(assessment) => {
+                setSelectedAssessment(assessment);
+                setAssessmentDetailsOpen(true);
+              }}
               onTimetableEventClick={(event) => {
                 setSelectedTimetableEvent(event);
                 setTimetableEventDetailsOpen(true);
@@ -719,6 +729,17 @@ const Index = () => {
           onDelete={() => {}}
           readOnly
           onGoToTimetable={() => navigate('/timetable')}
+        />
+        <AssessmentDetailsDialog
+          assessment={selectedAssessment}
+          open={assessmentDetailsOpen}
+          onClose={() => { setAssessmentDetailsOpen(false); setSelectedAssessment(null); }}
+          onSave={(updated) => {
+            const all = JSON.parse(localStorage.getItem('assessments') || '[]') as Assessment[];
+            const next = (Array.isArray(all) ? all : []).map(a => a.id === updated.id ? updated : a);
+            localStorage.setItem('assessments', JSON.stringify(next));
+            setSelectedAssessment(updated);
+          }}
         />
       </div>
     </div>

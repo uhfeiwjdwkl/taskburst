@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { List, ListItem } from '@/types/list';
 import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { ConfirmDelete } from './ConfirmDeleteButton';
 import { saveTextBackup, createFieldId } from '@/lib/textBackup';
 import {
   Select,
@@ -263,15 +264,22 @@ export const EditListDialog = ({ list, open, onClose, onSave }: EditListDialogPr
             {selectedItems.size > 0 && (
               <div className="mb-2 flex flex-wrap items-center gap-2 p-2 rounded-md border border-primary/40 bg-primary/5">
                 <span className="text-xs font-medium text-primary">{selectedItems.size} selected</span>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Delete Selected
-                </Button>
+                <ConfirmDelete
+                  onConfirm={handleBulkDelete}
+                  title="Delete selected items?"
+                  description={`${selectedItems.size} item(s) will be deleted.`}
+                  trigger={(open) => (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={open}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete Selected
+                    </Button>
+                  )}
+                />
                 <Select onValueChange={(value) => handleBulkSetPriority(parseInt(value))}>
                   <SelectTrigger className="w-40 h-9">
                     <SelectValue placeholder="Set Priority" />
@@ -343,14 +351,20 @@ export const EditListDialog = ({ list, open, onClose, onSave }: EditListDialogPr
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteItem(item.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <ConfirmDelete
+                      onConfirm={() => handleDeleteItem(item.id)}
+                      title="Delete this item?"
+                      trigger={(open) => (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={open}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    />
                   </div>
                 ))}
               </div>

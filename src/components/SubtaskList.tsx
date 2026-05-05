@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Clock, Calendar, Grid3X3 } from 'lucide-react';
 import { SubtaskDialog } from './SubtaskDialog';
+import { ConfirmDelete } from './ConfirmDeleteButton';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 
 interface SubtaskListProps {
@@ -233,16 +234,22 @@ export const SubtaskList = ({
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                  onClick={() => handleDeleteSubtask(subtask.id)}
-                  title="Delete"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <ConfirmDelete
+                  onConfirm={() => handleDeleteSubtask(subtask.id)}
+                  title="Delete this subtask?"
+                  trigger={(open) => (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                      onClick={open}
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                />
               </div>
             </div>
           ))}
