@@ -51,6 +51,7 @@ const Timetable = () => {
   const [editingTimetableId, setEditingTimetableId] = useState<string | null>(null);
   const [editingTimetableSnapshot, setEditingTimetableSnapshot] = useState<TimetableType | null>(null);
   const [focusedColor, setFocusedColor] = useState<string | undefined>(undefined);
+  const [activeIsolatedColour, setActiveIsolatedColour] = useState<string | null>(null);
   const [collapsedTimetables, setCollapsedTimetables] = useState<Set<string>>(new Set());
   const [expandedEditSections, setExpandedEditSections] = useState<Set<string>>(new Set());
   const [selectedCell, setSelectedCell] = useState<any>(null);
@@ -431,6 +432,8 @@ const Timetable = () => {
                                   colorKey={selectedTimetable.colorKey}
                                   onUpdate={handleUpdateColorKey}
                                   customColors={selectedTimetable.customColors}
+                                  activeIsolatedColour={activeIsolatedColour}
+                                  onIsolateColour={setActiveIsolatedColour}
                                 />
                               </CollapsibleContent>
                             </Collapsible>
