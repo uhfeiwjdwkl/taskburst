@@ -15,6 +15,7 @@ interface FlexibleTimetableGridProps {
   isEditing?: boolean;
   currentWeek?: 1 | 2;
   onUpdateTimetable?: (timetable: Timetable) => void;
+  activeIsolatedColour?: string | null;
 }
 
 // Storage key for flexible events
@@ -24,7 +25,8 @@ export function FlexibleTimetableGrid({
   timetable, 
   isEditing = false,
   currentWeek = 1,
-  onUpdateTimetable
+  onUpdateTimetable,
+  activeIsolatedColour = null,
 }: FlexibleTimetableGridProps) {
   const [events, setEvents] = useState<FlexibleEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<FlexibleEvent | null>(null);
@@ -438,6 +440,7 @@ export function FlexibleTimetableGrid({
                   const isSelected = selectedForAction === event.id;
                   const isMoving = movingEvent?.id === event.id;
                   const isDragging = draggingEvent?.id === event.id;
+                  const isDimmed = !!activeIsolatedColour && event.color !== activeIsolatedColour;
                   
                   return (
                     <div
@@ -455,7 +458,8 @@ export function FlexibleTimetableGrid({
                         isSelected && "ring-2 ring-primary",
                         isMoving && "opacity-50 ring-2 ring-yellow-500",
                         isDragging && "opacity-30",
-                        moveMode && "cursor-grab active:cursor-grabbing"
+                        moveMode && "cursor-grab active:cursor-grabbing",
+                        isDimmed && "grayscale opacity-30"
                       )}
                       style={{
                         ...getEventStyle(event),

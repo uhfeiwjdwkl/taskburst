@@ -13,6 +13,7 @@ interface ColorPickerGridProps {
   onEditCustomColor?: (oldColor: string, newColor: string) => void;
   onDeleteCustomColor?: (color: string) => void;
   showCustomInput?: boolean;
+  colorKey?: Record<string, string>;
 }
 
 export const ColorPickerGrid = ({
@@ -23,6 +24,7 @@ export const ColorPickerGrid = ({
   onEditCustomColor,
   onDeleteCustomColor,
   showCustomInput = true,
+  colorKey,
 }: ColorPickerGridProps) => {
   const [customColor, setCustomColor] = useState('#6366f1');
   const [isAddingCustom, setIsAddingCustom] = useState(false);
@@ -70,7 +72,7 @@ export const ColorPickerGrid = ({
                 value === color ? 'border-foreground ring-2 ring-primary/50' : 'border-transparent'
               }`}
               style={{ backgroundColor: color }}
-              title={color}
+              title={colorKey?.[color] || color}
             />
             
             {/* Edit (pencil) action for custom colors */}
@@ -175,7 +177,7 @@ export const ColorPickerGrid = ({
           className="w-6 h-6 rounded border border-border"
           style={{ backgroundColor: value }}
         />
-        <span className="text-xs text-muted-foreground">{value}</span>
+        <span className="text-xs text-muted-foreground">{colorKey?.[value] || value}</span>
       </div>
     </div>
   );
