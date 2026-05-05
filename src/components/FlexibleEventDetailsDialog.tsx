@@ -8,6 +8,7 @@ import { FlexibleEvent } from '@/types/timetable';
 import { X, Edit, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ColorPickerGrid } from './ColorPickerGrid';
+import { ConfirmDelete } from './ConfirmDeleteButton';
 
 interface FlexibleEventDetailsDialogProps {
   event: FlexibleEvent | null;
@@ -315,12 +316,15 @@ export function FlexibleEventDetailsDialog({
         <DialogFooter className="gap-2">
           {isEditing ? (
             <>
-              <Button variant="destructive" onClick={() => {
-                onDelete(event.id);
-                handleOpenChange(false);
-              }}>
-                Delete
-              </Button>
+              <ConfirmDelete
+                onConfirm={() => { onDelete(event.id); handleOpenChange(false); }}
+                title="Delete this event?"
+                trigger={(open) => (
+                  <Button variant="destructive" onClick={open}>
+                    Delete
+                  </Button>
+                )}
+              />
               <Button variant="outline" onClick={() => {
                 setIsEditing(false);
                 setEditedEvent(null);
