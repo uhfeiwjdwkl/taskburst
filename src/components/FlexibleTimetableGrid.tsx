@@ -15,6 +15,7 @@ interface FlexibleTimetableGridProps {
   isEditing?: boolean;
   currentWeek?: 1 | 2;
   onUpdateTimetable?: (timetable: Timetable) => void;
+  activeIsolatedColour?: string | null;
 }
 
 // Storage key for flexible events
@@ -24,7 +25,8 @@ export function FlexibleTimetableGrid({
   timetable, 
   isEditing = false,
   currentWeek = 1,
-  onUpdateTimetable
+  onUpdateTimetable,
+  activeIsolatedColour = null,
 }: FlexibleTimetableGridProps) {
   const [events, setEvents] = useState<FlexibleEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<FlexibleEvent | null>(null);
