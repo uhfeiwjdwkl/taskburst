@@ -18,7 +18,9 @@ export function TimetableCurrentBlock() {
         return;
       }
 
-      const timetables = JSON.parse(saved) as Timetable[];
+      let parsed: unknown;
+      try { parsed = JSON.parse(saved); } catch { parsed = []; }
+      const timetables = (Array.isArray(parsed) ? parsed : []) as Timetable[];
       
       // Get settings to check for specific timetable selection
       const settingsSaved = localStorage.getItem('appSettings');
