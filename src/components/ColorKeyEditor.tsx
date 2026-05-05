@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -9,6 +9,8 @@ interface ColorKeyEditorProps {
   colorKey: Record<string, string>;
   onUpdate: (colorKey: Record<string, string>) => void;
   customColors?: string[];
+  activeIsolatedColour?: string | null;
+  onIsolateColour?: (colour: string | null) => void;
 }
 
 const PRESET_COLORS = [
@@ -17,10 +19,23 @@ const PRESET_COLORS = [
   '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'
 ];
 
-export function ColorKeyEditor({ colorKey, onUpdate, customColors = [] }: ColorKeyEditorProps) {
+export function ColorKeyEditor({ colorKey, onUpdate, customColors = [], activeIsolatedColour = null, onIsolateColour }: ColorKeyEditorProps) {
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [newLabel, setNewLabel] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Restore (clear isolation) when clicking outside the editor
+  useEffect(() => {
+    if (!onIsolateColour || !activeIsolatedColour) return;
+    const handler = (e: MouseEvent) => {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        onIsolateColour(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [activeIsolatedColour, onIsolateColour]);
 
   const allColors = [...customColors, ...PRESET_COLORS];
 
@@ -50,7 +65,7 @@ export function ColorKeyEditor({ colorKey, onUpdate, customColors = [] }: ColorK
   };
 
   return (
-    <Card className="p-4">
+    <Card className="p-4" ref={cardRef}>
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">Color Key</h3>
@@ -103,7 +118,13 @@ export function ColorKeyEditor({ colorKey, onUpdate, customColors = [] }: ColorK
         {entries.length > 0 ? (
           <div className="space-y-2">
             {entries.map(([color, label]) => (
-              <div key={color} className="flex items-center gap-2">
+              <div
+                key={color}
+                className={`flex items-center gap-2 rounded p-1 -m-1 cursor-pointer transition-colors ${
+                  activeIsolatedColour === color ? 'bg-muted ring-1 ring-foreground' : 'hover:bg-muted/50'
+                }`}
+                onClick={() => onIsolateColour?.(activeIsolatedColour === color ? null : color)}
+              >
                 <div
                   className="w-6 h-6 rounded border"
                   style={{ backgroundColor: color }}
@@ -111,6 +132,7 @@ export function ColorKeyEditor({ colorKey, onUpdate, customColors = [] }: ColorK
                 <Input
                   value={label}
                   onChange={(e) => handleRename(color, e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
                   placeholder="Label"
                   className="flex-1 h-8 text-sm"
                 />
@@ -118,7 +140,7 @@ export function ColorKeyEditor({ colorKey, onUpdate, customColors = [] }: ColorK
                   size="icon"
                   variant="ghost"
                   className="h-6 w-6"
-                  onClick={() => handleRemove(color)}
+                  onClick={(e) => { e.stopPropagation(); handleRemove(color); }}
                 >
                   <Trash2 className="h-3 w-3" />
                 </Button>
