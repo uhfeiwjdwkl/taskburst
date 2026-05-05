@@ -8,6 +8,7 @@ import { ListItem } from '@/types/list';
 import { Trash2, Archive } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
+import { ConfirmDelete } from './ConfirmDeleteButton';
 
 const importanceLabels = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
 
@@ -119,14 +120,20 @@ export const ListItemDetailsDialog = ({ item, open, onClose, onUpdate, onDelete 
                 <Archive className="h-4 w-4 mr-2" />
                 {item.completed ? 'Mark Incomplete' : 'Mark Complete'}
               </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleDeleteClick}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
+              <ConfirmDelete
+                onConfirm={handleDeleteClick}
+                title="Delete this list item?"
+                trigger={(open) => (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={open}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                )}
+              />
             </div>
 
             <div className="flex gap-2">
