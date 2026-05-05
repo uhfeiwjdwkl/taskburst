@@ -45,6 +45,10 @@ export function ColorKeyEditor({ colorKey, onUpdate, customColors = [] }: ColorK
 
   const entries = Object.entries(colorKey);
 
+  const handleRename = (color: string, label: string) => {
+    onUpdate({ ...colorKey, [color]: label });
+  };
+
   return (
     <Card className="p-4">
       <div className="space-y-3">
@@ -104,7 +108,12 @@ export function ColorKeyEditor({ colorKey, onUpdate, customColors = [] }: ColorK
                   className="w-6 h-6 rounded border"
                   style={{ backgroundColor: color }}
                 />
-                <span className="flex-1 text-sm">{label}</span>
+                <Input
+                  value={label}
+                  onChange={(e) => handleRename(color, e.target.value)}
+                  placeholder="Label"
+                  className="flex-1 h-8 text-sm"
+                />
                 <Button
                   size="icon"
                   variant="ghost"
