@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import { CalendarEvent } from '@/types/event';
@@ -9,8 +9,9 @@ import { format, isSameDay, parseISO } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Clock, CheckCircle2, Play, Calendar } from 'lucide-react';
+import { Clock, CheckCircle2, Play, Calendar, ChevronLeft, ChevronRight, Hand, ZoomIn, MousePointer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface HomeDayCalendarProps {
@@ -58,6 +59,12 @@ export const HomeDayCalendar = ({
   const [selTtId, setSelTtId] = useState<string>(() => (typeof window !== 'undefined' ? (localStorage.getItem('calendarSelectedTimetableId') || 'all') : 'all'));
   const settings = useAppSettings();
   const mirrorColor = Boolean((settings as any).mirrorColorToProgressBox);
+  const [displayDate, setDisplayDate] = useState<Date>(date);
+  const [interactionMode, setInteractionMode] = useState<'normal' | 'pan' | 'zoom'>('normal');
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [hZoom, setHZoom] = useState(1);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const panRef = useRef<{ y: number; scrollTop: number } | null>(null);
 
   useEffect(() => {
     const handler = () => setSelTtId(localStorage.getItem('calendarSelectedTimetableId') || 'all');
@@ -69,8 +76,8 @@ export const HomeDayCalendar = ({
     };
   }, []);
 
-  const dateStr = format(date, 'yyyy-MM-dd');
-  const dayOfWeek = date.getDay();
+  const dateStr = format(displayDate, 'yyyy-MM-dd');
+  const dayOfWeek = displayDate.getDay();
   const timetableDayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Convert to Mon=0
 
   // Load events and timetables
@@ -158,7 +165,7 @@ export const HomeDayCalendar = ({
     events.forEach(event => {
       try {
         const eventDate = parseISO(event.date);
-        if (isSameDay(eventDate, date)) {
+        if (isSameDay(eventDate, displayDate)) {
           items.push({
             id: `event-${event.id}`,
             type: 'event',
@@ -193,7 +200,7 @@ export const HomeDayCalendar = ({
       });
 
     return items;
-  }, [tasks, events, timetables, flexibleEvents, dateStr, date, timetableDayIndex, selTtId]);
+  }, [tasks, events, timetables, flexibleEvents, dateStr, displayDate, timetableDayIndex, selTtId, mirrorColor]);
 
   // Separate all-day and timed items
   const allDayItems = todayItems.filter(item => !item.time);
@@ -276,16 +283,60 @@ export const HomeDayCalendar = ({
     }
   };
 
+  // Auto-center current time on mount/date change
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    const el = scrollRef.current;
+    const total = el.scrollHeight;
+    const target = (currentTimePosition / 100) * total - el.clientHeight / 2;
+    el.scrollTop = Math.max(0, target);
+  }, [displayDate]);
+
+  // Pan/Zoom handlers
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (interactionMode !== 'pan' || !scrollRef.current) return;
+    panRef.current = { y: e.clientY, scrollTop: scrollRef.current.scrollTop };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (interactionMode !== 'pan' || !panRef.current || !scrollRef.current) return;
+    const dy = e.clientY - panRef.current.y;
+    scrollRef.current.scrollTop = panRef.current.scrollTop - dy;
+  };
+  const handlePointerUp = () => { panRef.current = null; };
+  const handleWheel = (e: React.WheelEvent) => {
+    if (interactionMode !== 'zoom') return;
+    e.preventDefault();
+    if (e.shiftKey) {
+      setHZoom(z => Math.min(3, Math.max(0.5, z - e.deltaY * 0.001)));
+    } else {
+      setZoomLevel(z => Math.min(4, Math.max(0.5, z - e.deltaY * 0.001)));
+    }
+  };
+
   return (
     <Card className="p-4 h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold flex items-center gap-2">
-          <Calendar className="h-4 w-4" />
-          {format(date, 'EEEE, MMM d')}
-        </h3>
-        <Badge variant="outline" className="text-xs">
-          {todayItems.length} items
-        </Badge>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setDisplayDate(d => new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <h3 className="font-semibold flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            {format(displayDate, 'EEE, MMM d')}
+          </h3>
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setDisplayDate(d => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <ToggleGroup type="single" size="sm" value={interactionMode} onValueChange={(v) => v && setInteractionMode(v as any)}>
+            <ToggleGroupItem value="normal" aria-label="Normal" className="h-7 px-2"><MousePointer className="h-3 w-3" /></ToggleGroupItem>
+            <ToggleGroupItem value="pan" aria-label="Pan" className="h-7 px-2"><Hand className="h-3 w-3" /></ToggleGroupItem>
+            <ToggleGroupItem value="zoom" aria-label="Zoom" className="h-7 px-2"><ZoomIn className="h-3 w-3" /></ToggleGroupItem>
+          </ToggleGroup>
+          <Badge variant="outline" className="text-xs">{todayItems.length}</Badge>
+        </div>
       </div>
 
       {/* Current Items Highlight */}
@@ -348,8 +399,16 @@ export const HomeDayCalendar = ({
       )}
 
       {/* Timeline Grid */}
-      <ScrollArea className="flex-1 -mx-2 px-2">
-        <div className="relative" style={{ height: '400px' }}>
+      <div
+        ref={scrollRef}
+        className={cn("flex-1 -mx-2 px-2 overflow-y-auto", interactionMode === 'pan' && 'cursor-grab active:cursor-grabbing select-none')}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onWheel={handleWheel}
+        style={{ touchAction: interactionMode === 'pan' ? 'none' : 'auto' }}
+      >
+        <div className="relative" style={{ height: `${400 * zoomLevel}px`, width: `${100 * hZoom}%` }}>
           {/* Hour lines */}
           {hours.map((hour, index) => (
             <div
@@ -444,7 +503,7 @@ export const HomeDayCalendar = ({
             })}
           </div>
         </div>
-      </ScrollArea>
+      </div>
     </Card>
   );
 };
