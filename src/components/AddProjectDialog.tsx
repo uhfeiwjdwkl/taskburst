@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
 import AddTaskDialog from './AddTaskDialog';
 import { ImportProjectButton } from './ImportProjectButton';
+import { DatePickerButton } from '@/components/DatePickerButton';
 
 interface AddProjectDialogProps {
   open: boolean;
@@ -120,12 +121,16 @@ export const AddProjectDialog = ({ open, onClose, onSave, tasks }: AddProjectDia
 
           <div>
             <Label htmlFor="dueDateTime">Due Date & Time</Label>
-            <Input
-              id="dueDateTime"
-              type="datetime-local"
-              value={dueDateTime}
-              onChange={(e) => setDueDateTime(e.target.value)}
-            />
+            <div className="flex gap-2">
+              <Input
+                id="dueDateTime"
+                type="datetime-local"
+                value={dueDateTime}
+                onChange={(e) => setDueDateTime(e.target.value)}
+                className="flex-1"
+              />
+              <DatePickerButton value={dueDateTime} onChange={setDueDateTime} withTime />
+            </div>
           </div>
 
           <div>
