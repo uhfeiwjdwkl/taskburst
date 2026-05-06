@@ -10,6 +10,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 import { SettingsDialog } from "./SettingsDialog";
 import { AppSettings, DEFAULT_SETTINGS, PageConfig } from "@/types/settings";
 
@@ -21,12 +23,61 @@ export function Navigation() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [navRows, setNavRows] = useState<1 | 2 | 'dropdown'>(1);
   const navRef = useRef<HTMLDivElement>(null);
+  const [activeTaskName, setActiveTaskName] = useState<string | null>(null);
+  const [todayItems, setTodayItems] = useState<{ id: string; name: string; kind: 'task' | 'event' }[]>([]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Read active task & today items from localStorage
+  useEffect(() => {
+    const refresh = () => {
+      try {
+        const id = localStorage.getItem('activeTaskId');
+        const tasksRaw = localStorage.getItem('tasks');
+        const tasks = tasksRaw ? JSON.parse(tasksRaw) : [];
+        const safeTasks = Array.isArray(tasks) ? tasks : [];
+        const active = id ? safeTasks.find((t: any) => t.id === id) : null;
+        setActiveTaskName(active ? active.name : null);
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+        const remainingTasks = safeTasks
+          .filter((t: any) => !t.completed && t.dueDate && t.dueDate.split('T')[0] === todayStr)
+          .map((t: any) => ({ id: `t-${t.id}`, name: t.name, kind: 'task' as const }));
+
+        const eventsRaw = localStorage.getItem('calendarEvents');
+        const events = eventsRaw ? JSON.parse(eventsRaw) : [];
+        const safeEvents = Array.isArray(events) ? events : [];
+        const remainingEvents = safeEvents
+          .filter((e: any) => !e.deletedAt && e.date === todayStr && (() => {
+            if (!e.time) return true;
+            const [h, m] = e.time.split(':').map(Number);
+            const end = h * 60 + m + (e.duration || 60);
+            return end > nowMin;
+          })())
+          .map((e: any) => ({ id: `e-${e.id}`, name: e.title, kind: 'event' as const }));
+
+        setTodayItems([...remainingTasks, ...remainingEvents]);
+      } catch (e) {
+        // silent
+      }
+    };
+    refresh();
+    const id = setInterval(refresh, 30000);
+    window.addEventListener('storage', refresh);
+    window.addEventListener('activeTaskIdChange', refresh);
+    window.addEventListener('appSettingsUpdated', refresh);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('storage', refresh);
+      window.removeEventListener('activeTaskIdChange', refresh);
+      window.removeEventListener('appSettingsUpdated', refresh);
+    };
   }, []);
 
   useEffect(() => {
@@ -72,6 +123,12 @@ export function Navigation() {
   const visiblePages = settings.pages
     .filter(p => p.visible)
     .sort((a, b) => a.order - b.order);
+
+  // Analogue clock (compact)
+  const showAnalogue = Boolean((settings as any).showAnalogueClock);
+  const hourAngle = ((currentTime.getHours() % 12) + currentTime.getMinutes() / 60) * 30;
+  const minAngle = (currentTime.getMinutes() + currentTime.getSeconds() / 60) * 6;
+  const secAngle = currentTime.getSeconds() * 6;
 
   const getIcon = (iconName: string, className = "h-4 w-4 mr-2") => {
     const icons: Record<string, React.ReactNode> = {
@@ -156,6 +213,46 @@ export function Navigation() {
                   </div>
                 </div>
               </div>
+              {showAnalogue && (
+                <svg width="32" height="32" viewBox="-16 -16 32 32" className="flex-shrink-0">
+                  <circle r="15" fill="hsl(var(--muted))" stroke="hsl(var(--border))" strokeWidth="1" />
+                  <line x1="0" y1="0" x2="0" y2="-8" stroke="hsl(var(--foreground))" strokeWidth="2" strokeLinecap="round" transform={`rotate(${hourAngle})`} />
+                  <line x1="0" y1="0" x2="0" y2="-11" stroke="hsl(var(--foreground))" strokeWidth="1.5" strokeLinecap="round" transform={`rotate(${minAngle})`} />
+                  <line x1="0" y1="0" x2="0" y2="-12" stroke="hsl(var(--destructive))" strokeWidth="1" strokeLinecap="round" transform={`rotate(${secAngle})`} />
+                  <circle r="1.2" fill="hsl(var(--foreground))" />
+                </svg>
+              )}
+              {activeTaskName && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Badge variant="secondary" className="cursor-pointer max-w-[140px] truncate">▶ {activeTaskName}</Badge>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-60">
+                    <div className="text-xs font-semibold mb-1">Active session</div>
+                    <div className="text-sm">{activeTaskName}</div>
+                  </PopoverContent>
+                </Popover>
+              )}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Badge variant="outline" className="cursor-pointer">{todayItems.length} today</Badge>
+                </PopoverTrigger>
+                <PopoverContent className="w-64">
+                  <div className="text-xs font-semibold mb-2">Remaining today</div>
+                  {todayItems.length === 0 ? (
+                    <div className="text-xs text-muted-foreground">All caught up.</div>
+                  ) : (
+                    <ul className="space-y-1 max-h-64 overflow-y-auto">
+                      {todayItems.map(it => (
+                        <li key={it.id} className="text-sm truncate">
+                          <span className="text-xs text-muted-foreground mr-1">{it.kind === 'task' ? '📋' : '📅'}</span>
+                          {it.name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Single row navigation - only show when navRows is 1 (fits) */}

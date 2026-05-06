@@ -14,6 +14,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { CalendarEvent } from '@/types/event';
+import { DatePickerButton } from '@/components/DatePickerButton';
 
 interface AddEventDialogProps {
   open: boolean;
@@ -131,13 +132,17 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
 
             <div className="space-y-2">
               <Label htmlFor="date">{isMultiDay ? 'Start Date *' : 'Date *'}</Label>
-              <Input
-                id="date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                  className="flex-1"
+                />
+                <DatePickerButton value={date} onChange={setDate} />
+              </div>
             </div>
 
             <div className="flex items-center space-x-2">
@@ -159,14 +164,18 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
             {isMultiDay && (
               <div className="space-y-2">
                 <Label htmlFor="endDate">End Date *</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  min={date}
-                  required={isMultiDay}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    min={date}
+                    required={isMultiDay}
+                    className="flex-1"
+                  />
+                  <DatePickerButton value={endDate} onChange={setEndDate} />
+                </div>
               </div>
             )}
 

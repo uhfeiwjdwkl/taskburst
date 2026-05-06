@@ -17,6 +17,7 @@ interface TimetableGridProps {
 
 export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, focusedColor, onBulkColorUpdate, onCellClick }: TimetableGridProps) {
   const [currentTimePosition, setCurrentTimePosition] = useState<{ row: number; progress: number; colIndex: number } | null>(null);
+  const [nowTick, setNowTick] = useState(0);
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
   const [isSelecting, setIsSelecting] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -25,7 +26,35 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
   const now = new Date();
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const currentDayName = dayNames[now.getDay()];
-  const currentDayColIndex = timetable.columns.indexOf(currentDayName);
+  let currentDayColIndex = timetable.columns.indexOf(currentDayName);
+  // For fortnightly timetables, only highlight today if we're in the matching week
+  if (timetable.type === 'fortnightly' && timetable.fortnightStartDate) {
+    const startDate = new Date(timetable.fortnightStartDate);
+    const daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const calculatedWeek = (Math.floor(daysDiff / 7) % 2) === 0 ? 1 : 2;
+    if (calculatedWeek !== currentWeek) currentDayColIndex = -1;
+  }
+
+  // Compute current-time vertical position as a fraction (0-1) of total grid height
+  const totalGridMinutes = (() => {
+    if (!timetable.rows.length) return 0;
+    return timetable.rows.reduce((acc, r) => acc + r.duration, 0);
+  })();
+  const currentTimeFraction = (() => {
+    if (currentDayColIndex < 0 || !totalGridMinutes) return null;
+    const firstSlot = timetable.rows[0];
+    const [fh, fm] = firstSlot.startTime.split(':').map(Number);
+    const startMin = fh * 60 + fm;
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const diff = nowMin - startMin;
+    if (diff < 0 || diff > totalGridMinutes) return null;
+    return diff / totalGridMinutes;
+  })();
+
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(t => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     const updateCurrentTime = () => {
@@ -307,7 +336,7 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
         </div>
       )}
       <div ref={gridRef} className="border rounded-lg overflow-auto">
-        <table className="w-full border-collapse">
+        <table className={cn("w-full border-collapse", currentDayColIndex >= 0 && `tt-today-col-${currentDayColIndex}`)}>
           <thead>
             <tr>
               <th className="border bg-muted p-2 min-w-[100px] sticky left-0 z-10">Time</th>
@@ -316,7 +345,7 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
                   key={idx} 
                   className={cn(
                     "border bg-muted p-2 min-w-[120px]",
-                    idx === currentDayColIndex && "bg-primary/10 font-semibold text-primary"
+                    idx === currentDayColIndex && "bg-primary/15 font-semibold text-primary"
                   )}
                 >
                   {day}
@@ -386,6 +415,9 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
           </tbody>
         </table>
       </div>
+      {currentDayColIndex >= 0 && (
+        <style>{`.tt-today-col-${currentDayColIndex} > tbody > tr > td:nth-child(${currentDayColIndex + 2}) { background-color: hsl(var(--primary) / 0.15); }`}</style>
+      )}
     </div>
   );
 }

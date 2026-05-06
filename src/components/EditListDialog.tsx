@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { List, ListItem } from '@/types/list';
-import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Trash2, GripVertical } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { ConfirmDelete } from './ConfirmDeleteButton';
 import { saveTextBackup, createFieldId } from '@/lib/textBackup';
 import {
@@ -34,6 +35,7 @@ export const EditListDialog = ({ list, open, onClose, onSave }: EditListDialogPr
   const [items, setItems] = useState<ListItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [pasteText, setPasteText] = useState('');
+  const [dragId, setDragId] = useState<string | null>(null);
   const originalListRef = useRef<List | null>(null);
 
   useEffect(() => {
@@ -87,7 +89,8 @@ export const EditListDialog = ({ list, open, onClose, onSave }: EditListDialogPr
     const newItems = [...items];
     const [moved] = newItems.splice(fromIndex, 1);
     newItems.splice(toIndex, 0, moved);
-    setItems(newItems);
+    // Persist new order field
+    setItems(newItems.map((it, i) => ({ ...it, order: i } as any)));
   };
 
   const toggleSelectItem = (id: string) => {
@@ -308,31 +311,36 @@ export const EditListDialog = ({ list, open, onClose, onSave }: EditListDialogPr
             {items.length > 0 ? (
               <div className="space-y-2 max-h-[400px] overflow-y-auto border rounded-md p-2">
                 {items.map((item, index) => (
-                  <div key={item.id} className="flex items-center gap-2 p-2 border rounded bg-background">
+                  <div
+                    key={item.id}
+                    className={cn(
+                      "flex items-center gap-2 p-2 border rounded bg-background",
+                      dragId === item.id && "opacity-50"
+                    )}
+                    onDragOver={(e) => { e.preventDefault(); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragId === null) return;
+                      const from = items.findIndex(i => i.id === dragId);
+                      if (from === -1 || from === index) { setDragId(null); return; }
+                      moveItem(from, index);
+                      setDragId(null);
+                    }}
+                  >
                     <Checkbox
                       checked={selectedItems.has(item.id)}
                       onCheckedChange={() => toggleSelectItem(item.id)}
                     />
-                    <div className="flex flex-col gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={index === 0}
-                        onClick={() => moveItem(index, index - 1)}
-                      >
-                        <ChevronUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={index === items.length - 1}
-                        onClick={() => moveItem(index, index + 1)}
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <button
+                      type="button"
+                      draggable
+                      onDragStart={() => setDragId(item.id)}
+                      onDragEnd={() => setDragId(null)}
+                      className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+                      aria-label="Drag to reorder"
+                    >
+                      <GripVertical className="h-4 w-4" />
+                    </button>
                     <Input
                       value={item.title}
                       onChange={(e) => handleUpdateItem(item.id, { title: e.target.value })}
