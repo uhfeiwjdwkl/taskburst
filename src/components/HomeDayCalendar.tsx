@@ -55,8 +55,19 @@ export const HomeDayCalendar = ({
   const [timetables, setTimetables] = useState<Timetable[]>([]);
   const [flexibleEvents, setFlexibleEvents] = useState<FlexibleEvent[]>([]);
   const [currentTimePosition, setCurrentTimePosition] = useState(0);
+  const [selTtId, setSelTtId] = useState<string>(() => (typeof window !== 'undefined' ? (localStorage.getItem('calendarSelectedTimetableId') || 'all') : 'all'));
   const settings = useAppSettings();
   const mirrorColor = Boolean((settings as any).mirrorColorToProgressBox);
+
+  useEffect(() => {
+    const handler = () => setSelTtId(localStorage.getItem('calendarSelectedTimetableId') || 'all');
+    window.addEventListener('calendarSelectedTimetableIdChange', handler);
+    window.addEventListener('storage', handler);
+    return () => {
+      window.removeEventListener('calendarSelectedTimetableIdChange', handler);
+      window.removeEventListener('storage', handler);
+    };
+  }, []);
 
   const dateStr = format(date, 'yyyy-MM-dd');
   const dayOfWeek = date.getDay();
@@ -106,7 +117,7 @@ export const HomeDayCalendar = ({
   // Get items for today
   const todayItems = useMemo(() => {
     const items: TimelineItem[] = [];
-    const selTt = typeof window !== 'undefined' ? localStorage.getItem('calendarSelectedTimetableId') : null;
+    const selTt = selTtId;
     const includeTimetable = (ttId: string) => {
       if (!selTt || selTt === 'all') return true;
       if (selTt === 'none') return false;
@@ -182,7 +193,7 @@ export const HomeDayCalendar = ({
       });
 
     return items;
-  }, [tasks, events, timetables, dateStr, date, timetableDayIndex]);
+  }, [tasks, events, timetables, flexibleEvents, dateStr, date, timetableDayIndex, selTtId]);
 
   // Separate all-day and timed items
   const allDayItems = todayItems.filter(item => !item.time);
