@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CategoryManager } from '@/components/CategoryManager';
+import { DatePickerButton } from '@/components/DatePickerButton';
 
 interface AddTaskDialogProps {
   open: boolean;
@@ -195,13 +196,16 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
 
           <div>
             <Label htmlFor="add-dueDate">Due Date</Label>
-            <Input
-              id="add-dueDate"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="mt-1"
-            />
+            <div className="mt-1 flex gap-2">
+              <Input
+                id="add-dueDate"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="flex-1"
+              />
+              <DatePickerButton value={dueDate} onChange={setDueDate} />
+            </div>
           </div>
 
           <div>
