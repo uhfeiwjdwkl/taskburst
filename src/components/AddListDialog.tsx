@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ImportListButton } from '@/components/ImportListButton';
+import { DatePickerButton } from '@/components/DatePickerButton';
 
 const PRIORITY_LABELS = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
 
@@ -145,12 +146,16 @@ export const AddListDialog = ({ open, onClose, onAdd }: AddListDialogProps) => {
 
           <div>
             <Label htmlFor="dueDateTime">Due Date & Time (Optional)</Label>
-            <Input
-              id="dueDateTime"
-              type="datetime-local"
-              value={dueDateTime}
-              onChange={(e) => setDueDateTime(e.target.value)}
-            />
+            <div className="flex gap-2">
+              <Input
+                id="dueDateTime"
+                type="datetime-local"
+                value={dueDateTime}
+                onChange={(e) => setDueDateTime(e.target.value)}
+                className="flex-1"
+              />
+              <DatePickerButton value={dueDateTime} onChange={setDueDateTime} withTime />
+            </div>
           </div>
 
           <div>
