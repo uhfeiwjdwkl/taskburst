@@ -336,7 +336,7 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
         </div>
       )}
       <div ref={gridRef} className="border rounded-lg overflow-auto">
-        <table className="w-full border-collapse relative">
+        <table className={cn("w-full border-collapse", currentDayColIndex >= 0 && `tt-today-col-${currentDayColIndex}`)}>
           <thead>
             <tr>
               <th className="border bg-muted p-2 min-w-[100px] sticky left-0 z-10">Time</th>
@@ -414,26 +414,10 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
             ))}
           </tbody>
         </table>
-        {currentTimeFraction !== null && (
-          <div className="pointer-events-none relative">
-            <div
-              className="absolute left-0 right-0 h-0.5 bg-red-500 z-20"
-              style={{
-                bottom: 0,
-                top: 'auto',
-                // Position relative to the table above using a wrapper trick:
-                transform: `translateY(0)`,
-              }}
-            />
-          </div>
-        )}
       </div>
-      {/* Today column highlight overlay covering body cells */}
-      <style>{`
-        .tt-today-col-${currentDayColIndex} td:nth-child(${(currentDayColIndex >= 0 ? currentDayColIndex + 2 : -1)}) {
-          background-color: hsl(var(--primary) / 0.15);
-        }
-      `}</style>
+      {currentDayColIndex >= 0 && (
+        <style>{`.tt-today-col-${currentDayColIndex} > tbody > tr > td:nth-child(${currentDayColIndex + 2}) { background-color: hsl(var(--primary) / 0.15); }`}</style>
+      )}
     </div>
   );
 }
