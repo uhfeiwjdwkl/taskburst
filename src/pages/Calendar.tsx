@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Plus, Calendar as CalendarIcon, Clock, MapPin, Trash2, ChevronDown, ChevronRight, Search, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Timetable } from '@/types/timetable';
 import { cn } from '@/lib/utils';
 import AddTaskDialog from '@/components/AddTaskDialog';
 import { AddEventDialog } from '@/components/AddEventDialog';
@@ -55,6 +57,16 @@ const CalendarPage = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [timetables, setTimetables] = useState<Timetable[]>([]);
+  const [selectedTimetableId, setSelectedTimetableIdState] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'all';
+    return localStorage.getItem('calendarSelectedTimetableId') || 'all';
+  });
+  const setSelectedTimetableId = (id: string) => {
+    setSelectedTimetableIdState(id);
+    localStorage.setItem('calendarSelectedTimetableId', id);
+    window.dispatchEvent(new Event('calendarSelectedTimetableIdChange'));
+  };
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addEventDialogOpen, setAddEventDialogOpen] = useState(false);
@@ -89,6 +101,7 @@ const CalendarPage = () => {
     setTasks(safeParse('tasks') as Task[]);
     setEvents(safeParse('calendarEvents') as CalendarEvent[]);
     setAssessments(safeParse('assessments').filter((a: Assessment) => !a.deletedAt) as Assessment[]);
+    setTimetables((safeParse('timetables') as Timetable[]).filter(t => !t.deletedAt));
   }, []);
 
   useEffect(() => {
@@ -350,6 +363,22 @@ const CalendarPage = () => {
           />
         </header>
 
+        <div className="mb-4 flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Timetable:</span>
+          <Select value={selectedTimetableId} onValueChange={setSelectedTimetableId}>
+            <SelectTrigger className="w-[240px]">
+              <SelectValue placeholder="All timetables" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All timetables</SelectItem>
+              <SelectItem value="none">None</SelectItem>
+              {timetables.map(t => (
+                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             {/* Calendar */}
@@ -596,6 +625,7 @@ const CalendarPage = () => {
                 tasks={tasks}
                 events={events}
                 assessments={assessments}
+                selectedTimetableId={selectedTimetableId}
                 onTaskClick={(task) => handleShowDetails(task.id)}
                 onSubtaskClick={handleSubtaskClick}
                 onEventClick={handleEventClick}

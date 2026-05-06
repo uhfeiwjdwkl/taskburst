@@ -41,6 +41,7 @@ interface UniversalDayCalendarProps {
   onStartSubtask?: (subtask: Subtask, task: Task) => void;
   showCard?: boolean;
   className?: string;
+  selectedTimetableId?: string;
 }
 
 interface TimelineItem {
@@ -80,6 +81,7 @@ export const UniversalDayCalendar = ({
   onStartSubtask,
   showCard = true,
   className,
+  selectedTimetableId,
 }: UniversalDayCalendarProps) => {
   const settings = useAppSettings();
   const mirrorColor = Boolean((settings as any).mirrorColorToProgressBox);
@@ -216,6 +218,12 @@ export const UniversalDayCalendar = ({
     // Flexible timetable events
     flexibleEvents
       .filter(e => e.dayIndex === timetableDayIndex)
+      .filter(e => {
+        const sel = selectedTimetableId ?? (typeof window !== 'undefined' ? localStorage.getItem('calendarSelectedTimetableId') : null);
+        if (!sel || sel === 'all') return true;
+        if (sel === 'none') return false;
+        return e.timetableId === sel;
+      })
       .forEach(event => {
         const timetable = timetables.find(t => t.id === event.timetableId);
         const [startH, startM] = event.startTime.split(':').map(Number);
@@ -235,6 +243,12 @@ export const UniversalDayCalendar = ({
     // Rigid timetable events
     timetables
       .filter(t => t.mode === 'rigid' && !t.deletedAt)
+      .filter(t => {
+        const sel = selectedTimetableId ?? (typeof window !== 'undefined' ? localStorage.getItem('calendarSelectedTimetableId') : null);
+        if (!sel || sel === 'all') return true;
+        if (sel === 'none') return false;
+        return t.id === sel;
+      })
       .forEach(timetable => {
         const colIndex = timetable.columns.indexOf(
           ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][timetableDayIndex]
@@ -263,12 +277,51 @@ export const UniversalDayCalendar = ({
       });
 
     return items;
-  }, [tasks, events, assessments, timetables, flexibleEvents, dateStr, currentDate, timetableDayIndex]);
+  }, [tasks, events, assessments, timetables, flexibleEvents, dateStr, currentDate, timetableDayIndex, selectedTimetableId]);
 
   const allDayItems = todayItems.filter(item => !item.time);
   const timedItems = todayItems.filter(item => item.time).sort((a, b) =>
     (a.time || '').localeCompare(b.time || '')
   );
+
+  // Compute overlap layout: assign each timed item a column and the total columns for its cluster
+  const layoutMap = useMemo(() => {
+    const map = new Map<string, { col: number; cols: number }>();
+    const items = timedItems.map(it => {
+      const [h, m] = (it.time || '0:0').split(':').map(Number);
+      const start = h * 60 + m;
+      const end = start + (it.duration || 30);
+      return { it, start, end };
+    }).sort((a, b) => a.start - b.start || a.end - b.end);
+
+    let cluster: typeof items = [];
+    let clusterEnd = -1;
+    const flush = () => {
+      const colEnds: number[] = [];
+      const assigned: { id: string; col: number }[] = [];
+      for (const x of cluster) {
+        let placed = false;
+        for (let i = 0; i < colEnds.length; i++) {
+          if (colEnds[i] <= x.start) { colEnds[i] = x.end; assigned.push({ id: x.it.id, col: i }); placed = true; break; }
+        }
+        if (!placed) { colEnds.push(x.end); assigned.push({ id: x.it.id, col: colEnds.length - 1 }); }
+      }
+      const cols = colEnds.length;
+      assigned.forEach(a => map.set(a.id, { col: a.col, cols }));
+    };
+    for (const x of items) {
+      if (cluster.length === 0 || x.start < clusterEnd) {
+        cluster.push(x);
+        clusterEnd = Math.max(clusterEnd, x.end);
+      } else {
+        flush();
+        cluster = [x];
+        clusterEnd = x.end;
+      }
+    }
+    if (cluster.length) flush();
+    return map;
+  }, [timedItems]);
 
   const currentItems = useMemo(() => {
     const now = new Date();
@@ -473,18 +526,23 @@ export const UniversalDayCalendar = ({
             {timedItems.map(item => {
               const top = getTimePosition(item.time!);
               const height = getHeightForDuration(item.duration || 30);
+              const layout = layoutMap.get(item.id) || { col: 0, cols: 1 };
+              const widthPct = 100 / layout.cols;
+              const leftPct = layout.col * widthPct;
 
               return (
                 <div
                   key={item.id}
                   className={cn(
-                    "absolute left-0 right-0 border-l-2 rounded-r px-2 py-0.5 cursor-pointer overflow-hidden transition-colors hover:opacity-80",
+                    "absolute border-l-2 rounded-r px-2 py-0.5 cursor-pointer overflow-hidden transition-colors hover:opacity-80",
                     getItemBgClass(item),
                     item.completed && "opacity-60"
                   )}
                   style={{
                     top: `${top}%`,
                     height: `${Math.max(height, 3)}%`,
+                    left: `${leftPct}%`,
+                    width: `calc(${widthPct}% - 2px)`,
                     backgroundColor: item.color ? `${item.color}30` : undefined,
                     borderColor: item.color || undefined,
                   }}
