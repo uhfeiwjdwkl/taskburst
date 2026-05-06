@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { List, ListItem } from '@/types/list';
 import { Trash2, GripVertical } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { ConfirmDelete } from './ConfirmDeleteButton';
 import { saveTextBackup, createFieldId } from '@/lib/textBackup';
 import {
