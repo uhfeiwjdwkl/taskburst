@@ -126,6 +126,13 @@ const Index = () => {
     }
   }, [tasks, tasksLoaded]);
 
+  // Broadcast active task so nav pills can read it
+  useEffect(() => {
+    if (activeTaskId) localStorage.setItem('activeTaskId', activeTaskId);
+    else localStorage.removeItem('activeTaskId');
+    window.dispatchEvent(new Event('activeTaskIdChange'));
+  }, [activeTaskId]);
+
   // Note: Task selection is now manual via Study button - no auto-selection
 
   // Update task progress every 30 seconds
