@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, X, Settings } from 'lucide-react';
 import { toast } from 'sonner';
+import { DatePickerButton } from '@/components/DatePickerButton';
 
 interface AddAssessmentDialogProps {
   open: boolean;
@@ -173,7 +174,10 @@ export const AddAssessmentDialog = ({ open, onClose, onAdd, prefilledDate }: Add
 
           <div>
             <Label>Due Date</Label>
-            <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="mt-1" />
+            <div className="mt-1 flex gap-2">
+              <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="flex-1" />
+              <DatePickerButton value={dueDate} onChange={setDueDate} />
+            </div>
           </div>
 
           <div>
