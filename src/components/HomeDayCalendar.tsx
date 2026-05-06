@@ -106,6 +106,12 @@ export const HomeDayCalendar = ({
   // Get items for today
   const todayItems = useMemo(() => {
     const items: TimelineItem[] = [];
+    const selTt = typeof window !== 'undefined' ? localStorage.getItem('calendarSelectedTimetableId') : null;
+    const includeTimetable = (ttId: string) => {
+      if (!selTt || selTt === 'all') return true;
+      if (selTt === 'none') return false;
+      return ttId === selTt;
+    };
 
     // Tasks due today
     tasks.forEach(task => {
@@ -156,7 +162,7 @@ export const HomeDayCalendar = ({
 
     // Flexible timetable events for today
     flexibleEvents
-      .filter(e => e.dayIndex === timetableDayIndex)
+      .filter(e => e.dayIndex === timetableDayIndex && includeTimetable(e.timetableId))
       .forEach(event => {
         const timetable = timetables.find(t => t.id === event.timetableId);
         // Calculate duration from startTime and endTime
@@ -183,6 +189,40 @@ export const HomeDayCalendar = ({
   const timedItems = todayItems.filter(item => item.time).sort((a, b) => 
     (a.time || '').localeCompare(b.time || '')
   );
+
+  // Overlap layout: assign each timed item a column index and total cluster columns
+  const layoutMap = useMemo(() => {
+    const map = new Map<string, { col: number; cols: number }>();
+    const items = timedItems.map(it => {
+      const [h, m] = (it.time || '0:0').split(':').map(Number);
+      const start = h * 60 + m;
+      const end = start + (it.duration || 30);
+      return { it, start, end };
+    }).sort((a, b) => a.start - b.start || a.end - b.end);
+    let cluster: typeof items = [];
+    let clusterEnd = -1;
+    const flush = () => {
+      const colEnds: number[] = [];
+      const assigned: { id: string; col: number }[] = [];
+      for (const x of cluster) {
+        let placed = false;
+        for (let i = 0; i < colEnds.length; i++) {
+          if (colEnds[i] <= x.start) { colEnds[i] = x.end; assigned.push({ id: x.it.id, col: i }); placed = true; break; }
+        }
+        if (!placed) { colEnds.push(x.end); assigned.push({ id: x.it.id, col: colEnds.length - 1 }); }
+      }
+      const cols = colEnds.length;
+      assigned.forEach(a => map.set(a.id, { col: a.col, cols }));
+    };
+    for (const x of items) {
+      if (cluster.length === 0 || x.start < clusterEnd) {
+        cluster.push(x);
+        clusterEnd = Math.max(clusterEnd, x.end);
+      } else { flush(); cluster = [x]; clusterEnd = x.end; }
+    }
+    if (cluster.length) flush();
+    return map;
+  }, [timedItems]);
 
   // Get current items (happening now)
   const currentItems = useMemo(() => {
@@ -327,7 +367,10 @@ export const HomeDayCalendar = ({
             {timedItems.map(item => {
               const top = getTimePosition(item.time!);
               const height = getHeightForDuration(item.duration || 30);
-              
+              const layout = layoutMap.get(item.id) || { col: 0, cols: 1 };
+              const widthPct = 100 / layout.cols;
+              const leftPct = layout.col * widthPct;
+
               const bgColor = item.type === 'event' 
                 ? 'bg-blue-500/20 border-blue-500'
                 : item.type === 'timetable'
@@ -340,13 +383,15 @@ export const HomeDayCalendar = ({
                 <div
                   key={item.id}
                   className={cn(
-                    "absolute left-0 right-0 border-l-2 rounded-r px-2 py-0.5 cursor-pointer overflow-hidden transition-colors hover:opacity-80",
+                    "absolute border-l-2 rounded-r px-2 py-0.5 cursor-pointer overflow-hidden transition-colors hover:opacity-80",
                     bgColor,
                     item.completed && "opacity-60"
                   )}
                   style={{ 
                     top: `${top}%`, 
                     height: `${Math.max(height, 2.5)}%`,
+                    left: `${leftPct}%`,
+                    width: `calc(${widthPct}% - 2px)`,
                     backgroundColor: item.color ? `${item.color}30` : undefined,
                     borderColor: item.color || undefined,
                   }}
