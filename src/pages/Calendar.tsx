@@ -363,6 +363,22 @@ const CalendarPage = () => {
           />
         </header>
 
+        <div className="mb-4 flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Timetable:</span>
+          <Select value={selectedTimetableId} onValueChange={setSelectedTimetableId}>
+            <SelectTrigger className="w-[240px]">
+              <SelectValue placeholder="All timetables" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All timetables</SelectItem>
+              <SelectItem value="none">None</SelectItem>
+              {timetables.map(t => (
+                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             {/* Calendar */}
@@ -609,6 +625,7 @@ const CalendarPage = () => {
                 tasks={tasks}
                 events={events}
                 assessments={assessments}
+                selectedTimetableId={selectedTimetableId}
                 onTaskClick={(task) => handleShowDetails(task.id)}
                 onSubtaskClick={handleSubtaskClick}
                 onEventClick={handleEventClick}
