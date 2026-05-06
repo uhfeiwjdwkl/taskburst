@@ -354,6 +354,16 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Analogue Clock Toggle */}
+              <div className="flex items-center justify-between">
+                <Label htmlFor="showAnalogueClock">Show analogue clock in nav</Label>
+                <Switch
+                  id="showAnalogueClock"
+                  checked={Boolean((settings as any).showAnalogueClock)}
+                  onCheckedChange={(checked) => setSettings({ ...settings, showAnalogueClock: checked } as any)}
+                />
+              </div>
             </div>
 
             {/* Progress Grid Section */}
