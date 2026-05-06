@@ -360,7 +360,7 @@ const Index = () => {
           {/* Timer */}
           <div className="bg-card rounded-2xl shadow-lg p-8 border border-border relative z-50 pointer-events-auto">
             <TimetableCurrentBlock />
-            <CurrentScheduledTask tasks={tasks} />
+            <CurrentScheduledTask tasks={tasks} onUpdateTask={handleUpdateTask} />
             <CurrentEventDisplay />
             <Timer
               onTick={handleTimerTick} 
