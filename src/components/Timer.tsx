@@ -120,6 +120,10 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
   const [sessionNameInput, setSessionNameInput] = useState('');
   const [pendingSessionSave, setPendingSessionSave] = useState<{ endProgress: number; calculatedDuration: number } | null>(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  // Auto-end "need more time?" dialog
+  const [showNeedMoreTime, setShowNeedMoreTime] = useState(false);
+  const [extraMinutesInput, setExtraMinutesInput] = useState(5);
+  const autoEndShownRef = useRef<string | null>(null);
 
   const totalDuration = phase === 'focus' 
     ? FOCUS_DURATION 
@@ -378,10 +382,12 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
           
           if (activeTask && phase === 'focus') {
             const taskCompleted = activeTask.spentMinutes >= activeTask.estimatedMinutes;
-            if (taskCompleted && onTaskComplete && newSeconds > 0) {
-              fireConfetti();
-              onTaskComplete(activeTask.id);
-              setBreakBonus(300);
+            if (taskCompleted && newSeconds > 0 && autoEndShownRef.current !== activeTask.id) {
+              // Estimated time elapsed — pause and ask
+              autoEndShownRef.current = activeTask.id;
+              setIsRunning(false);
+              onRunningChange?.(false);
+              setShowNeedMoreTime(true);
             }
           }
           
@@ -793,6 +799,55 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
               }}
             >
               Discard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Need more time? (auto-end) */}
+      <AlertDialog open={showNeedMoreTime} onOpenChange={setShowNeedMoreTime}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Do you need more time?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The estimated time for "{activeTask?.name}" has elapsed. Add more minutes or finish the task.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Label htmlFor="extraMinutes" className="text-sm">Extra minutes</Label>
+            <Input
+              id="extraMinutes"
+              type="number"
+              min={1}
+              value={extraMinutesInput}
+              onChange={(e) => setExtraMinutesInput(parseInt(e.target.value) || 0)}
+              className="mt-1"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => {
+                if (activeTask && onUpdateTask && extraMinutesInput > 0) {
+                  onUpdateTask({ ...activeTask, estimatedMinutes: activeTask.estimatedMinutes + extraMinutesInput });
+                }
+                setShowNeedMoreTime(false);
+                setIsRunning(true);
+                onRunningChange?.(true);
+              }}
+            >
+              Add minutes
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                setShowNeedMoreTime(false);
+                if (activeTask) {
+                  fireConfetti();
+                  onTaskComplete?.(activeTask.id);
+                  setBreakBonus(300);
+                }
+              }}
+            >
+              Finish
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

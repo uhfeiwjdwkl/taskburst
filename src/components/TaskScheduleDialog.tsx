@@ -16,6 +16,14 @@ import { UniversalDayCalendar } from '@/components/UniversalDayCalendar';
 import { Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isToday, parseISO } from 'date-fns';
 
+// Partial scheduling slots stored separately so the type definitions remain untouched
+interface PartialSlot { id: string; itemId: string; itemType: 'task' | 'subtask' | 'listItem'; date: string; time: string; duration: number; }
+const PARTIAL_KEY = 'partialScheduleSlots';
+const loadPartials = (): PartialSlot[] => {
+  try { const raw = localStorage.getItem(PARTIAL_KEY); const p = raw ? JSON.parse(raw) : []; return Array.isArray(p) ? p : []; } catch { return []; }
+};
+const savePartials = (slots: PartialSlot[]) => localStorage.setItem(PARTIAL_KEY, JSON.stringify(slots));
+
 interface TaskScheduleDialogProps {
   task: Task | null;
   open: boolean;
@@ -30,6 +38,11 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
   const [editedTask, setEditedTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [selectedSubtaskId, setSelectedSubtaskId] = useState<string | null>(null);
+  const [partialMode, setPartialMode] = useState(false);
+  const [partialSlots, setPartialSlots] = useState<PartialSlot[]>([]);
+  const [newPartial, setNewPartial] = useState({ date: '', time: '', duration: 30 });
+
+  useEffect(() => { if (open) setPartialSlots(loadPartials()); }, [open]);
   
   const [allEvents, setAllEvents] = useState<CalendarEvent[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -159,6 +172,21 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
   };
 
   const selectedSubtask = subtasks.find(s => s.id === selectedSubtaskId);
+  const targetItemId = selectedSubtaskId || task?.id || '';
+  const targetItemType: 'task' | 'subtask' = selectedSubtaskId ? 'subtask' : 'task';
+  const itemSlots = partialSlots.filter(p => p.itemId === targetItemId);
+
+  const addPartialSlot = () => {
+    if (!newPartial.date || !newPartial.time || !newPartial.duration) return;
+    const slot: PartialSlot = { id: Date.now().toString(), itemId: targetItemId, itemType: targetItemType, ...newPartial };
+    const next = [...partialSlots, slot];
+    setPartialSlots(next); savePartials(next);
+    setNewPartial({ date: '', time: '', duration: 30 });
+  };
+  const removePartialSlot = (id: string) => {
+    const next = partialSlots.filter(p => p.id !== id);
+    setPartialSlots(next); savePartials(next);
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -417,6 +445,48 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
           <Button onClick={handleSave}>
             Save Schedule
           </Button>
+        </div>
+
+        {/* Partial scheduling mode */}
+        <div className="border-t pt-4 mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium">Partial Scheduling</h4>
+            <Button size="sm" variant={partialMode ? 'default' : 'outline'} onClick={() => setPartialMode(v => !v)}>
+              {partialMode ? 'On' : 'Off'}
+            </Button>
+          </div>
+          {partialMode && targetItemId && (
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Schedule this {targetItemType} for multiple time slots across different dates.
+              </p>
+              <div className="grid grid-cols-4 gap-2 items-end">
+                <div>
+                  <Label className="text-xs">Date</Label>
+                  <Input type="date" value={newPartial.date} onChange={e => setNewPartial({ ...newPartial, date: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs">Time</Label>
+                  <Input type="time" value={newPartial.time} onChange={e => setNewPartial({ ...newPartial, time: e.target.value })} />
+                </div>
+                <div>
+                  <Label className="text-xs">Duration (min)</Label>
+                  <Input type="number" min={1} value={newPartial.duration} onChange={e => setNewPartial({ ...newPartial, duration: parseInt(e.target.value) || 0 })} />
+                </div>
+                <Button onClick={addPartialSlot} size="sm">Add Slot</Button>
+              </div>
+              {itemSlots.length > 0 && (
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {itemSlots.map(s => (
+                    <div key={s.id} className="flex items-center justify-between p-2 bg-muted rounded text-sm">
+                      <span>{s.date} • {s.time} • {s.duration}m</span>
+                      <Button size="sm" variant="ghost" onClick={() => removePartialSlot(s.id)}>Remove</Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -39,6 +39,47 @@ export const ScheduleDayView = ({
   const timedSubtasks = subtasks.filter(s => s.scheduledTime);
   const timedEvents = events.filter(e => e.time);
 
+  // Compute side-by-side columns only when items actually overlap in time
+  const layoutMap = useMemo(() => {
+    type Entry = { id: string; start: number; end: number };
+    const entries: Entry[] = [];
+    timedEvents.forEach(e => {
+      const [h, m] = (e.time || '0:0').split(':').map(Number);
+      const start = h * 60 + m;
+      entries.push({ id: `e-${e.id}`, start, end: start + (e.duration || 60) });
+    });
+    timedSubtasks.forEach(s => {
+      const [h, m] = (s.scheduledTime || '0:0').split(':').map(Number);
+      const start = h * 60 + m;
+      entries.push({ id: `s-${s.id}`, start, end: start + (s.estimatedMinutes || 60) });
+    });
+    entries.sort((a, b) => a.start - b.start || a.end - b.end);
+    const map = new Map<string, { col: number; cols: number }>();
+    let cluster: Entry[] = [];
+    let clusterEnd = -1;
+    const flush = () => {
+      const colEnds: number[] = [];
+      const assigned: { id: string; col: number }[] = [];
+      for (const x of cluster) {
+        let placed = false;
+        for (let i = 0; i < colEnds.length; i++) {
+          if (colEnds[i] <= x.start) { colEnds[i] = x.end; assigned.push({ id: x.id, col: i }); placed = true; break; }
+        }
+        if (!placed) { colEnds.push(x.end); assigned.push({ id: x.id, col: colEnds.length - 1 }); }
+      }
+      const cols = colEnds.length;
+      assigned.forEach(a => map.set(a.id, { col: a.col, cols }));
+    };
+    for (const x of entries) {
+      if (cluster.length === 0 || x.start < clusterEnd) {
+        cluster.push(x);
+        clusterEnd = Math.max(clusterEnd, x.end);
+      } else { flush(); cluster = [x]; clusterEnd = x.end; }
+    }
+    if (cluster.length) flush();
+    return map;
+  }, [timedEvents, timedSubtasks]);
+
   const getTimePosition = (time: string): number => {
     const [hours, minutes] = time.split(':').map(Number);
     return ((hours - 6) * 60 + minutes) / (17 * 60) * 100;
@@ -118,12 +159,15 @@ export const ScheduleDayView = ({
           {timedEvents.map(event => {
             const top = getTimePosition(event.time!);
             const height = getHeightForDuration(event.duration || 60);
+            const lay = layoutMap.get(`e-${event.id}`) || { col: 0, cols: 1 };
+            const widthPct = 100 / lay.cols;
+            const leftPct = lay.col * widthPct;
             return (
               <div
                 key={event.id}
                 onClick={() => onEventClick?.(event)}
-                className="absolute left-0 right-1/2 bg-blue-500/30 border-l-2 border-blue-500 rounded-r px-2 py-1 cursor-pointer hover:bg-blue-500/40 overflow-hidden"
-                style={{ top: `${top}%`, height: `${Math.max(height, 3)}%` }}
+                className="absolute bg-blue-500/30 border-l-2 border-blue-500 rounded-r px-2 py-1 cursor-pointer hover:bg-blue-500/40 overflow-hidden"
+                style={{ top: `${top}%`, height: `${Math.max(height, 3)}%`, left: `${leftPct}%`, width: `calc(${widthPct}% - 2px)` }}
               >
                 <div className="text-xs font-medium truncate">{event.title}</div>
                 <div className="text-xs text-muted-foreground">
@@ -137,12 +181,15 @@ export const ScheduleDayView = ({
           {timedSubtasks.map(subtask => {
             const top = getTimePosition(subtask.scheduledTime!);
             const height = getHeightForDuration(subtask.estimatedMinutes || 60);
+            const lay = layoutMap.get(`s-${subtask.id}`) || { col: 0, cols: 1 };
+            const widthPct = 100 / lay.cols;
+            const leftPct = lay.col * widthPct;
             return (
               <div
                 key={subtask.id}
                 onClick={() => onSubtaskClick?.(subtask)}
                 className={cn(
-                  "absolute left-1/2 right-0 border-l-2 rounded-r px-2 py-1 cursor-pointer overflow-hidden",
+                  "absolute border-l-2 rounded-r px-2 py-1 cursor-pointer overflow-hidden",
                   subtask.completed 
                     ? "bg-green-500/30 border-green-500 line-through" 
                     : "bg-primary/30 border-primary hover:bg-primary/40"
@@ -150,6 +197,8 @@ export const ScheduleDayView = ({
                 style={{ 
                   top: `${top}%`, 
                   height: `${Math.max(height, 3)}%`,
+                  left: `${leftPct}%`,
+                  width: `calc(${widthPct}% - 2px)`,
                   backgroundColor: mirrorColor && subtask.color ? `${subtask.color}30` : undefined,
                   borderColor: mirrorColor && subtask.color ? subtask.color : undefined,
                 }}

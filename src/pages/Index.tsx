@@ -29,6 +29,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
 import { ListCard } from '@/components/ListCard';
 import { ListDetailsDialog } from '@/components/ListDetailsDialog';
+import { DayTimetableView } from '@/components/DayTimetableView';
 import { SubtaskFullDetailsDialog } from '@/components/SubtaskFullDetailsDialog';
 import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
 import { FlexibleEventDetailsDialog } from '@/components/FlexibleEventDetailsDialog';
@@ -563,6 +564,10 @@ const Index = () => {
                     setSelectedList(list);
                     setListDetailsOpen(true);
                   }}
+                  onSchedule={(l) => {
+                    setSelectedList(l);
+                    setListDetailsOpen(true);
+                  }}
                 />
               ))}
             </div>
@@ -583,21 +588,17 @@ const Index = () => {
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               {favoriteTimetables.map((timetable) => (
-                <Card
-                  key={timetable.id}
-                  className="p-4 cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => navigate('/timetable')}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg mb-1">{timetable.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {timetable.type === 'weekly' ? 'Weekly' : 'Fortnightly'} • {timetable.rows.length} periods
-                      </p>
-                    </div>
+                <div key={timetable.id} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg">{timetable.name}</h3>
                     <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                   </div>
-                </Card>
+                  <DayTimetableView
+                    events={[]}
+                    selectedDate={new Date()}
+                    onEventClick={() => navigate('/timetable')}
+                  />
+                </div>
               ))}
             </div>
           </section>

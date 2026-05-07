@@ -1,15 +1,17 @@
 import { List } from '@/types/list';
 import { Card } from '@/components/ui/card';
-import { Star, CheckCircle2 } from 'lucide-react';
+import { Star, CheckCircle2, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface ListCardProps {
   list: List;
   onClick: () => void;
   isDragging?: boolean;
+  onSchedule?: (list: List) => void;
 }
 
-export const ListCard = ({ list, onClick, isDragging }: ListCardProps) => {
+export const ListCard = ({ list, onClick, isDragging, onSchedule }: ListCardProps) => {
   const completedCount = list.items.filter(item => item.completed).length;
   const totalCount = list.items.length;
   const completionPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
@@ -63,6 +65,17 @@ export const ListCard = ({ list, onClick, isDragging }: ListCardProps) => {
               style={{ width: `${completionPercentage}%` }}
             />
           </div>
+          {onSchedule && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 mt-1"
+              onClick={(e) => { e.stopPropagation(); onSchedule(list); }}
+            >
+              <Calendar className="h-3 w-3 mr-1" />
+              Schedule
+            </Button>
+          )}
         </div>
       </div>
     </Card>
