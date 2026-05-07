@@ -3,13 +3,14 @@ import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Clock, Info, Play, CheckCircle2, Edit, Trash2, ChevronDown, ChevronRight, Eye } from 'lucide-react';
+import { Clock, Info, Play, CheckCircle2, Edit, Trash2, ChevronDown, ChevronRight, Eye, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UniversalProgressGrid } from './UniversalProgressGrid';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { SubtaskFullDetailsDialog } from './SubtaskFullDetailsDialog';
 import { SubtaskDialog } from './SubtaskDialog';
+import { TaskScheduleDialog } from './TaskScheduleDialog';
 import { cn } from '@/lib/utils';
 
 interface TaskCardProps {
@@ -28,6 +29,7 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
   const [detailsSubtask, setDetailsSubtask] = useState<Subtask | null>(null);
   const [editSubtask, setEditSubtask] = useState<Subtask | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const subtasks = task.subtasks || [];
   const remainingMinutes = Math.max(task.estimatedMinutes - task.spentMinutes, 0);
   const remainingSeconds = Math.round(remainingMinutes * 60);
@@ -252,6 +254,14 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
             </Button>
             <Button
               size="sm"
+              variant="outline"
+              onClick={() => setScheduleOpen(true)}
+            >
+              <Calendar className="h-4 w-4 mr-1" />
+              Schedule
+            </Button>
+            <Button
+              size="sm"
               variant="ghost"
               onClick={() => onDelete(task.id)}
               className="text-destructive hover:text-destructive"
@@ -261,6 +271,12 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
           </div>
         </div>
       </div>
+      <TaskScheduleDialog
+        task={task}
+        open={scheduleOpen}
+        onClose={() => setScheduleOpen(false)}
+        onSave={(updated) => { onUpdateTask(updated); setScheduleOpen(false); }}
+      />
       {/* Subtask Details Dialog */}
       <SubtaskFullDetailsDialog
         subtask={detailsSubtask}
