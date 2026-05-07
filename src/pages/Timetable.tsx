@@ -366,13 +366,24 @@ const Timetable = () => {
                       {isEditing && selectedTimetable?.id === timetable.id && (
                         <div className="space-y-4">
                           {selectedTimetable.type === 'fortnightly' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setCurrentWeek(currentWeek === 1 ? 2 : 1)}
-                            >
-                              Switch to Week {currentWeek === 1 ? 2 : 1}
-                            </Button>
+                            <div className="space-y-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentWeek(currentWeek === 1 ? 2 : 1)}
+                              >
+                                Switch to Week {currentWeek === 1 ? 2 : 1}
+                              </Button>
+                              <div className="space-y-1">
+                                <label className="text-xs font-medium text-muted-foreground">Week 1 Start Date (Monday)</label>
+                                <Input
+                                  type="date"
+                                  value={selectedTimetable.fortnightStartDate || ''}
+                                  onChange={(e) => setSelectedTimetable({ ...selectedTimetable, fortnightStartDate: e.target.value })}
+                                  className="max-w-[220px]"
+                                />
+                              </div>
+                            </div>
                           )}
 
                           <div className="space-y-2">
