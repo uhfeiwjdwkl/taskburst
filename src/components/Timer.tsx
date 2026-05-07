@@ -804,6 +804,55 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Need more time? (auto-end) */}
+      <AlertDialog open={showNeedMoreTime} onOpenChange={setShowNeedMoreTime}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Do you need more time?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The estimated time for "{activeTask?.name}" has elapsed. Add more minutes or finish the task.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Label htmlFor="extraMinutes" className="text-sm">Extra minutes</Label>
+            <Input
+              id="extraMinutes"
+              type="number"
+              min={1}
+              value={extraMinutesInput}
+              onChange={(e) => setExtraMinutesInput(parseInt(e.target.value) || 0)}
+              className="mt-1"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => {
+                if (activeTask && onUpdateTask && extraMinutesInput > 0) {
+                  onUpdateTask({ ...activeTask, estimatedMinutes: activeTask.estimatedMinutes + extraMinutesInput });
+                }
+                setShowNeedMoreTime(false);
+                setIsRunning(true);
+                onRunningChange?.(true);
+              }}
+            >
+              Add minutes
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                setShowNeedMoreTime(false);
+                if (activeTask) {
+                  fireConfetti();
+                  onTaskComplete?.(activeTask.id);
+                  setBreakBonus(300);
+                }
+              }}
+            >
+              Finish
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Short-session permanent-delete confirmation */}
       <AlertDialog open={showRewindOption} onOpenChange={setShowRewindOption}>
         <AlertDialogContent>
