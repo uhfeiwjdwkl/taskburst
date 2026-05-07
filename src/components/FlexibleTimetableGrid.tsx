@@ -61,8 +61,11 @@ export function FlexibleTimetableGrid({
   useEffect(() => {
     const saved = localStorage.getItem(FLEXIBLE_EVENTS_KEY);
     if (saved) {
-      const allEvents = JSON.parse(saved) as FlexibleEvent[];
-      setEvents(allEvents.filter(e => e.timetableId === timetable.id));
+      try {
+        const parsed = JSON.parse(saved);
+        const allEvents = Array.isArray(parsed) ? parsed as FlexibleEvent[] : [];
+        setEvents(allEvents.filter(e => e.timetableId === timetable.id));
+      } catch { setEvents([]); }
     }
   }, [timetable.id]);
 
@@ -83,7 +86,8 @@ export function FlexibleTimetableGrid({
   // Save events to localStorage
   const saveEvents = (newEvents: FlexibleEvent[]) => {
     const saved = localStorage.getItem(FLEXIBLE_EVENTS_KEY);
-    const allEvents = saved ? JSON.parse(saved) as FlexibleEvent[] : [];
+    let allEvents: FlexibleEvent[] = [];
+    try { const p = saved ? JSON.parse(saved) : []; allEvents = Array.isArray(p) ? p : []; } catch {}
     const otherEvents = allEvents.filter(e => e.timetableId !== timetable.id);
     localStorage.setItem(FLEXIBLE_EVENTS_KEY, JSON.stringify([...otherEvents, ...newEvents]));
     setEvents(newEvents);
@@ -129,7 +133,16 @@ export function FlexibleTimetableGrid({
   // Get current day of week (0 = Sunday, so we adjust for Mon-Fri columns)
   const currentDayOfWeek = now.getDay();
   // Adjust to match timetable columns (0 = Monday in most timetables)
-  const adjustedCurrentDay = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+  const rawAdjustedCurrentDay = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+  // For fortnightly timetables, only highlight today's column when viewing the matching week
+  let isCurrentRealWeek = true;
+  if (timetable.type === 'fortnightly' && timetable.fortnightStartDate) {
+    const startDate = new Date(timetable.fortnightStartDate);
+    const daysDiff = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const calculatedWeek = (Math.floor(daysDiff / 7) % 2) === 0 ? 1 : 2;
+    isCurrentRealWeek = calculatedWeek === currentWeek;
+  }
+  const adjustedCurrentDay = isCurrentRealWeek ? rawAdjustedCurrentDay : -1;
   // Drag handlers
   const handleDragStart = (e: React.DragEvent, event: FlexibleEvent) => {
     if (!moveMode) return;

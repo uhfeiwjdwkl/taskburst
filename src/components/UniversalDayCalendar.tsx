@@ -224,6 +224,16 @@ export const UniversalDayCalendar = ({
         if (sel === 'none') return false;
         return e.timetableId === sel;
       })
+      .filter(e => {
+        const tt = timetables.find(t => t.id === e.timetableId);
+        if (tt?.type === 'fortnightly' && tt.fortnightStartDate && e.week) {
+          const startDate = new Date(tt.fortnightStartDate);
+          const daysDiff = Math.floor((currentDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+          const calculatedWeek = (Math.floor(daysDiff / 7) % 2) === 0 ? 1 : 2;
+          return e.week === calculatedWeek;
+        }
+        return true;
+      })
       .forEach(event => {
         const timetable = timetables.find(t => t.id === event.timetableId);
         const [startH, startM] = event.startTime.split(':').map(Number);

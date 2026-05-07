@@ -24,7 +24,7 @@ export function Navigation() {
   const [navRows, setNavRows] = useState<1 | 2 | 'dropdown'>(1);
   const navRef = useRef<HTMLDivElement>(null);
   const [activeTaskName, setActiveTaskName] = useState<string | null>(null);
-  const [todayItems, setTodayItems] = useState<{ id: string; name: string; kind: 'task' | 'event' }[]>([]);
+  const [todayItems, setTodayItems] = useState<{ id: string; name: string; kind: 'task' | 'event' | 'subtask' }[]>([]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -46,9 +46,25 @@ export function Navigation() {
 
         const todayStr = new Date().toISOString().split('T')[0];
         const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
-        const remainingTasks = safeTasks
-          .filter((t: any) => !t.completed && t.dueDate && t.dueDate.split('T')[0] === todayStr)
-          .map((t: any) => ({ id: `t-${t.id}`, name: t.name, kind: 'task' as const }));
+        const remainingTasks: { id: string; name: string; kind: 'task' | 'event' | 'subtask' }[] = [];
+        const remainingSubtasks: { id: string; name: string; kind: 'task' | 'event' | 'subtask' }[] = [];
+        safeTasks.forEach((t: any) => {
+          if (!t.completed && t.dueDate && t.dueDate.split('T')[0] === todayStr) {
+            remainingTasks.push({ id: `t-${t.id}`, name: t.name, kind: 'task' });
+          }
+          // Subtasks scheduled for today and not yet finished
+          (t.subtasks || []).forEach((s: any) => {
+            if (s.completed) return;
+            if (s.dueDate !== todayStr) return;
+            // If a scheduled time exists, only include if the end time hasn't passed
+            if (s.scheduledTime) {
+              const [h, m] = s.scheduledTime.split(':').map(Number);
+              const end = h * 60 + m + (s.estimatedMinutes || 30);
+              if (end <= nowMin) return;
+            }
+            remainingSubtasks.push({ id: `s-${s.id}`, name: `${s.title} · ${t.name}`, kind: 'subtask' });
+          });
+        });
 
         const eventsRaw = localStorage.getItem('calendarEvents');
         const events = eventsRaw ? JSON.parse(eventsRaw) : [];
@@ -62,7 +78,7 @@ export function Navigation() {
           })())
           .map((e: any) => ({ id: `e-${e.id}`, name: e.title, kind: 'event' as const }));
 
-        setTodayItems([...remainingTasks, ...remainingEvents]);
+        setTodayItems([...remainingTasks, ...remainingSubtasks, ...remainingEvents]);
       } catch (e) {
         // silent
       }
@@ -245,7 +261,7 @@ export function Navigation() {
                     <ul className="space-y-1 max-h-64 overflow-y-auto">
                       {todayItems.map(it => (
                         <li key={it.id} className="text-sm truncate">
-                          <span className="text-xs text-muted-foreground mr-1">{it.kind === 'task' ? '📋' : '📅'}</span>
+                       <span className="text-xs text-muted-foreground mr-1">{it.kind === 'task' ? '📋' : it.kind === 'subtask' ? '📝' : '📅'}</span>
                           {it.name}
                         </li>
                       ))}
