@@ -183,7 +183,18 @@ export const HomeDayCalendar = ({
 
     // Flexible timetable events for today
     flexibleEvents
-      .filter(e => e.dayIndex === timetableDayIndex && includeTimetable(e.timetableId))
+      .filter(e => {
+        if (e.dayIndex !== timetableDayIndex) return false;
+        if (!includeTimetable(e.timetableId)) return false;
+        const tt = timetables.find(t => t.id === e.timetableId);
+        if (tt?.type === 'fortnightly' && tt.fortnightStartDate && e.week) {
+          const startDate = new Date(tt.fortnightStartDate);
+          const daysDiff = Math.floor((displayDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+          const calculatedWeek = (Math.floor(daysDiff / 7) % 2) === 0 ? 1 : 2;
+          if (e.week !== calculatedWeek) return false;
+        }
+        return true;
+      })
       .forEach(event => {
         const timetable = timetables.find(t => t.id === event.timetableId);
         // Calculate duration from startTime and endTime
