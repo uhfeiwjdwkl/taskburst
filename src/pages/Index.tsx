@@ -564,6 +564,10 @@ const Index = () => {
                     setSelectedList(list);
                     setListDetailsOpen(true);
                   }}
+                  onSchedule={(l) => {
+                    setSelectedList(l);
+                    setListDetailsOpen(true);
+                  }}
                 />
               ))}
             </div>
