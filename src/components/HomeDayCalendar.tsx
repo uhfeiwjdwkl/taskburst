@@ -40,8 +40,11 @@ interface TimelineItem {
 const getFlexibleEventsForTimetable = (timetableId: string): FlexibleEvent[] => {
   const saved = localStorage.getItem('flexibleTimetableEvents');
   if (!saved) return [];
-  const allEvents = JSON.parse(saved) as FlexibleEvent[];
-  return allEvents.filter(e => e.timetableId === timetableId);
+  try {
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return [];
+    return (parsed as FlexibleEvent[]).filter(e => e.timetableId === timetableId);
+  } catch { return []; }
 };
 
 export const HomeDayCalendar = ({
