@@ -24,7 +24,7 @@ export function Navigation() {
   const [navRows, setNavRows] = useState<1 | 2 | 'dropdown'>(1);
   const navRef = useRef<HTMLDivElement>(null);
   const [activeTaskName, setActiveTaskName] = useState<string | null>(null);
-  const [todayItems, setTodayItems] = useState<{ id: string; name: string; kind: 'task' | 'event' }[]>([]);
+  const [todayItems, setTodayItems] = useState<{ id: string; name: string; kind: 'task' | 'event' | 'subtask' }[]>([]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -261,7 +261,7 @@ export function Navigation() {
                     <ul className="space-y-1 max-h-64 overflow-y-auto">
                       {todayItems.map(it => (
                         <li key={it.id} className="text-sm truncate">
-                          <span className="text-xs text-muted-foreground mr-1">{it.kind === 'task' ? '📋' : '📅'}</span>
+                       <span className="text-xs text-muted-foreground mr-1">{it.kind === 'task' ? '📋' : it.kind === 'subtask' ? '📝' : '📅'}</span>
                           {it.name}
                         </li>
                       ))}
