@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Timetable, TimeSlot } from "@/types/timetable";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { ImportTimetableDialog } from "./ImportTimetableDialog";
 
 interface CreateTimetableDialogProps {
   open: boolean;
@@ -16,6 +17,7 @@ interface CreateTimetableDialogProps {
 
 export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTimetableDialogProps) {
   const [name, setName] = useState("");
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [type, setType] = useState<'weekly' | 'fortnightly'>('weekly');
   const [mode, setMode] = useState<'rigid' | 'flexible'>('rigid');
   const [fieldsPerCell, setFieldsPerCell] = useState<1 | 2 | 3>(1);
@@ -150,6 +152,12 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
         <DialogHeader>
           <DialogTitle>Create New Timetable</DialogTitle>
         </DialogHeader>
+        <div className="flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+            <Upload className="h-4 w-4 mr-1" />
+            Import Timetable
+          </Button>
+        </div>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
@@ -391,6 +399,15 @@ export function CreateTimetableDialog({ open, onOpenChange, onCreate }: CreateTi
           <Button onClick={handleCreate}>Create Timetable</Button>
         </DialogFooter>
       </DialogContent>
+      <ImportTimetableDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onCreate={(tt) => {
+          onCreate(tt);
+          setImportDialogOpen(false);
+          onOpenChange(false);
+        }}
+      />
     </Dialog>
   );
 }
