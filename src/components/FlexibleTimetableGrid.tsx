@@ -61,8 +61,11 @@ export function FlexibleTimetableGrid({
   useEffect(() => {
     const saved = localStorage.getItem(FLEXIBLE_EVENTS_KEY);
     if (saved) {
-      const allEvents = JSON.parse(saved) as FlexibleEvent[];
-      setEvents(allEvents.filter(e => e.timetableId === timetable.id));
+      try {
+        const parsed = JSON.parse(saved);
+        const allEvents = Array.isArray(parsed) ? parsed as FlexibleEvent[] : [];
+        setEvents(allEvents.filter(e => e.timetableId === timetable.id));
+      } catch { setEvents([]); }
     }
   }, [timetable.id]);
 
@@ -83,7 +86,8 @@ export function FlexibleTimetableGrid({
   // Save events to localStorage
   const saveEvents = (newEvents: FlexibleEvent[]) => {
     const saved = localStorage.getItem(FLEXIBLE_EVENTS_KEY);
-    const allEvents = saved ? JSON.parse(saved) as FlexibleEvent[] : [];
+    let allEvents: FlexibleEvent[] = [];
+    try { const p = saved ? JSON.parse(saved) : []; allEvents = Array.isArray(p) ? p : []; } catch {}
     const otherEvents = allEvents.filter(e => e.timetableId !== timetable.id);
     localStorage.setItem(FLEXIBLE_EVENTS_KEY, JSON.stringify([...otherEvents, ...newEvents]));
     setEvents(newEvents);
