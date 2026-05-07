@@ -168,6 +168,7 @@ const Lists = () => {
                           list={list}
                           onClick={() => handleShowDetails(list)}
                           isDragging={snapshot.isDragging}
+                        onSchedule={(l) => handleShowDetails(l)}
                         />
                       </div>
                     )}
