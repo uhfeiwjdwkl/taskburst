@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RichTextEditor } from '@/components/RichTextEditor';
+import { RichTextField } from '@/components/RichTextField';
 import { Checkbox } from '@/components/ui/checkbox';
 import { saveTextBackup, createFieldId } from '@/lib/textBackup';
 import {
@@ -160,7 +161,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
 
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
-              <RichTextEditor
+              <RichTextField
                 value={description}
                 onChange={setDescription}
                 placeholder="Event description (optional)"
