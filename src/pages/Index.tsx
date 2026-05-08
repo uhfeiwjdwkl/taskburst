@@ -48,6 +48,7 @@ const Index = () => {
   const [timerRunning, setTimerRunning] = useState(false);
   const [favoriteTimetables, setFavoriteTimetables] = useState<Timetable[]>([]);
   const [favoriteLists, setFavoriteLists] = useState<List[]>([]);
+  const [starredListIndex, setStarredListIndex] = useState(0);
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [selectedList, setSelectedList] = useState<List | null>(null);
