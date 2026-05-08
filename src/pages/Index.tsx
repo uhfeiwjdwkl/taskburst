@@ -20,8 +20,9 @@ import { ImportAllButton } from '@/components/ImportAllButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download, Briefcase, ChevronDown, ChevronRight, GripVertical, Search, Trash2, CheckCircle } from 'lucide-react';
+import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download, Briefcase, ChevronDown, ChevronRight, GripVertical, Search, Trash2, CheckCircle, ChevronLeft, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { playTaskCompleteSound } from '@/lib/sounds';
@@ -48,6 +49,7 @@ const Index = () => {
   const [timerRunning, setTimerRunning] = useState(false);
   const [favoriteTimetables, setFavoriteTimetables] = useState<Timetable[]>([]);
   const [favoriteLists, setFavoriteLists] = useState<List[]>([]);
+  const [starredListIndex, setStarredListIndex] = useState(0);
   const [activeProjects, setActiveProjects] = useState<Project[]>([]);
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [selectedList, setSelectedList] = useState<List | null>(null);
@@ -544,35 +546,72 @@ const Index = () => {
         </section>
 
         {/* Favorite Lists Section */}
-        {favoriteLists.length > 0 && (
-          <section className="mt-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold flex items-center gap-2">
-                <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                Favorite Lists
-              </h2>
-              <Button variant="outline" size="sm" onClick={() => navigate('/lists')}>
-                View All
-              </Button>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {favoriteLists.map((list) => (
-                <ListCard 
-                  key={list.id} 
-                  list={list}
-                  onClick={() => {
-                    setSelectedList(list);
-                    setListDetailsOpen(true);
-                  }}
-                  onSchedule={(l) => {
-                    setSelectedList(l);
-                    setListDetailsOpen(true);
-                  }}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+        {favoriteLists.length > 0 && (() => {
+          const idx = Math.min(starredListIndex, favoriteLists.length - 1);
+          const current = favoriteLists[idx];
+          const handleToggleItem = (itemId: string) => {
+            const updatedItems = current.items.map(it =>
+              it.id === itemId ? { ...it, completed: !it.completed } : it
+            );
+            const updatedList = { ...current, items: updatedItems };
+            const allLists = JSON.parse(localStorage.getItem('lists') || '[]');
+            const next = allLists.map((l: List) => l.id === updatedList.id ? updatedList : l);
+            localStorage.setItem('lists', JSON.stringify(next));
+            setFavoriteLists(favoriteLists.map(l => l.id === updatedList.id ? updatedList : l));
+          };
+          return (
+            <section className="mt-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-semibold flex items-center gap-2">
+                  <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                  Favorite Lists
+                </h2>
+                <div className="flex items-center gap-2">
+                  {favoriteLists.length > 1 && (
+                    <>
+                      <Button variant="ghost" size="icon" onClick={() => setStarredListIndex((idx - 1 + favoriteLists.length) % favoriteLists.length)}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-xs text-muted-foreground">{idx + 1} / {favoriteLists.length}</span>
+                      <Button variant="ghost" size="icon" onClick={() => setStarredListIndex((idx + 1) % favoriteLists.length)}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => navigate('/lists')}>View All</Button>
+                </div>
+              </div>
+              <Card className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <button
+                    className="font-semibold text-lg hover:underline text-left"
+                    onClick={() => { setSelectedList(current); setListDetailsOpen(true); }}
+                  >
+                    {current.title}
+                  </button>
+                  <Badge variant="secondary" className="text-xs">
+                    {current.items.filter(i => i.completed).length}/{current.items.length} done
+                  </Badge>
+                </div>
+                <div className="space-y-1 max-h-72 overflow-y-auto">
+                  {current.items.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No items.</p>
+                  ) : current.items.map(item => (
+                    <div key={item.id} className="flex items-center gap-2 p-2 rounded hover:bg-accent/50">
+                      <Checkbox
+                        checked={item.completed}
+                        onCheckedChange={() => handleToggleItem(item.id)}
+                      />
+                      <span className={`flex-1 text-sm ${item.completed ? 'line-through text-muted-foreground' : ''}`}>
+                        {item.title}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </section>
+          );
+        })()}
 
         {/* Favorite Timetables Section */}
         {favoriteTimetables.length > 0 && (
