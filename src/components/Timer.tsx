@@ -739,13 +739,13 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
 
       {/* Session Name Dialog */}
       <Dialog open={showSessionNameDialog} onOpenChange={(open) => {
-        if (!open) finishSessionSave(false);
+        if (!open) finishSessionSave(true);
       }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Name This Session</DialogTitle>
             <DialogDescription>
-              Enter a name for this session (or leave blank). Cancelling will discard the session time.
+              Enter a name for this session (or leave blank). Closing this dialog will save the session without a name.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
