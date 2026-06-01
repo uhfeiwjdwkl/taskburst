@@ -153,7 +153,7 @@ const Index = () => {
       createdAt: new Date().toISOString(),
       order: tasks.length,
     };
-    setTasks([...tasks, task]);
+    setTasks([task, ...tasks]);
     toast.success('Task added successfully!');
   };
 
