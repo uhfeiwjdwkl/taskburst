@@ -76,12 +76,12 @@ export const AddProjectDialog = ({ open, onClose, onSave, tasks }: AddProjectDia
       id: `temp-${Date.now()}`,
       createdAt: new Date().toISOString(),
     };
-    setLocalTasks([...localTasks, task]);
+    setLocalTasks([task, ...localTasks]);
     setSelectedTaskIds([...selectedTaskIds, task.id]);
-    
-    // Save to localStorage
+
+    // Save to localStorage (insert at top)
     const allTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-    localStorage.setItem('tasks', JSON.stringify([...allTasks, task]));
+    localStorage.setItem('tasks', JSON.stringify([task, ...allTasks]));
     
     toast.success('Task created and added to project!');
   };

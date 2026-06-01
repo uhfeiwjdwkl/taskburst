@@ -115,11 +115,11 @@ export const EditProjectDialog = ({ open, onClose, onSave, project, tasks }: Edi
       id: `temp-${Date.now()}`,
       createdAt: new Date().toISOString(),
     };
-    setLocalTasks([...localTasks, task]);
+    setLocalTasks([task, ...localTasks]);
     setSelectedTaskIds([...selectedTaskIds, task.id]);
-    
+
     const allTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
-    localStorage.setItem('tasks', JSON.stringify([...allTasks, task]));
+    localStorage.setItem('tasks', JSON.stringify([task, ...allTasks]));
     
     toast.success('Task created and added to project!');
   };

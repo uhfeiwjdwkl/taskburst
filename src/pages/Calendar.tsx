@@ -118,7 +118,7 @@ const CalendarPage = () => {
       id: Date.now().toString(),
       createdAt: new Date().toISOString(),
     };
-    setTasks([...tasks, task]);
+    setTasks([task, ...tasks]);
     toast.success('Task added successfully!');
   };
 

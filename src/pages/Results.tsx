@@ -635,6 +635,12 @@ export default function Results() {
       ) : (
         Object.entries(groupedItems).map(([groupName, items]) => {
           const categoryTotal = calculateCategoryTotal(items);
+          // Per-group max parts: only show as many columns as the maximum
+          // parts found in any single item within this specific group.
+          const groupMaxParts = Math.max(
+            1,
+            ...items.map(it => it.result.parts.length)
+          );
           return (
             <Card key={groupName} className="mb-6 overflow-hidden">
               {groupBy !== 'none' && (
@@ -680,7 +686,7 @@ export default function Results() {
                           </div>
                         )}
                       </TableHead>
-                      {Array.from({ length: maxParts }, (_, i) => (
+                      {Array.from({ length: groupMaxParts }, (_, i) => (
                         <TableHead key={i} className="text-center min-w-[120px]">
                           {editingColumnIndex === i ? (
                             <div className="flex items-center gap-1 justify-center">
@@ -755,7 +761,7 @@ export default function Results() {
                               </div>
                             )}
                           </TableCell>
-                          {Array.from({ length: maxParts }, (_, i) => {
+                          {Array.from({ length: groupMaxParts }, (_, i) => {
                             const part = item.result.parts[i];
                             return (
                               <TableCell

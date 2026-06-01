@@ -35,6 +35,10 @@ export function restoreTextBackupsForSource(sourceId: string): void {
 }
 
 export function saveTextBackup(backup: Omit<TextBackup, 'id' | 'savedAt'>): void {
+  // Skip empty / whitespace-only content silently
+  if (!backup.previousContent || !backup.previousContent.replace(/<[^>]*>/g, '').trim()) {
+    return;
+  }
   const backups = getTextBackups();
   
   // Find existing backup for this field
