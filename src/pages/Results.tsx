@@ -686,7 +686,7 @@ export default function Results() {
                           </div>
                         )}
                       </TableHead>
-                      {Array.from({ length: maxParts }, (_, i) => (
+                      {Array.from({ length: groupMaxParts }, (_, i) => (
                         <TableHead key={i} className="text-center min-w-[120px]">
                           {editingColumnIndex === i ? (
                             <div className="flex items-center gap-1 justify-center">
@@ -761,7 +761,7 @@ export default function Results() {
                               </div>
                             )}
                           </TableCell>
-                          {Array.from({ length: maxParts }, (_, i) => {
+                          {Array.from({ length: groupMaxParts }, (_, i) => {
                             const part = item.result.parts[i];
                             return (
                               <TableCell
