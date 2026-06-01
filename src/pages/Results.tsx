@@ -101,6 +101,10 @@ export default function Results() {
     }
   }, []);
 
+  useEffect(() => {
+    localStorage.setItem(GROUP_BY_KEY, groupBy);
+  }, [groupBy]);
+
   const loadData = () => {
     const safeParse = (key: string): any[] => {
       const raw = localStorage.getItem(key);
