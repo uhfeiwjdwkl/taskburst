@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Plus, Trash2 } from "lucide-react";
+import { PRESET_COLORS } from "@/types/settings";
 import { toast } from "sonner";
 
 interface ColorKeyEditorProps {
@@ -13,16 +14,11 @@ interface ColorKeyEditorProps {
   onIsolateColour?: (colour: string | null) => void;
 }
 
-const PRESET_COLORS = [
-  '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e',
-  '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1',
-  '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'
-];
-
 export function ColorKeyEditor({ colorKey, onUpdate, customColors = [], activeIsolatedColour = null, onIsolateColour }: ColorKeyEditorProps) {
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [newLabel, setNewLabel] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [customHex, setCustomHex] = useState('#6366f1');
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Restore (clear isolation) when clicking outside the editor
@@ -80,38 +76,48 @@ export function ColorKeyEditor({ colorKey, onUpdate, customColors = [], activeIs
         </div>
 
         {isAdding && (
-          <div className="flex gap-2 items-center p-2 border rounded">
-            <select
-              value={newColor}
-              onChange={(e) => setNewColor(e.target.value)}
-              className="w-24 h-8 rounded border cursor-pointer"
-              style={{ backgroundColor: newColor }}
-            >
-              {customColors.length > 0 && (
-                <optgroup label="Custom Colors">
-                  {customColors.map((color) => (
-                    <option key={color} value={color} style={{ backgroundColor: color }}>
-                      {color}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              <optgroup label="Preset Colors">
-                {PRESET_COLORS.map((color) => (
-                  <option key={color} value={color} style={{ backgroundColor: color }}>
-                    {color}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-            <Input
-              placeholder="Label (e.g., Lecture, Lab)"
-              value={newLabel}
-              onChange={(e) => setNewLabel(e.target.value)}
-              className="flex-1"
-            />
-            <Button size="sm" onClick={handleAdd}>Add</Button>
-            <Button size="sm" variant="ghost" onClick={() => setIsAdding(false)}>Cancel</Button>
+          <div className="space-y-2 p-2 border rounded">
+            <div className="flex flex-wrap gap-1">
+              {allColors.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setNewColor(color)}
+                  className={`w-7 h-7 rounded-md border-2 transition-all hover:scale-110 ${
+                    newColor === color ? 'border-foreground ring-2 ring-primary/50' : 'border-transparent'
+                  }`}
+                  style={{ backgroundColor: color }}
+                  title={color}
+                />
+              ))}
+            </div>
+            <div className="flex gap-2 items-center">
+              <Input
+                type="color"
+                value={customHex}
+                onChange={(e) => { setCustomHex(e.target.value); setNewColor(e.target.value); }}
+                className="w-10 h-8 p-0 border-0 cursor-pointer"
+                title="Pick custom colour"
+              />
+              <Input
+                type="text"
+                value={customHex}
+                onChange={(e) => {
+                  setCustomHex(e.target.value);
+                  if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) setNewColor(e.target.value);
+                }}
+                placeholder="#RRGGBB"
+                className="w-24 h-8 text-xs"
+              />
+              <Input
+                placeholder="Label (e.g., Lecture, Lab)"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                className="flex-1 h-8"
+              />
+              <Button size="sm" onClick={handleAdd}>Add</Button>
+              <Button size="sm" variant="ghost" onClick={() => setIsAdding(false)}>Cancel</Button>
+            </div>
           </div>
         )}
 
