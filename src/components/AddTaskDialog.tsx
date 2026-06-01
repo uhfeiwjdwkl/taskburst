@@ -1,28 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { Task } from '@/types/task';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { RichTextField } from '@/components/RichTextField';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
-import { Plus, Settings } from 'lucide-react';
+import TaskDetailsDialog from '@/components/TaskDetailsDialog';
 import { ImportTaskButton } from '@/components/ImportTaskButton';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { CategoryManager } from '@/components/CategoryManager';
-import { DatePickerButton } from '@/components/DatePickerButton';
 
 interface AddTaskDialogProps {
   open: boolean;
@@ -32,219 +11,42 @@ interface AddTaskDialogProps {
 }
 
 const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogProps) => {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
-  const [importance, setImportance] = useState(2);
-  const [estimatedMinutes, setEstimatedMinutes] = useState(25);
-  const [dueDate, setDueDate] = useState(prefilledDate || '');
-  const [progressGridSize, setProgressGridSize] = useState(0);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [showCategoryManager, setShowCategoryManager] = useState(false);
-
-  // Load categories
-  useEffect(() => {
-    loadCategories();
-  }, [open]);
-
-  const loadCategories = () => {
-    const saved = localStorage.getItem('categories');
-    if (saved) {
-      setCategories(JSON.parse(saved));
-    } else {
-      const defaults = ['Work', 'Study', 'Personal', 'Health', 'Other'];
-      setCategories(defaults);
-      localStorage.setItem('categories', JSON.stringify(defaults));
-    }
-  };
-
-  // Update dueDate when prefilledDate changes
-  useEffect(() => {
-    if (prefilledDate) {
-      setDueDate(prefilledDate);
-    }
-  }, [prefilledDate]);
-
-  const handleAdd = () => {
-    if (!name.trim()) return;
-
-    // Ensure category is saved to main categories list
-    if (category.trim()) {
-      const mainCategories = JSON.parse(localStorage.getItem('categories') || '[]');
-      if (!mainCategories.includes(category.trim())) {
-        mainCategories.push(category.trim());
-        localStorage.setItem('categories', JSON.stringify(mainCategories));
-      }
-    }
-
-    onAdd({
-      name: name.trim(),
-      description: description.trim(),
-      category: category.trim(),
-      importance,
-      estimatedMinutes,
+  // Build a fresh blank task each time the dialog opens so all fields reset.
+  const blankTask: Task | null = useMemo(() => {
+    if (!open) return null;
+    return {
+      id: `new-${Date.now()}`,
+      name: '',
+      description: '',
+      category: '',
+      importance: 2,
+      estimatedMinutes: 25,
       spentMinutes: 0,
-      dueDate,
+      dueDate: prefilledDate || '',
       completed: false,
-      progressGridSize,
+      createdAt: new Date().toISOString(),
+      progressGridSize: 0,
       progressGridFilled: 0,
-    });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, prefilledDate]);
 
-    // Reset form
-    setName('');
-    setDescription('');
-    setCategory('');
-    setImportance(2);
-    setEstimatedMinutes(25);
-    setDueDate('');
-    setProgressGridSize(10);
+  const handleSave = (task: Task) => {
+    if (!task.name.trim()) return;
+    const { id: _id, createdAt: _createdAt, ...rest } = task;
+    onAdd(rest);
     onClose();
   };
 
-  const importanceLabels = ['None', 'Low', 'Medium', 'High', 'Urgent', 'Critical'];
-
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <span>Add New Task</span>
-            <ImportTaskButton onImport={onAdd} />
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div>
-            <Label htmlFor="add-name">Task Name *</Label>
-            <Input
-              id="add-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="mt-1"
-              placeholder="Enter task name..."
-              autoFocus
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <Label htmlFor="add-category">Category</Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowCategoryManager(true)}
-                className="h-6 px-2"
-              >
-                <Settings className="h-3 w-3 mr-1" />
-                Manage
-              </Button>
-            </div>
-            <Select
-              value={category}
-              onValueChange={setCategory}
-            >
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="add-description">Description</Label>
-            <RichTextField
-              value={description}
-              onChange={setDescription}
-              placeholder="Add details about this task..."
-              minHeight="80px"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="add-importance">
-              Priority: {importanceLabels[importance]}
-            </Label>
-            <Slider
-              id="add-importance"
-              value={[importance]}
-              onValueChange={([value]) => setImportance(value)}
-              min={0}
-              max={5}
-              step={1}
-              className="mt-2"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="add-estimatedMinutes">Estimated Time (minutes)</Label>
-            <Input
-              id="add-estimatedMinutes"
-              type="number"
-              value={estimatedMinutes}
-              onChange={(e) => setEstimatedMinutes(parseInt(e.target.value) || 0)}
-              className="mt-1"
-              min="0"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="add-dueDate">Due Date</Label>
-            <div className="mt-1 flex gap-2">
-              <Input
-                id="add-dueDate"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="flex-1"
-              />
-              <DatePickerButton value={dueDate} onChange={setDueDate} />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="add-progressGridSize">Progress Grid Size (0 = no grid)</Label>
-            <Input
-              id="add-progressGridSize"
-              type="number"
-              value={progressGridSize}
-              onChange={(e) => setProgressGridSize(Math.max(0, parseInt(e.target.value) || 0))}
-              className="mt-1"
-              min="0"
-              max="100"
-            />
-          </div>
-
-          <div className="pt-4 flex gap-2 justify-end">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleAdd} 
-              className="bg-gradient-primary"
-              disabled={!name.trim()}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Task
-            </Button>
-          </div>
-        </div>
-
-        <CategoryManager 
-          open={showCategoryManager} 
-          onClose={() => {
-            setShowCategoryManager(false);
-            loadCategories();
-          }} 
-        />
-      </DialogContent>
-    </Dialog>
+    <TaskDetailsDialog
+      task={blankTask}
+      open={open}
+      onClose={onClose}
+      onSave={handleSave}
+      mode="create"
+      headerExtra={<ImportTaskButton onImport={onAdd} />}
+    />
   );
 };
 
