@@ -59,7 +59,11 @@ export default function Results() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [assessmentViewMode, setAssessmentViewMode] = useState<'grid' | 'list'>('grid');
   const [showCompletedAssessments, setShowCompletedAssessments] = useState(true);
-  const [groupBy, setGroupBy] = useState<'none' | 'category' | 'subcategory'>('none');
+  const [groupBy, setGroupBy] = useState<'none' | 'category' | 'subcategory'>(() => {
+    const saved = localStorage.getItem(GROUP_BY_KEY);
+    if (saved === 'category' || saved === 'subcategory' || saved === 'none') return saved;
+    return 'none';
+  });
   const [editingCell, setEditingCell] = useState<{
     itemId: string;
     itemType: 'task' | 'project';
