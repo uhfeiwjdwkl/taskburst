@@ -49,6 +49,7 @@ type ResultItem = {
 
 // Column names storage key
 const COLUMN_NAMES_KEY = 'resultsColumnNames';
+const GROUP_BY_KEY = 'resultsGroupBy';
 
 export default function Results() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -58,7 +59,11 @@ export default function Results() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [assessmentViewMode, setAssessmentViewMode] = useState<'grid' | 'list'>('grid');
   const [showCompletedAssessments, setShowCompletedAssessments] = useState(true);
-  const [groupBy, setGroupBy] = useState<'none' | 'category' | 'subcategory'>('none');
+  const [groupBy, setGroupBy] = useState<'none' | 'category' | 'subcategory'>(() => {
+    const saved = localStorage.getItem(GROUP_BY_KEY);
+    if (saved === 'category' || saved === 'subcategory' || saved === 'none') return saved;
+    return 'none';
+  });
   const [editingCell, setEditingCell] = useState<{
     itemId: string;
     itemType: 'task' | 'project';
@@ -95,6 +100,10 @@ export default function Results() {
       setTotalColumnName(parsed.totalColumn || 'Total');
     }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(GROUP_BY_KEY, groupBy);
+  }, [groupBy]);
 
   const loadData = () => {
     const safeParse = (key: string): any[] => {
