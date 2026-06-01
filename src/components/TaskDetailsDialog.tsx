@@ -754,7 +754,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
               Cancel
             </Button>
             <Button onClick={handleSave} className="bg-gradient-primary">
-              Save Changes
+              {mode === 'create' ? 'Add Task' : 'Save Changes'}
             </Button>
           </div>
         </div>
