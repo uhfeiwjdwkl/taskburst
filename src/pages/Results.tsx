@@ -49,6 +49,7 @@ type ResultItem = {
 
 // Column names storage key
 const COLUMN_NAMES_KEY = 'resultsColumnNames';
+const GROUP_BY_KEY = 'resultsGroupBy';
 
 export default function Results() {
   const [tasks, setTasks] = useState<Task[]>([]);
