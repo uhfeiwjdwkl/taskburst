@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { X, Plus, Calendar, Trash2, Wand2, Flag } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { SubtaskList } from './SubtaskList';
 import { TaskScheduleDialog } from './TaskScheduleDialog';
 import { TaskLinkedAssessmentsSection } from './TaskLinkedAssessmentsSection';
@@ -37,9 +38,11 @@ interface TaskDetailsDialogProps {
   open: boolean;
   onClose: () => void;
   onSave: (task: Task) => void;
+  mode?: 'edit' | 'create';
+  headerExtra?: ReactNode;
 }
 
-const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogProps) => {
+const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerExtra }: TaskDetailsDialogProps) => {
   const [editedTask, setEditedTask] = useState<Task | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState('');
@@ -237,10 +240,13 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave }: TaskDetailsDialogPro
       >
         <DialogHeader className="flex flex-row items-center justify-between">
           <div>
-            <DialogTitle>Edit Task</DialogTitle>
-            <DialogDescription>Modify task details and settings</DialogDescription>
+            <DialogTitle>{mode === 'create' ? 'Add New Task' : 'Edit Task'}</DialogTitle>
+            <DialogDescription>
+              {mode === 'create' ? 'Fill in details for the new task' : 'Modify task details and settings'}
+            </DialogDescription>
           </div>
           <div className="flex items-center gap-1">
+            {headerExtra}
             <Button
               variant={editedTask.flagged ? 'default' : 'ghost'}
               size="sm"
