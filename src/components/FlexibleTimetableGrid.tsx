@@ -83,6 +83,22 @@ export function FlexibleTimetableGrid({
     onUpdateTimetable({ ...timetable, colorKey: updatedKey });
   }, [events, timetable, onUpdateTimetable]);
 
+  // When a colour key is isolated while in edit/select mode, auto-select
+  // every event of that colour for bulk editing.
+  useEffect(() => {
+    if (!isEditing) return;
+    if (!activeIsolatedColour) return;
+    if (!selectMode) {
+      // Auto-enable select mode so the bulk toolbar appears
+      setSelectMode(true);
+    }
+    const ids = events
+      .filter(e => e.color === activeIsolatedColour)
+      .map(e => e.id);
+    setSelectedEventIds(ids);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIsolatedColour, isEditing]);
+
   // Save events to localStorage
   const saveEvents = (newEvents: FlexibleEvent[]) => {
     const saved = localStorage.getItem(FLEXIBLE_EVENTS_KEY);
