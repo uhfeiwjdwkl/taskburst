@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Navigation } from "@/components/Navigation";
 import { PinProtectionDialog } from "@/components/PinProtectionDialog";
 import { InstanceBlocker } from "@/components/InstanceBlocker";
+import { KommenszlapfAuthProvider } from "@/lib/kommenszlapfAuth";
 import { AppSettings, COLOR_THEMES, DEFAULT_SETTINGS } from "@/types/settings";
 import { applyColorThemeToDocument } from "@/lib/theme";
 import Index from "./pages/Index";
@@ -87,6 +88,7 @@ const App = () => {
   return (
     <InstanceBlocker>
     <QueryClientProvider client={queryClient}>
+    <KommenszlapfAuthProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -124,6 +126,7 @@ const App = () => {
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
+    </KommenszlapfAuthProvider>
     </QueryClientProvider>
     </InstanceBlocker>
   );

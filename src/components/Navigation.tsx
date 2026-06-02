@@ -13,6 +13,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { SettingsDialog } from "./SettingsDialog";
+import { KommenszlapfAccountButton } from "./KommenszlapfAccountDialog";
 import { AppSettings, DEFAULT_SETTINGS, PageConfig } from "@/types/settings";
 
 export function Navigation() {
@@ -184,6 +185,7 @@ export function Navigation() {
         <Settings className="h-4 w-4 mr-2" />
         Settings
       </Button>
+      <KommenszlapfAccountButton />
     </>
   );
 
