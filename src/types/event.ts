@@ -11,6 +11,7 @@ export interface CalendarEvent {
   recurring?: {
     enabled: boolean;
     intervalDays: number; // Repeat every X days
+    endDate?: string; // Optional ISO date — recurrence stops after this date
   };
   createdAt: string;
   deletedAt?: string; // ISO string - when moved to recently deleted
