@@ -36,6 +36,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
   const [useEndTime, setUseEndTime] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringDays, setRecurringDays] = useState('7');
+  const [recurringEndDate, setRecurringEndDate] = useState('');
   const originalEventRef = useRef<CalendarEvent | null>(null);
 
   useEffect(() => {
@@ -52,6 +53,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       setLocation(event.location || '');
       setIsRecurring(event.recurring?.enabled || false);
       setRecurringDays(event.recurring?.intervalDays?.toString() || '7');
+      setRecurringEndDate(event.recurring?.endDate || '');
       originalEventRef.current = { ...event };
     }
   }, [event]);
@@ -122,7 +124,8 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       location: location.trim() || undefined,
       recurring: isRecurring ? {
         enabled: true,
-        intervalDays: parseInt(recurringDays) || 7
+        intervalDays: parseInt(recurringDays) || 7,
+        endDate: recurringEndDate || undefined,
       } : undefined,
     });
 
@@ -311,6 +314,23 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
                     onChange={(e) => setRecurringDays(e.target.value)}
                     placeholder="7"
                   />
+                  <Label htmlFor="recurringEndDate">End date (optional)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="recurringEndDate"
+                      type="date"
+                      value={recurringEndDate}
+                      onChange={(e) => setRecurringEndDate(e.target.value)}
+                      min={date}
+                      className="flex-1"
+                    />
+                    {recurringEndDate && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => setRecurringEndDate('')}>
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Leave blank to repeat indefinitely</p>
                 </div>
               )}
             </div>
