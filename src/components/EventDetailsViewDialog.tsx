@@ -229,7 +229,10 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit }: EventDetailsVi
                 <Repeat className="h-3 w-3" />
                 Recurring
               </Label>
-              <p className="mt-1">Every {event.recurring.intervalDays} {event.recurring.intervalDays === 1 ? 'day' : 'days'}</p>
+              <p className="mt-1">
+                Every {event.recurring.intervalDays} {event.recurring.intervalDays === 1 ? 'day' : 'days'}
+                {event.recurring.endDate && ` · until ${event.recurring.endDate}`}
+              </p>
             </div>
           )}
 
