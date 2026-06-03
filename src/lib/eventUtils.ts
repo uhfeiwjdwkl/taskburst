@@ -23,12 +23,14 @@ export const eventOccursOnDate = (event: CalendarEvent, targetDate: Date) => {
   const end = safeParseDate(event.endDate) || start;
   const spanDays = Math.max(0, differenceInCalendarDays(end, start));
   const recurringInterval = event.recurring?.enabled ? Math.max(1, event.recurring.intervalDays || 1) : null;
+  const recurringEnd = event.recurring?.enabled ? safeParseDate(event.recurring.endDate) : null;
 
   if (!recurringInterval) {
     return target >= start && target <= end;
   }
 
   if (target < start) return false;
+  if (recurringEnd && target > recurringEnd) return false;
 
   const diffFromStart = differenceInCalendarDays(target, start);
   const occurrenceIndex = Math.floor(diffFromStart / recurringInterval);
@@ -52,6 +54,7 @@ export const getEventDatesForRange = (events: CalendarEvent[], rangeStart: Date,
     const eventEnd = safeParseDate(event.endDate) || eventStart;
     const spanDays = Math.max(0, differenceInCalendarDays(eventEnd, eventStart));
     const recurringInterval = event.recurring?.enabled ? Math.max(1, event.recurring.intervalDays || 1) : null;
+    const recurringEnd = event.recurring?.enabled ? safeParseDate(event.recurring.endDate) : null;
 
     if (!recurringInterval) {
       if (eventEnd < start || eventStart > end) return;
@@ -64,7 +67,8 @@ export const getEventDatesForRange = (events: CalendarEvent[], rangeStart: Date,
       return;
     }
 
-    for (let occurrenceStart = eventStart; occurrenceStart <= end; occurrenceStart = addDays(occurrenceStart, recurringInterval)) {
+    const loopEnd = recurringEnd && recurringEnd < end ? recurringEnd : end;
+    for (let occurrenceStart = eventStart; occurrenceStart <= loopEnd; occurrenceStart = addDays(occurrenceStart, recurringInterval)) {
       const occurrenceEnd = addDays(occurrenceStart, spanDays);
       if (occurrenceEnd < start) continue;
 

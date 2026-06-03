@@ -36,6 +36,7 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
   const [location, setLocation] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringDays, setRecurringDays] = useState('7');
+  const [recurringEndDate, setRecurringEndDate] = useState('');
 
   // Update date when prefilledDate changes
   useEffect(() => {
@@ -78,7 +79,8 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
       location: location.trim() || undefined,
       recurring: isRecurring ? {
         enabled: true,
-        intervalDays: parseInt(recurringDays) || 7
+        intervalDays: parseInt(recurringDays) || 7,
+        endDate: recurringEndDate || undefined,
       } : undefined,
     });
 
@@ -95,6 +97,7 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
     setLocation('');
     setIsRecurring(false);
     setRecurringDays('7');
+    setRecurringEndDate('');
     onClose();
   };
 
@@ -280,6 +283,23 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
                     onChange={(e) => setRecurringDays(e.target.value)}
                     placeholder="7"
                   />
+                  <Label htmlFor="recurringEndDate">End date (optional)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="recurringEndDate"
+                      type="date"
+                      value={recurringEndDate}
+                      onChange={(e) => setRecurringEndDate(e.target.value)}
+                      min={date}
+                      className="flex-1"
+                    />
+                    {recurringEndDate && (
+                      <Button type="button" variant="outline" size="sm" onClick={() => setRecurringEndDate('')}>
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Leave blank to repeat indefinitely</p>
                 </div>
               )}
             </div>

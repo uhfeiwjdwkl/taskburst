@@ -85,23 +85,8 @@ const Index = () => {
         console.error('Failed to parse tasks:', e);
       }
     } else {
-      const sampleTask: Task = {
-        id: '1',
-        name: 'Welcome to TaskBurst! 🎯',
-        description: 'Click the Study button to start a 25-minute work session. Edit this task or add your own!',
-        category: 'Study',
-        importance: 3,
-        estimatedMinutes: 25,
-        spentMinutes: 0,
-        dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        completed: false,
-        createdAt: new Date().toISOString(),
-        progressGridSize: 10,
-        progressGridFilled: 0,
-        order: 0,
-      };
-      setTasks([sampleTask]);
-      localStorage.setItem('tasks', JSON.stringify([sampleTask]));
+      setTasks([]);
+      localStorage.setItem('tasks', JSON.stringify([]));
     }
     setTasksLoaded(true);
   }, []);
