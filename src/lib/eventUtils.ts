@@ -40,6 +40,75 @@ export const eventOccursOnDate = (event: CalendarEvent, targetDate: Date) => {
   return target >= occurrenceStart && target <= occurrenceEnd;
 };
 
+const parseHHMM = (t?: string): number | null => {
+  if (!t) return null;
+  const [h, m] = t.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
+};
+
+/**
+ * Returns the displayed time/duration for a multi-day event on a given target date.
+ * - Single-day events: returns the event's own time/duration.
+ * - Multi-day with start/end times: spans full days, clipped at start/end.
+ * - Multi-day without times: returns null (treat as all-day).
+ */
+export const getEventTimeSpanForDate = (
+  event: CalendarEvent,
+  targetDate: Date
+): { time?: string; duration?: number } => {
+  const start = safeParseDate(event.date);
+  const target = toDateOnly(targetDate);
+  if (!start) return { time: event.time, duration: event.duration };
+
+  const end = safeParseDate(event.endDate);
+  const isMultiDay = !!end && differenceInCalendarDays(end, start) > 0;
+  if (!isMultiDay) return { time: event.time, duration: event.duration };
+
+  // For recurring multi-day events, project the target onto the matching occurrence.
+  const spanDays = differenceInCalendarDays(end!, start);
+  const recurringInterval = event.recurring?.enabled ? Math.max(1, event.recurring.intervalDays || 1) : null;
+  let occStart = start;
+  let occEnd = end!;
+  if (recurringInterval) {
+    const diffFromStart = differenceInCalendarDays(target, start);
+    if (diffFromStart >= 0) {
+      const idx = Math.floor(diffFromStart / recurringInterval);
+      occStart = addDays(start, idx * recurringInterval);
+      occEnd = addDays(occStart, spanDays);
+    }
+  }
+
+  const startMin = parseHHMM(event.time);
+  const endMin = parseHHMM(event.endTime);
+
+  // No times set -> all-day on every day in span
+  if (startMin === null && endMin === null) return {};
+
+  const isStart = target.getTime() === occStart.getTime();
+  const isEnd = target.getTime() === occEnd.getTime();
+
+  if (isStart && isEnd) {
+    if (startMin !== null && endMin !== null) {
+      return { time: event.time, duration: Math.max(1, endMin - startMin) };
+    }
+    return { time: event.time, duration: event.duration };
+  }
+
+  if (isStart) {
+    if (startMin === null) return {};
+    return { time: event.time, duration: Math.max(1, 24 * 60 - startMin) };
+  }
+
+  if (isEnd) {
+    if (endMin === null) return {};
+    return { time: '00:00', duration: Math.max(1, endMin) };
+  }
+
+  // Intermediate day: full 24h block
+  return { time: '00:00', duration: 24 * 60 };
+};
+
 export const getEventDatesForRange = (events: CalendarEvent[], rangeStart: Date, rangeEnd: Date) => {
   const start = toDateOnly(rangeStart);
   const end = toDateOnly(rangeEnd);

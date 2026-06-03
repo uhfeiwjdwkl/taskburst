@@ -6,6 +6,7 @@ import { Timetable, FlexibleEvent } from '@/types/timetable';
 import { cn } from '@/lib/utils';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 import { format, isSameDay, parseISO } from 'date-fns';
+import { eventOccursOnDate, getEventTimeSpanForDate } from '@/lib/eventUtils';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -167,14 +168,14 @@ export const HomeDayCalendar = ({
     // Events for today
     events.forEach(event => {
       try {
-        const eventDate = parseISO(event.date);
-        if (isSameDay(eventDate, displayDate)) {
+        if (eventOccursOnDate(event, displayDate)) {
+          const span = getEventTimeSpanForDate(event, displayDate);
           items.push({
             id: `event-${event.id}`,
             type: 'event',
             title: event.title,
-            time: event.time,
-            duration: event.duration,
+            time: span.time,
+            duration: span.duration,
             data: event,
           });
         }

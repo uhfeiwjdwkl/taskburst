@@ -6,7 +6,7 @@ import { Assessment } from '@/types/assessment';
 import { Timetable, FlexibleEvent, TimetableCell } from '@/types/timetable';
 import { cn } from '@/lib/utils';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
-import { eventOccursOnDate, getEventDatesForRange } from '@/lib/eventUtils';
+import { eventOccursOnDate, getEventDatesForRange, getEventTimeSpanForDate } from '@/lib/eventUtils';
 import { format, isSameDay, parseISO, addDays, subDays } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -187,12 +187,13 @@ export const UniversalDayCalendar = ({
     // Calendar events
     events.forEach(event => {
       if (eventOccursOnDate(event, currentDate)) {
+        const span = getEventTimeSpanForDate(event, currentDate);
         items.push({
           id: `event-${event.id}`,
           type: 'event',
           title: event.title,
-          time: event.time,
-          duration: event.duration,
+          time: span.time,
+          duration: span.duration,
           data: event,
         });
       }
