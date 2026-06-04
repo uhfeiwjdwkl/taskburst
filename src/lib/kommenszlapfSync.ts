@@ -50,7 +50,8 @@ async function flushKey(key: string) {
         );
     }
   } catch (e) {
-    console.error("[kommenszlapf-sync] flush failed", key, e);
+    // Silently swallow — fall back to localStorage-only behaviour.
+    console.warn("[kommenszlapf-sync] flush failed (offline?)", key, e);
   }
 }
 
@@ -99,13 +100,18 @@ function removeItemRaw(key: string) {
 }
 
 export async function pullAllFromCloud(userId: string) {
-  const { data, error } = await (supabase as any)
-    .from("kommenszlapf_user_data")
-    .select("key,value")
-    .eq("user_id", userId)
-    .eq("app", APP_NAME);
-  if (error) throw error;
-  return (data ?? []) as { key: string; value: any }[];
+  try {
+    const { data, error } = await (supabase as any)
+      .from("kommenszlapf_user_data")
+      .select("key,value")
+      .eq("user_id", userId)
+      .eq("app", APP_NAME);
+    if (error) throw error;
+    return (data ?? []) as { key: string; value: any }[];
+  } catch (e) {
+    console.warn("[kommenszlapf-sync] pull failed (offline?)", e);
+    return null as unknown as { key: string; value: any }[]; // signal failure
+  }
 }
 
 export async function pushAllLocalToCloud(userId: string) {
@@ -120,10 +126,14 @@ export async function pushAllLocalToCloud(userId: string) {
     rows.push({ user_id: userId, app: APP_NAME, key: k, value: parsed });
   }
   if (rows.length === 0) return;
-  const { error } = await (supabase as any)
-    .from("kommenszlapf_user_data")
-    .upsert(rows, { onConflict: "user_id,app,key" });
-  if (error) throw error;
+  try {
+    const { error } = await (supabase as any)
+      .from("kommenszlapf_user_data")
+      .upsert(rows, { onConflict: "user_id,app,key" });
+    if (error) throw error;
+  } catch (e) {
+    console.warn("[kommenszlapf-sync] push failed (offline?)", e);
+  }
 }
 
 /**
@@ -136,6 +146,10 @@ export async function activateSync(userId: string) {
   installInterceptors();
 
   const cloudRows = await pullAllFromCloud(userId);
+  if (cloudRows === null) {
+    // Offline / Supabase unreachable — keep local data only.
+    return;
+  }
 
   if (cloudRows.length === 0) {
     // First sign-in on this account: seed cloud with current local data.

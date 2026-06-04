@@ -22,6 +22,8 @@ import RecentlyDeletedUnified from "./pages/RecentlyDeletedUnified";
 import Timetable from "./pages/Timetable";
 import Guide from "./pages/Guide";
 import NotFound from "./pages/NotFound";
+import AuthConfirmed from "./pages/AuthConfirmed";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -122,6 +124,8 @@ const App = () => {
             <Route path="/recently-deleted" element={<RecentlyDeletedUnified />} />
             <Route path="/timetable" element={<Timetable />} />
             <Route path="/guide" element={<Guide />} />
+            <Route path="/auth/confirmed" element={<AuthConfirmed />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

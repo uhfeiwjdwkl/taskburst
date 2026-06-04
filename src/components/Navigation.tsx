@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Home, Calendar, FolderOpen, History as HistoryIcon, Table, Archive, Clock, List, Briefcase, Settings, Award, Menu, ChevronDown } from "lucide-react";
+import { Home, Calendar, FolderOpen, History as HistoryIcon, Table, Archive, Clock, List, Briefcase, Settings, Award, Menu, ChevronDown, RefreshCw } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   DropdownMenu,
@@ -13,7 +13,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { SettingsDialog } from "./SettingsDialog";
-import { KommenszlapfAccountButton } from "./KommenszlapfAccountDialog";
+import { KommenszlapfAccountButton, KommenszlapfAccountMenuItem } from "./KommenszlapfAccountDialog";
 import { AppSettings, DEFAULT_SETTINGS, PageConfig } from "@/types/settings";
 
 export function Navigation() {
@@ -203,6 +203,15 @@ export function Navigation() {
                 >
                   TaskBurst
                 </Button>
+                <button
+                  type="button"
+                  onClick={() => { (window.location as any).reload(true); }}
+                  title="Refresh app"
+                  aria-label="Refresh app"
+                  className="absolute -right-1 top-1/2 -translate-y-1/2 p-1 rounded-full bg-muted border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all hover:bg-accent"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                </button>
                 <div className="absolute left-0 top-full mt-1 bg-popover rounded-md shadow-lg border border-border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[200px]">
                   <a
                     href="https://kommenszlapf.website"
@@ -309,6 +318,10 @@ export function Navigation() {
                       <Settings className="h-4 w-4 mr-2" />
                       Settings
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <KommenszlapfAccountMenuItem />
+                    </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -336,6 +349,10 @@ export function Navigation() {
                     <Settings className="h-4 w-4 mr-2" />
                     Settings
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <KommenszlapfAccountMenuItem />
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
