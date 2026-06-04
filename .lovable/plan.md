@@ -1,65 +1,65 @@
-This is a large multi-area change set. Below is the plan grouped by area, files to touch, and implementation approach. No type definitions, the universal day calendar, main calendar page, or timetable page will be modified.
+# Plan
 
-## 1. Date pickers beside inputs (Add dialogs)
+A large request — grouping into focused units. I'll confirm scope before building.
 
-**Files:** `AddTaskDialog.tsx`, `AddEventDialog.tsx`, `AddAssessmentDialog.tsx`, `AddListDialog.tsx`, `AddProjectDialog.tsx`
+## 1. Auth UX (KommenszlapfAccountDialog + Navigation)
+- Move the account button into the mobile dropdown nav (kept inline on desktop).
+- **Sign in form**
+  - Single "Email or username" field + password.
+  - Sign-in resolves username → email via a public lookup edge function (cannot query auth.users from client).
+  - Persistent session (Supabase default JWT + refresh = up to ~1 year; explicit `persistSession: true`).
+  - "Show password" eye toggle on every password field.
+  - "Forgot password" link → sends `resetPasswordForEmail` with `redirectTo` of new `/reset-password` page.
+  - Warning banner: "Signing in will replace all current local data with your account data."
+- **Sign up form**
+  - Username + email + password + confirm password.
+  - Inline notice: "Check your email to confirm your account before signing in."
+  - Toast on submit reiterating it.
 
-For every `<Input type="date">` / `datetime-local`:
-- Wrap in a flex row with the input on the left and a `Popover` trigger `Button` (CalendarIcon) directly beside it.
-- Popover content uses the shadcn `Calendar` component (same as main Calendar page) with `mode="single"` and `pointer-events-auto`.
-- Selecting a date writes back to the same state setter used by the input (preserves any time portion for datetime-local fields). No validation logic changes.
+## 2. Email confirmation landing page
+- New route `/auth/confirmed` with a simple "Email confirmed" card and a "Return to TaskBurst" button → `/`.
+- Update Supabase signup `emailRedirectTo` and reset-password `redirectTo` to point at TaskBurst routes (`/auth/confirmed`, `/reset-password`).
+- Note: the URL the email actually sends to is also controlled by the Supabase "Site URL" / redirect allow-list in the dashboard. I'll update redirect params in code; the user will need to add these URLs to the Supabase auth redirect allow-list (I'll surface the link).
 
-## 2. Today highlight + current-time line in timetables
+## 3. Reset password page
+- New `/reset-password` route. Reads recovery session, lets user set new password, redirects to `/` on success.
 
-**Files:** `TimetableGrid.tsx` (rigid), `FlexibleTimetableGrid.tsx`
+## 4. Settings additions
+- **Account section** (when signed in):
+  - Export account data (downloads JSON of every `kommenszlapf_user_data` row + profile).
+  - Change username (requires password twice).
+  - Change email (requires password twice, triggers Supabase email change confirmation).
+  - Delete account (requires password twice) → edge function deletes auth user + rows.
+- **Data section**:
+  - "Delete all data" button — if a PIN or account password exists, requires double entry of that credential; otherwise a plain confirm.
 
-- Compute `todayIndex` = column whose dayOfWeek matches `new Date().getDay()`. For fortnightly timetables, only highlight if the column's actual calendar date equals today (use timetable start date + week offset).
-- Apply `bg-primary/15` (semantic token) to that column's container.
-- Overlay a red horizontal line (`absolute left-0 right-0 h-px bg-red-500`) at `top: ((nowMinutes - startMinutes) / totalMinutes) * gridHeightPx`. Update via `setInterval` every 60s in a `useEffect`.
+## 5. Resilience
+- Wrap all Supabase reads/writes in `kommenszlapfSync` and `kommenszlapfAuth` with try/catch; on network failure, silently fall back to localStorage (already partly true, will harden).
+- Never throw or trigger a reload on Supabase outage.
 
-## 3. Navigation: analogue clock + pills
+## 6. Unverified-account cleanup
+- Daily pg_cron job that deletes `auth.users` rows where `email_confirmed_at IS NULL AND created_at < now() - interval '24 hours'`.
+- Cascading deletes via existing FK already remove `kommenszlapf_profiles` rows.
 
-**Files:** `Navigation.tsx`, `types/settings.ts` is read-only per instruction — instead extend the runtime settings via `useAppSettings` hook (add `showAnalogueClock` with default false, persisted in localStorage) without touching the type file (use optional chaining / loose typing).
+## 7. Calendar archive + recently deleted
+- Add `archivedAt` to `CalendarEvent` and surface:
+  - Archive action in event details dialog.
+  - New `RecentlyDeletedEvents` and `ArchivedEvents` sections inside the existing `RecentlyDeletedUnified` page (events were not yet wired in).
+- Homepage button to open the new sections.
 
-- Mini SVG analogue clock (~28px): three rotated `<line>` hands. `useEffect` with `setInterval(..., 1000)` updates a `now` state; angles computed inline.
-- Visibility gated on `settings.showAnalogueClock`. `SettingsDialog.tsx` gets a `Switch` to toggle.
-- Two pills in top bar (right side):
-  - **Active session pill**: reads existing active session state (from localStorage `activeSession` or context already used by `Timer`). Shows session task/subtask name. Click → `Popover` listing the active task + linked subtasks.
-  - **Remaining today pill**: counts tasks (not completed, dueDate == today) + events (today, end > now). Click → `Popover` listing them.
-- All data sourced from already-loaded localStorage keys; no new fetches beyond reads of existing keys at mount + a window event listener for updates.
+## 8. Event ↔ Task linking
+- Add `linkedTaskId?: string` to `CalendarEvent` and `linkedEventIds?: string[]` to `Task`.
+- Event details dialog: "Link to task" picker; shows linked task with unlink button.
+- Task details dialog: "Linked events" list with unlink.
+- Linked events render under the task in `Index.tsx` like a pseudo-subtask row (read-only, click opens event).
 
-## 4. Homepage day calendar (`HomeDayCalendar.tsx` only)
-
-- **(1) Auto-center current time on mount/date change**: `useEffect([displayDate])` sets `scrollRef.current.scrollTop = currentTimeY - containerHeight/2`.
-- **(2) Prev/Next day buttons**: local `displayDate` state (default today). `<` / `>` buttons in header. All filtering uses `displayDate` instead of `new Date()`.
-- **(3) Normal/Pan/Zoom toggle**: `ToggleGroup` with three items.
-  - Pan: pointer-down → track deltaY → `scrollTop -= dy`.
-  - Zoom: wheel handler adjusts `zoomLevel` (vertical) or `hZoom` if shiftKey; applied via inline `style={{ height: hourPx * zoomLevel }}` on hour rows and a wrapper width scale.
-  - Normal: no overrides.
-
-## 5. List reorder (`EditListDialog.tsx`)
-
-- Remove up/down arrow buttons.
-- Add `GripVertical` drag handle per row; implement HTML5 drag-and-drop (`draggable`, `onDragStart`, `onDragOver`, `onDrop`) reordering items in local state, persist to existing `order` field on drop. Mirrors task reordering pattern.
-
-## 6. Timer fixes (`Timer.tsx`)
-
-- **(5) Cancel during end-session popup must save**: in the end-session dialog's Cancel/X handlers, call the same `saveSessionToHistory()` used by the confirm path before closing, instead of discarding.
-- **(7) Auto-end at estimated time**: track elapsed vs `task.estimatedMinutes`. When reached, `setIsPaused(true)` and open a "Do you need more time?" `AlertDialog` with an input for additional minutes + "Add" and "Finish" buttons. "Add" extends estimated time and resumes; "Finish" runs normal end flow.
-
-## 7. Now-happening card (`CurrentEventDisplay.tsx` / `CurrentScheduledTask.tsx` / `TimetableCurrentBlock.tsx`)
-
-- Identify the component rendering the current card on the homepage (likely `CurrentScheduledTask.tsx`).
-- Reinstate a tick-to-complete `Button` on subtask rows wired to existing subtask completion handler.
-- Compute concurrent items: filter all loaded events/tasks/subtasks where `start <= now < end`. Render each in the card, not just the first.
+## 9. Refresh button on TaskBurst icon
+- On the navigation logo, show a small refresh icon on hover that calls `window.location.reload()`.
 
 ## Technical notes
+- New edge functions: `lookup-email-by-username` (public), `delete-account` (auth-required). Both use service role internally.
+- New migration: pg_cron job for unverified cleanup (requires `pg_cron` + `pg_net` — enable if missing).
+- Files touched (approx.): `Navigation.tsx`, `KommenszlapfAccountDialog.tsx`, `kommenszlapfAuth.tsx`, `kommenszlapfSync.ts`, `SettingsDialog.tsx`, `App.tsx`, new `pages/AuthConfirmed.tsx`, new `pages/ResetPassword.tsx`, `RecentlyDeletedUnified.tsx`, `Index.tsx`, `TaskDetailsDialog.tsx`, `EventDetailsViewDialog.tsx`, event/task types.
 
-- All colors via semantic tokens (`bg-primary/15`, `text-destructive`/red used only for the time line where literal red is required by spec — using `bg-red-500` per the spec's "red horizontal line").
-- Settings persistence reuses existing `useAppSettings` hook; the `showAnalogueClock` field will be read with a fallback default and written via the existing setter, treating settings as `Record<string, any>` to avoid editing the type file.
-- Drag reorder uses native HTML5 DnD (no new deps).
-- Runtime error `JSON.parse(...).filter is not a function` will be fixed opportunistically with `Array.isArray` guards in any file touched by this work.
-
-## Out of scope (not modified)
-
-- `UniversalDayCalendar.tsx`, `pages/Calendar.tsx`, `pages/Timetable.tsx`, all files in `src/types/`.
+## Question before building
+This is ~15 features. Want me to ship it all in one pass, or split into batches (e.g. auth first, then settings, then calendar/linking)? One pass is faster but means a single huge diff.
