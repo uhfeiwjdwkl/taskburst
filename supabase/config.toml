@@ -1,1 +1,7 @@
 project_id = "zgbodpdoflhephyyzhex"
+
+[functions.lookup-email-by-username]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false
