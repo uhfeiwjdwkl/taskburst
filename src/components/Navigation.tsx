@@ -319,7 +319,7 @@ export function Navigation() {
                       Settings
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <div onClick={(e) => e.stopPropagation()} onSelect={(e: any) => e.preventDefault?.()}>
+                    <div onClick={(e) => e.stopPropagation()}>
                       <KommenszlapfAccountMenuItem />
                     </div>
                   </DropdownMenuContent>
