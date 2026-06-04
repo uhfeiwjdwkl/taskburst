@@ -11,7 +11,9 @@ type AuthCtx = {
   profile: Profile;
   loading: boolean;
   signUp: (args: { username: string; email: string; password: string }) => Promise<void>;
-  signIn: (args: { email: string; password: string }) => Promise<void>;
+  signIn: (args: { identifier: string; password: string }) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -44,7 +46,7 @@ export function KommenszlapfAuthProvider({ children }: { children: React.ReactNo
               .maybeSingle();
             setProfile(data ?? null);
           } catch (e) {
-            console.error("[kommenszlapf-auth] activate failed", e);
+            console.warn("[kommenszlapf-auth] activate failed (offline?)", e);
           }
         }, 0);
       } else if (!uid && activeId) {
@@ -54,17 +56,19 @@ export function KommenszlapfAuthProvider({ children }: { children: React.ReactNo
       }
     });
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
+      })
+      .catch((e) => console.warn("[kommenszlapf-auth] getSession failed", e))
+      .finally(() => setLoading(false));
 
     return () => sub.subscription.unsubscribe();
   }, []);
 
   const signUp: AuthCtx["signUp"] = async ({ username, email, password }) => {
-    const redirectTo = `${window.location.origin}/`;
+    const redirectTo = `${window.location.origin}/auth/confirmed`;
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -73,17 +77,53 @@ export function KommenszlapfAuthProvider({ children }: { children: React.ReactNo
     if (error) throw error;
   };
 
-  const signIn: AuthCtx["signIn"] = async ({ email, password }) => {
+  const signIn: AuthCtx["signIn"] = async ({ identifier, password }) => {
+    let email = identifier.trim();
+    // If it doesn't look like an email, treat as username and resolve.
+    if (!email.includes("@")) {
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "lookup-email-by-username",
+          { body: { username: email } },
+        );
+        if (error) throw error;
+        if (!data?.email) throw new Error("No account found for that username");
+        email = data.email as string;
+      } catch (e: any) {
+        throw new Error(e?.message ?? "Could not resolve username");
+      }
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
   };
 
+  const resetPassword: AuthCtx["resetPassword"] = async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) throw error;
+  };
+
+  const refreshProfile: AuthCtx["refreshProfile"] = async () => {
+    if (!user) return;
+    try {
+      const { data } = await (supabase as any)
+        .from("kommenszlapf_profiles")
+        .select("username,email")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setProfile(data ?? null);
+    } catch (e) {
+      console.warn("[kommenszlapf-auth] refreshProfile failed", e);
+    }
+  };
+
   const signOut: AuthCtx["signOut"] = async () => {
-    await supabase.auth.signOut();
+    try { await supabase.auth.signOut(); } catch (e) { console.warn(e); }
   };
 
   return (
-    <Ctx.Provider value={{ user, session, profile, loading, signUp, signIn, signOut }}>
+    <Ctx.Provider value={{ user, session, profile, loading, signUp, signIn, signOut, resetPassword, refreshProfile }}>
       {children}
     </Ctx.Provider>
   );
