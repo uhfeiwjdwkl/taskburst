@@ -33,6 +33,8 @@ import { ListDetailsDialog } from '@/components/ListDetailsDialog';
 import { DayTimetableView } from '@/components/DayTimetableView';
 import { SubtaskFullDetailsDialog } from '@/components/SubtaskFullDetailsDialog';
 import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
+import { EditEventDialog } from '@/components/EditEventDialog';
+import { SubtaskDialog } from '@/components/SubtaskDialog';
 import { FlexibleEventDetailsDialog } from '@/components/FlexibleEventDetailsDialog';
 import { AssessmentDetailsDialog } from '@/components/AssessmentDetailsDialog';
 import type { Assessment } from '@/types/assessment';
@@ -58,6 +60,8 @@ const Index = () => {
   const [subtaskDetailsOpen, setSubtaskDetailsOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+  const [eventEditOpen, setEventEditOpen] = useState(false);
+  const [subtaskEditOpen, setSubtaskEditOpen] = useState(false);
   const [selectedTimetableEvent, setSelectedTimetableEvent] = useState<FlexibleEvent | null>(null);
   const [timetableEventDetailsOpen, setTimetableEventDetailsOpen] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
@@ -160,9 +164,13 @@ const Index = () => {
       ...newTask,
       id: Date.now().toString(),
       createdAt: new Date().toISOString(),
-      order: tasks.length,
+      // Insert at the top: bump every existing order up by 1, new task gets 0
+      order: 0,
     };
-    setTasks([task, ...tasks]);
+    setTasks([
+      task,
+      ...tasks.map((t) => ({ ...t, order: (t.order ?? 0) + 1 })),
+    ]);
     toast.success('Task added successfully!');
   };
 
