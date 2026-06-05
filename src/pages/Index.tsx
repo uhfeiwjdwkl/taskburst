@@ -784,7 +784,47 @@ const Index = () => {
             setEventDetailsOpen(false);
             setSelectedEvent(null);
           }}
+          onEdit={() => {
+            setEventDetailsOpen(false);
+            setEventEditOpen(true);
+          }}
         />
+        <EditEventDialog
+          event={selectedEvent}
+          open={eventEditOpen}
+          onClose={() => setEventEditOpen(false)}
+          onSave={(updated) => {
+            try {
+              const raw = localStorage.getItem('calendarEvents');
+              const all = raw ? JSON.parse(raw) : [];
+              const arr = Array.isArray(all) ? all : [];
+              const next = arr.map((e: CalendarEvent) => e.id === updated.id ? updated : e);
+              localStorage.setItem('calendarEvents', JSON.stringify(next));
+              setSelectedEvent(updated);
+              toast.success('Event updated');
+            } catch (e) {
+              toast.error('Failed to save event');
+            }
+            setEventEditOpen(false);
+          }}
+        />
+        {selectedSubtask && (
+          <SubtaskDialog
+            subtask={selectedSubtask.subtask}
+            open={subtaskEditOpen}
+            onClose={() => setSubtaskEditOpen(false)}
+            taskId={selectedSubtask.task.id}
+            onSave={(updatedSubtask) => {
+              const updatedSubtasks = (selectedSubtask.task.subtasks || []).map((s) =>
+                s.id === updatedSubtask.id ? updatedSubtask : s,
+              );
+              const updatedTask = { ...selectedSubtask.task, subtasks: updatedSubtasks };
+              handleUpdateTask(updatedTask);
+              setSelectedSubtask({ subtask: updatedSubtask, task: updatedTask });
+              setSubtaskEditOpen(false);
+            }}
+          />
+        )}
         <FlexibleEventDetailsDialog
           event={selectedTimetableEvent}
           open={timetableEventDetailsOpen}
