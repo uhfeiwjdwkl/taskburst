@@ -33,6 +33,8 @@ import { ListDetailsDialog } from '@/components/ListDetailsDialog';
 import { DayTimetableView } from '@/components/DayTimetableView';
 import { SubtaskFullDetailsDialog } from '@/components/SubtaskFullDetailsDialog';
 import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
+import { EditEventDialog } from '@/components/EditEventDialog';
+import { SubtaskDialog } from '@/components/SubtaskDialog';
 import { FlexibleEventDetailsDialog } from '@/components/FlexibleEventDetailsDialog';
 import { AssessmentDetailsDialog } from '@/components/AssessmentDetailsDialog';
 import type { Assessment } from '@/types/assessment';
@@ -58,6 +60,8 @@ const Index = () => {
   const [subtaskDetailsOpen, setSubtaskDetailsOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [eventDetailsOpen, setEventDetailsOpen] = useState(false);
+  const [eventEditOpen, setEventEditOpen] = useState(false);
+  const [subtaskEditOpen, setSubtaskEditOpen] = useState(false);
   const [selectedTimetableEvent, setSelectedTimetableEvent] = useState<FlexibleEvent | null>(null);
   const [timetableEventDetailsOpen, setTimetableEventDetailsOpen] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
@@ -160,9 +164,13 @@ const Index = () => {
       ...newTask,
       id: Date.now().toString(),
       createdAt: new Date().toISOString(),
-      order: tasks.length,
+      // Insert at the top: bump every existing order up by 1, new task gets 0
+      order: 0,
     };
-    setTasks([task, ...tasks]);
+    setTasks([
+      task,
+      ...tasks.map((t) => ({ ...t, order: (t.order ?? 0) + 1 })),
+    ]);
     toast.success('Task added successfully!');
   };
 
@@ -744,25 +752,55 @@ const Index = () => {
               setSelectedSubtask(null);
             }}
             onEdit={() => {
-              setSelectedTask(selectedSubtask.task);
-              setEditDialogOpen(true);
+              // Open the specific subtask's edit dialog, NOT the parent task editor
               setSubtaskDetailsOpen(false);
+              setSubtaskEditOpen(true);
             }}
             onComplete={() => {
-              const updatedSubtasks = (selectedSubtask.task.subtasks || []).map(s =>
-                s.id === selectedSubtask.subtask.id ? { ...s, completed: true } : s
+              const subtask = selectedSubtask.subtask;
+              const task = selectedSubtask.task;
+              let progressGridFilled = task.progressGridFilled;
+              if (subtask.linkedToProgressGrid && !subtask.completed) {
+                progressGridFilled = Math.min(task.progressGridSize, (task.progressGridFilled || 0) + 1);
+                try {
+                  const stored = localStorage.getItem('progressGridFilledIndices');
+                  const data = stored ? JSON.parse(stored) : {};
+                  const arr: number[] = Array.isArray(data[task.id]) ? data[task.id] : [];
+                  if (subtask.progressGridIndex !== undefined && !arr.includes(subtask.progressGridIndex)) {
+                    arr.push(subtask.progressGridIndex);
+                    arr.sort((a, b) => a - b);
+                  }
+                  data[task.id] = arr;
+                  localStorage.setItem('progressGridFilledIndices', JSON.stringify(data));
+                } catch { /* ignore */ }
+              }
+              const updatedSubtasks = (task.subtasks || []).map(s =>
+                s.id === subtask.id ? { ...s, completed: true } : s
               );
-              const updatedTask = { ...selectedSubtask.task, subtasks: updatedSubtasks };
+              const updatedTask = { ...task, progressGridFilled, subtasks: updatedSubtasks };
               handleUpdateTask(updatedTask);
               setSubtaskDetailsOpen(false);
               setSelectedSubtask(null);
               toast.success('Subtask completed!');
             }}
             onUncomplete={() => {
-              const updatedSubtasks = (selectedSubtask.task.subtasks || []).map(s =>
-                s.id === selectedSubtask.subtask.id ? { ...s, completed: false } : s
+              const subtask = selectedSubtask.subtask;
+              const task = selectedSubtask.task;
+              let progressGridFilled = task.progressGridFilled;
+              if (subtask.linkedToProgressGrid && subtask.completed) {
+                progressGridFilled = Math.max(0, (task.progressGridFilled || 0) - 1);
+                try {
+                  const stored = localStorage.getItem('progressGridFilledIndices');
+                  const data = stored ? JSON.parse(stored) : {};
+                  const arr: number[] = Array.isArray(data[task.id]) ? data[task.id] : [];
+                  data[task.id] = arr.filter((i) => i !== subtask.progressGridIndex);
+                  localStorage.setItem('progressGridFilledIndices', JSON.stringify(data));
+                } catch { /* ignore */ }
+              }
+              const updatedSubtasks = (task.subtasks || []).map(s =>
+                s.id === subtask.id ? { ...s, completed: false } : s
               );
-              const updatedTask = { ...selectedSubtask.task, subtasks: updatedSubtasks };
+              const updatedTask = { ...task, progressGridFilled, subtasks: updatedSubtasks };
               handleUpdateTask(updatedTask);
               setSubtaskDetailsOpen(false);
               setSelectedSubtask(null);
@@ -776,7 +814,47 @@ const Index = () => {
             setEventDetailsOpen(false);
             setSelectedEvent(null);
           }}
+          onEdit={() => {
+            setEventDetailsOpen(false);
+            setEventEditOpen(true);
+          }}
         />
+        <EditEventDialog
+          event={selectedEvent}
+          open={eventEditOpen}
+          onClose={() => setEventEditOpen(false)}
+          onSave={(updated) => {
+            try {
+              const raw = localStorage.getItem('calendarEvents');
+              const all = raw ? JSON.parse(raw) : [];
+              const arr = Array.isArray(all) ? all : [];
+              const next = arr.map((e: CalendarEvent) => e.id === updated.id ? updated : e);
+              localStorage.setItem('calendarEvents', JSON.stringify(next));
+              setSelectedEvent(updated);
+              toast.success('Event updated');
+            } catch (e) {
+              toast.error('Failed to save event');
+            }
+            setEventEditOpen(false);
+          }}
+        />
+        {selectedSubtask && (
+          <SubtaskDialog
+            subtask={selectedSubtask.subtask}
+            open={subtaskEditOpen}
+            onClose={() => setSubtaskEditOpen(false)}
+            taskId={selectedSubtask.task.id}
+            onSave={(updatedSubtask) => {
+              const updatedSubtasks = (selectedSubtask.task.subtasks || []).map((s) =>
+                s.id === updatedSubtask.id ? updatedSubtask : s,
+              );
+              const updatedTask = { ...selectedSubtask.task, subtasks: updatedSubtasks };
+              handleUpdateTask(updatedTask);
+              setSelectedSubtask({ subtask: updatedSubtask, task: updatedTask });
+              setSubtaskEditOpen(false);
+            }}
+          />
+        )}
         <FlexibleEventDetailsDialog
           event={selectedTimetableEvent}
           open={timetableEventDetailsOpen}

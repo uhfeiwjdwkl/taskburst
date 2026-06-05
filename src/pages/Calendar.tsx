@@ -117,8 +117,12 @@ const CalendarPage = () => {
       ...newTask,
       id: Date.now().toString(),
       createdAt: new Date().toISOString(),
+      order: 0,
     };
-    setTasks([task, ...tasks]);
+    setTasks([
+      task,
+      ...tasks.map((t) => ({ ...t, order: (t.order ?? 0) + 1 })),
+    ]);
     toast.success('Task added successfully!');
   };
 
