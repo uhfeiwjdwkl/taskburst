@@ -34,6 +34,8 @@ import { ProgressGridBox } from './ProgressGridShape';
 import { ColorPickerGrid } from './ColorPickerGrid';
 import { IconGrid } from './IconGrid';
 import { hashPin } from '@/lib/pin';
+import { verifyPin } from '@/lib/pin';
+import { clearAllAppData } from '@/lib/exportImport';
 import { applyColorThemeToDocument } from '@/lib/theme';
 
 interface SettingsDialogProps {
@@ -45,6 +47,29 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
+  const [wipeOpen, setWipeOpen] = useState(false);
+  const [wipePin1, setWipePin1] = useState('');
+  const [wipePin2, setWipePin2] = useState('');
+  const [wipeBusy, setWipeBusy] = useState(false);
+
+  const handleDeleteAllData = async () => {
+    setWipeBusy(true);
+    try {
+      if (settings.pinProtection && settings.pinHash) {
+        if (!wipePin1 || wipePin1 !== wipePin2) {
+          toast.error('Enter your PIN twice and ensure they match');
+          return;
+        }
+        const ok = await verifyPin(wipePin1, settings.pinHash);
+        if (!ok) { toast.error('Incorrect PIN'); return; }
+      }
+      clearAllAppData();
+      toast.success('All data deleted');
+      setWipeOpen(false); setWipePin1(''); setWipePin2('');
+      onClose();
+      setTimeout(() => window.location.reload(), 400);
+    } finally { setWipeBusy(false); }
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem('appSettings');

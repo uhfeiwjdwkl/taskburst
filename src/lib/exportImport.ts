@@ -97,6 +97,22 @@ export const exportAllData = async () => {
   URL.revokeObjectURL(url);
 };
 
+/**
+ * Wipe every TaskBurst-owned localStorage key (tasks, events, categories,
+ * settings, etc.). Does NOT sign the user out and does NOT touch sb-* keys.
+ */
+export const clearAllAppData = () => {
+  ALL_STORAGE_KEYS.forEach((key) => {
+    try { localStorage.removeItem(key); } catch { /* ignore */ }
+  });
+  // Also clear extras that aren't in the canonical export list.
+  ['activeTaskId', 'taskCategories', 'calendarSelectedTimetableId'].forEach((k) => {
+    try { localStorage.removeItem(k); } catch { /* ignore */ }
+  });
+  window.dispatchEvent(new Event('storage'));
+  window.dispatchEvent(new Event('appSettingsUpdated'));
+};
+
 export const importAllData = async (file: File, merge = true): Promise<void> => {
   const zip = await JSZip.loadAsync(file);
   
