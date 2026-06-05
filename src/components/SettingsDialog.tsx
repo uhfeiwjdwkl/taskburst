@@ -821,6 +821,43 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
               </div>
             </div>
 
+            {/* Danger zone — wipe all local app data */}
+            <div className="space-y-3 border border-destructive/40 rounded-md p-4">
+              <h3 className="text-lg font-semibold text-destructive">Delete All Data</h3>
+              <p className="text-xs text-muted-foreground">
+                Permanently removes all tasks, events, lists, projects, timetables,
+                categories, sessions and settings stored on this device. Account
+                sign-in is not affected. If signed in, the deletion will also
+                propagate to your synced account data.
+              </p>
+              {!wipeOpen ? (
+                <Button variant="destructive" size="sm" onClick={() => setWipeOpen(true)}>
+                  <X className="h-4 w-4 mr-2" /> Delete all data
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  {settings.pinProtection && settings.pinHash ? (
+                    <>
+                      <Label>Enter PIN to confirm</Label>
+                      <Input type="password" value={wipePin1} onChange={(e) => setWipePin1(e.target.value)} />
+                      <Label>Re-enter PIN</Label>
+                      <Input type="password" value={wipePin2} onChange={(e) => setWipePin2(e.target.value)} />
+                    </>
+                  ) : (
+                    <p className="text-xs">This cannot be undone. Are you sure?</p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => { setWipeOpen(false); setWipePin1(''); setWipePin2(''); }} disabled={wipeBusy}>
+                      Cancel
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={handleDeleteAllData} disabled={wipeBusy}>
+                      Confirm delete
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={onClose}>
                 Cancel
