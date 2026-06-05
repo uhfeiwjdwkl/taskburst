@@ -81,14 +81,38 @@ const Index = () => {
           order: task.order ?? index,
         }));
         setTasks(migratedTasks);
+        setTasksLoaded(true);
       } catch (e) {
         console.error('Failed to parse tasks:', e);
+        // Do NOT mark loaded — refusing to save protects existing storage
+        // from being clobbered with [] when a sync race produced bad data.
       }
     } else {
       setTasks([]);
       localStorage.setItem('tasks', JSON.stringify([]));
+      setTasksLoaded(true);
     }
-    setTasksLoaded(true);
+  }, []);
+
+  // Re-load tasks when sync pulls new cloud values into localStorage.
+  useEffect(() => {
+    const reload = () => {
+      const savedTasks = localStorage.getItem('tasks');
+      if (!savedTasks) return;
+      try {
+        const parsed = JSON.parse(savedTasks);
+        if (!Array.isArray(parsed)) return;
+        setTasks(parsed.map((task: Task, index: number) => ({
+          ...task,
+          progressGridSize: task.progressGridSize ?? 10,
+          progressGridFilled: task.progressGridFilled ?? 0,
+          order: task.order ?? index,
+        })));
+        setTasksLoaded(true);
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('storage', reload);
+    return () => window.removeEventListener('storage', reload);
   }, []);
 
   // Load favorite timetables
