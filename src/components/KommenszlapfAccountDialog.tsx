@@ -9,6 +9,7 @@ import { useKommenszlapfAuth } from "@/lib/kommenszlapfAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Eye, EyeOff, AlertTriangle, Download, Trash2, UserCog } from "lucide-react";
+import { exportAllData } from "@/lib/exportImport";
 
 function PasswordInput({
   id, value, onChange, required, minLength, placeholder,
@@ -153,25 +154,9 @@ export function KommenszlapfAccountDialog({
     if (!user) return;
     setBusy(true);
     try {
-      const { data, error } = await (supabase as any)
-        .from("kommenszlapf_user_data")
-        .select("app,key,value,updated_at")
-        .eq("user_id", user.id);
-      if (error) throw error;
-      const payload = {
-        exportedAt: new Date().toISOString(),
-        profile: profile ?? null,
-        userId: user.id,
-        email: user.email,
-        data: data ?? [],
-      };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `kommenszlapf-account-${new Date().toISOString().split("T")[0]}.json`;
-      document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
+      // Use the same export-all-data pipeline as the local "Export All" button
+      // so account exports and local exports are identical zips.
+      await exportAllData();
       toast.success("Account data exported");
     } catch (e: any) {
       toast.error(e?.message ?? "Export failed");
