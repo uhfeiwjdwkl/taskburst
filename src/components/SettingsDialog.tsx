@@ -34,6 +34,8 @@ import { ProgressGridBox } from './ProgressGridShape';
 import { ColorPickerGrid } from './ColorPickerGrid';
 import { IconGrid } from './IconGrid';
 import { hashPin } from '@/lib/pin';
+import { verifyPin } from '@/lib/pin';
+import { clearAllAppData } from '@/lib/exportImport';
 import { applyColorThemeToDocument } from '@/lib/theme';
 
 interface SettingsDialogProps {
@@ -45,6 +47,29 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
+  const [wipeOpen, setWipeOpen] = useState(false);
+  const [wipePin1, setWipePin1] = useState('');
+  const [wipePin2, setWipePin2] = useState('');
+  const [wipeBusy, setWipeBusy] = useState(false);
+
+  const handleDeleteAllData = async () => {
+    setWipeBusy(true);
+    try {
+      if (settings.pinProtection && settings.pinHash) {
+        if (!wipePin1 || wipePin1 !== wipePin2) {
+          toast.error('Enter your PIN twice and ensure they match');
+          return;
+        }
+        const ok = await verifyPin(wipePin1, settings.pinHash);
+        if (!ok) { toast.error('Incorrect PIN'); return; }
+      }
+      clearAllAppData();
+      toast.success('All data deleted');
+      setWipeOpen(false); setWipePin1(''); setWipePin2('');
+      onClose();
+      setTimeout(() => window.location.reload(), 400);
+    } finally { setWipeBusy(false); }
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem('appSettings');
@@ -794,6 +819,43 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   Import Settings
                 </Button>
               </div>
+            </div>
+
+            {/* Danger zone — wipe all local app data */}
+            <div className="space-y-3 border border-destructive/40 rounded-md p-4">
+              <h3 className="text-lg font-semibold text-destructive">Delete All Data</h3>
+              <p className="text-xs text-muted-foreground">
+                Permanently removes all tasks, events, lists, projects, timetables,
+                categories, sessions and settings stored on this device. Account
+                sign-in is not affected. If signed in, the deletion will also
+                propagate to your synced account data.
+              </p>
+              {!wipeOpen ? (
+                <Button variant="destructive" size="sm" onClick={() => setWipeOpen(true)}>
+                  <X className="h-4 w-4 mr-2" /> Delete all data
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  {settings.pinProtection && settings.pinHash ? (
+                    <>
+                      <Label>Enter PIN to confirm</Label>
+                      <Input type="password" value={wipePin1} onChange={(e) => setWipePin1(e.target.value)} />
+                      <Label>Re-enter PIN</Label>
+                      <Input type="password" value={wipePin2} onChange={(e) => setWipePin2(e.target.value)} />
+                    </>
+                  ) : (
+                    <p className="text-xs">This cannot be undone. Are you sure?</p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => { setWipeOpen(false); setWipePin1(''); setWipePin2(''); }} disabled={wipeBusy}>
+                      Cancel
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={handleDeleteAllData} disabled={wipeBusy}>
+                      Confirm delete
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 pt-4">

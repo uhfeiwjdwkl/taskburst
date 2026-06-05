@@ -60,8 +60,25 @@ export const CurrentScheduledTask = ({ tasks, onUpdateTask }: CurrentScheduledTa
   const handleComplete = (task: Task, subtask?: Subtask) => {
     if (!onUpdateTask) return;
     if (subtask) {
-      const updated = {
+      // If linked to progress grid, bump filled count and persist filled index.
+      let progressGridFilled = task.progressGridFilled;
+      if (subtask.linkedToProgressGrid && !subtask.completed) {
+        progressGridFilled = Math.min(task.progressGridSize, (task.progressGridFilled || 0) + 1);
+        try {
+          const stored = localStorage.getItem('progressGridFilledIndices');
+          const data = stored ? JSON.parse(stored) : {};
+          const arr: number[] = Array.isArray(data[task.id]) ? data[task.id] : [];
+          if (subtask.progressGridIndex !== undefined && !arr.includes(subtask.progressGridIndex)) {
+            arr.push(subtask.progressGridIndex);
+            arr.sort((a, b) => a - b);
+          }
+          data[task.id] = arr;
+          localStorage.setItem('progressGridFilledIndices', JSON.stringify(data));
+        } catch { /* ignore */ }
+      }
+      const updated: Task = {
         ...task,
+        progressGridFilled,
         subtasks: (task.subtasks || []).map(s => s.id === subtask.id ? { ...s, completed: true } : s),
       };
       onUpdateTask(updated);

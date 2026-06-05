@@ -137,9 +137,10 @@ export async function pushAllLocalToCloud(userId: string) {
 }
 
 /**
- * Called after a user signs in. If `mergeLocal` is true (first time they
- * sign in on this device and have existing local data), push local up first
- * unless cloud already has rows — cloud always wins on conflict.
+ * Called after a user signs in (or on every page load while signed in).
+ * NON-DESTRUCTIVE: never deletes local keys. Always pushes local keys that
+ * are missing from cloud (so the cloud reflects the union), then overwrites
+ * local for keys that exist in cloud (cloud wins for shared keys).
  */
 export async function activateSync(userId: string) {
   currentUserId = userId;
@@ -151,28 +152,41 @@ export async function activateSync(userId: string) {
     return;
   }
 
-  if (cloudRows.length === 0) {
-    // First sign-in on this account: seed cloud with current local data.
-    await pushAllLocalToCloud(userId);
-  } else {
-    // Replace local app data with cloud data.
-    const cloudKeys = new Set(cloudRows.map((r) => r.key));
-    // Remove local keys that aren't in cloud (so device matches account).
-    const toRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && shouldSync(k) && !cloudKeys.has(k)) toRemove.push(k);
-    }
-    toRemove.forEach((k) => removeItemRaw(k));
-    for (const row of cloudRows) {
-      const serialized =
-        typeof row.value === "string" ? row.value : JSON.stringify(row.value);
-      setItemRaw(row.key, serialized);
-    }
-    // Notify the app so React state reloads from the new localStorage values.
-    window.dispatchEvent(new Event("storage"));
-    window.dispatchEvent(new Event("appSettingsUpdated"));
+  const cloudKeys = new Set(cloudRows.map((r) => r.key));
+
+  // 1. Push any local-only keys up so cloud holds the union (never lose local).
+  const toPush: { user_id: string; app: string; key: string; value: any }[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !shouldSync(k) || cloudKeys.has(k)) continue;
+    const raw = localStorage.getItem(k);
+    if (raw === null) continue;
+    let parsed: any = raw;
+    try { parsed = JSON.parse(raw); } catch { /* keep string */ }
+    toPush.push({ user_id: userId, app: APP_NAME, key: k, value: parsed });
   }
+  if (toPush.length > 0) {
+    try {
+      await (supabase as any)
+        .from("kommenszlapf_user_data")
+        .upsert(toPush, { onConflict: "user_id,app,key" });
+    } catch (e) {
+      console.warn("[kommenszlapf-sync] seed push failed (offline?)", e);
+    }
+  }
+
+  // 2. Apply cloud values for keys present in cloud (cloud wins for shared keys).
+  //    Guard against bad shapes that would otherwise wipe local arrays.
+  for (const row of cloudRows) {
+    if (row.value === null || row.value === undefined) continue;
+    const serialized =
+      typeof row.value === "string" ? row.value : JSON.stringify(row.value);
+    setItemRaw(row.key, serialized);
+  }
+
+  // Notify the app so React state reloads from the new localStorage values.
+  window.dispatchEvent(new Event("storage"));
+  window.dispatchEvent(new Event("appSettingsUpdated"));
 }
 
 export function deactivateSync() {
