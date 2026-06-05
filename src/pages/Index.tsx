@@ -752,25 +752,55 @@ const Index = () => {
               setSelectedSubtask(null);
             }}
             onEdit={() => {
-              setSelectedTask(selectedSubtask.task);
-              setEditDialogOpen(true);
+              // Open the specific subtask's edit dialog, NOT the parent task editor
               setSubtaskDetailsOpen(false);
+              setSubtaskEditOpen(true);
             }}
             onComplete={() => {
-              const updatedSubtasks = (selectedSubtask.task.subtasks || []).map(s =>
-                s.id === selectedSubtask.subtask.id ? { ...s, completed: true } : s
+              const subtask = selectedSubtask.subtask;
+              const task = selectedSubtask.task;
+              let progressGridFilled = task.progressGridFilled;
+              if (subtask.linkedToProgressGrid && !subtask.completed) {
+                progressGridFilled = Math.min(task.progressGridSize, (task.progressGridFilled || 0) + 1);
+                try {
+                  const stored = localStorage.getItem('progressGridFilledIndices');
+                  const data = stored ? JSON.parse(stored) : {};
+                  const arr: number[] = Array.isArray(data[task.id]) ? data[task.id] : [];
+                  if (subtask.progressGridIndex !== undefined && !arr.includes(subtask.progressGridIndex)) {
+                    arr.push(subtask.progressGridIndex);
+                    arr.sort((a, b) => a - b);
+                  }
+                  data[task.id] = arr;
+                  localStorage.setItem('progressGridFilledIndices', JSON.stringify(data));
+                } catch { /* ignore */ }
+              }
+              const updatedSubtasks = (task.subtasks || []).map(s =>
+                s.id === subtask.id ? { ...s, completed: true } : s
               );
-              const updatedTask = { ...selectedSubtask.task, subtasks: updatedSubtasks };
+              const updatedTask = { ...task, progressGridFilled, subtasks: updatedSubtasks };
               handleUpdateTask(updatedTask);
               setSubtaskDetailsOpen(false);
               setSelectedSubtask(null);
               toast.success('Subtask completed!');
             }}
             onUncomplete={() => {
-              const updatedSubtasks = (selectedSubtask.task.subtasks || []).map(s =>
-                s.id === selectedSubtask.subtask.id ? { ...s, completed: false } : s
+              const subtask = selectedSubtask.subtask;
+              const task = selectedSubtask.task;
+              let progressGridFilled = task.progressGridFilled;
+              if (subtask.linkedToProgressGrid && subtask.completed) {
+                progressGridFilled = Math.max(0, (task.progressGridFilled || 0) - 1);
+                try {
+                  const stored = localStorage.getItem('progressGridFilledIndices');
+                  const data = stored ? JSON.parse(stored) : {};
+                  const arr: number[] = Array.isArray(data[task.id]) ? data[task.id] : [];
+                  data[task.id] = arr.filter((i) => i !== subtask.progressGridIndex);
+                  localStorage.setItem('progressGridFilledIndices', JSON.stringify(data));
+                } catch { /* ignore */ }
+              }
+              const updatedSubtasks = (task.subtasks || []).map(s =>
+                s.id === subtask.id ? { ...s, completed: false } : s
               );
-              const updatedTask = { ...selectedSubtask.task, subtasks: updatedSubtasks };
+              const updatedTask = { ...task, progressGridFilled, subtasks: updatedSubtasks };
               handleUpdateTask(updatedTask);
               setSubtaskDetailsOpen(false);
               setSelectedSubtask(null);
