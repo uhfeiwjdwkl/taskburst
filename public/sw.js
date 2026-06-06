@@ -1,9 +1,9 @@
-// TaskBurst service worker - app shell + static assets, cache-first w/ network fallback.
-// Skips Supabase API requests entirely.
-const CACHE = 'taskburst-shell-v1';
+// TaskBurst service worker.
+// HTML navigations: network-first (so newly deployed builds never get pinned to
+// a stale cached index.html — that was the cause of the "app reverts to an old
+// version" bug). Hashed static assets: cache-first.
+const CACHE = 'taskburst-shell-v3';
 const SHELL = [
-  '/',
-  '/index.html',
   '/manifest.json',
   '/TaskBurst.svg',
   '/placeholder.svg',
@@ -37,6 +37,28 @@ self.addEventListener('fetch', (event) => {
   }
   // Only handle same-origin
   if (url.origin !== self.location.origin) return;
+
+  const isHTML =
+    req.mode === 'navigate' ||
+    (req.headers.get('accept') || '').includes('text/html') ||
+    url.pathname === '/' ||
+    url.pathname.endsWith('.html');
+
+  if (isHTML) {
+    // Network-first for HTML so users always get the newest deployed shell.
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res && res.status === 200) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+          }
+          return res;
+        })
+        .catch(() => caches.match(req).then((c) => c || caches.match('/index.html')))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(req).then((cached) => {
