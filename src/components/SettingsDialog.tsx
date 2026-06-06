@@ -37,6 +37,11 @@ import { hashPin } from '@/lib/pin';
 import { verifyPin } from '@/lib/pin';
 import { clearAllAppData } from '@/lib/exportImport';
 import { applyColorThemeToDocument } from '@/lib/theme';
+import { useKommenszlapfAuth } from '@/lib/kommenszlapfAuth';
+import { wipeAllCloudData } from '@/lib/kommenszlapfSync';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
+import { Database } from 'lucide-react';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -44,12 +49,16 @@ interface SettingsDialogProps {
 }
 
 export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
+  const navigate = useNavigate();
+  const { user } = useKommenszlapfAuth();
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [wipeOpen, setWipeOpen] = useState(false);
   const [wipePin1, setWipePin1] = useState('');
   const [wipePin2, setWipePin2] = useState('');
+  const [wipePwd1, setWipePwd1] = useState('');
+  const [wipePwd2, setWipePwd2] = useState('');
   const [wipeBusy, setWipeBusy] = useState(false);
 
   const handleDeleteAllData = async () => {
@@ -63,9 +72,24 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
         const ok = await verifyPin(wipePin1, settings.pinHash);
         if (!ok) { toast.error('Incorrect PIN'); return; }
       }
+      if (user?.email) {
+        if (!wipePwd1 || wipePwd1 !== wipePwd2) {
+          toast.error('Enter your account password twice and ensure they match');
+          return;
+        }
+        const { error } = await supabase.auth.signInWithPassword({
+          email: user.email, password: wipePwd1,
+        });
+        if (error) { toast.error('Account password incorrect'); return; }
+        const ok = await wipeAllCloudData(user.id);
+        if (!ok) {
+          toast.error('Could not wipe cloud data. Aborted — local data left intact.');
+          return;
+        }
+      }
       clearAllAppData();
       toast.success('All data deleted');
-      setWipeOpen(false); setWipePin1(''); setWipePin2('');
+      setWipeOpen(false); setWipePin1(''); setWipePin2(''); setWipePwd1(''); setWipePwd2('');
       onClose();
       setTimeout(() => window.location.reload(), 400);
     } finally { setWipeBusy(false); }
@@ -846,8 +870,19 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   ) : (
                     <p className="text-xs">This cannot be undone. Are you sure?</p>
                   )}
+                  {user?.email && (
+                    <>
+                      <Label>Enter your account password</Label>
+                      <Input type="password" value={wipePwd1} onChange={(e) => setWipePwd1(e.target.value)} />
+                      <Label>Re-enter your account password</Label>
+                      <Input type="password" value={wipePwd2} onChange={(e) => setWipePwd2(e.target.value)} />
+                      <p className="text-xs text-muted-foreground">
+                        You are signed in — this will also wipe your synced cloud data.
+                      </p>
+                    </>
+                  )}
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => { setWipeOpen(false); setWipePin1(''); setWipePin2(''); }} disabled={wipeBusy}>
+                    <Button variant="ghost" size="sm" onClick={() => { setWipeOpen(false); setWipePin1(''); setWipePin2(''); setWipePwd1(''); setWipePwd2(''); }} disabled={wipeBusy}>
                       Cancel
                     </Button>
                     <Button variant="destructive" size="sm" onClick={handleDeleteAllData} disabled={wipeBusy}>
@@ -856,6 +891,18 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Advanced: Data editor */}
+            <div className="space-y-2 border rounded-md p-4">
+              <h3 className="text-lg font-semibold">Advanced</h3>
+              <p className="text-xs text-muted-foreground">
+                Directly view and edit every piece of data this app keeps on
+                your device (and in your account when signed in).
+              </p>
+              <Button variant="outline" size="sm" onClick={() => { onClose(); navigate('/data'); }}>
+                <Database className="h-4 w-4 mr-2" /> Open data editor
+              </Button>
             </div>
 
             <div className="flex justify-end gap-2 pt-4">

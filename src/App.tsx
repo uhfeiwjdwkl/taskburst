@@ -24,6 +24,7 @@ import Guide from "./pages/Guide";
 import NotFound from "./pages/NotFound";
 import AuthConfirmed from "./pages/AuthConfirmed";
 import ResetPassword from "./pages/ResetPassword";
+import Data from "./pages/Data";
 
 const queryClient = new QueryClient();
 
@@ -126,6 +127,7 @@ const App = () => {
             <Route path="/guide" element={<Guide />} />
             <Route path="/auth/confirmed" element={<AuthConfirmed />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/data" element={<Data />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -175,18 +175,92 @@ export async function activateSync(userId: string) {
     }
   }
 
-  // 2. Apply cloud values for keys present in cloud (cloud wins for shared keys).
-  //    Guard against bad shapes that would otherwise wipe local arrays.
+  // 2. Merge cloud values into local. Strategy per shape:
+  //      - arrays of objects with `id`     → union by id (cloud + local, no loss)
+  //      - arrays of primitives            → union (Set), preserves local entries
+  //      - plain objects (non-array)       → shallow merge, local wins on conflict
+  //      - anything else / missing locally → cloud value adopted
+  //    Never overwrites a non-empty local array with an empty cloud array
+  //    (that was the "all my tasks just deleted" bug after sign-in).
+  const mergedRows: { key: string; value: any }[] = [];
   for (const row of cloudRows) {
     if (row.value === null || row.value === undefined) continue;
-    const serialized =
-      typeof row.value === "string" ? row.value : JSON.stringify(row.value);
+    const localRaw = localStorage.getItem(row.key);
+    let localParsed: any = undefined;
+    if (localRaw !== null) {
+      try { localParsed = JSON.parse(localRaw); } catch { localParsed = localRaw; }
+    }
+    let next: any = row.value;
+    if (Array.isArray(row.value) && Array.isArray(localParsed)) {
+      // Empty cloud array against non-empty local → keep local entirely.
+      if (row.value.length === 0 && localParsed.length > 0) {
+        next = localParsed;
+      } else {
+        const cloudArr = row.value;
+        const localArr = localParsed;
+        const hasIds = (arr: any[]) => arr.length > 0 && arr.every(
+          (x) => x && typeof x === "object" && "id" in x
+        );
+        if (hasIds(cloudArr) || hasIds(localArr)) {
+          const byId = new Map<any, any>();
+          for (const it of cloudArr) if (it && typeof it === "object" && "id" in it) byId.set(it.id, it);
+          for (const it of localArr) if (it && typeof it === "object" && "id" in it) byId.set(it.id, it); // local wins
+          next = Array.from(byId.values());
+        } else {
+          next = Array.from(new Set([...cloudArr, ...localArr]));
+        }
+      }
+    } else if (
+      row.value && typeof row.value === "object" && !Array.isArray(row.value) &&
+      localParsed && typeof localParsed === "object" && !Array.isArray(localParsed)
+    ) {
+      next = { ...row.value, ...localParsed };
+    } else if (Array.isArray(localParsed) && !Array.isArray(row.value)) {
+      // Shape mismatch — protect local array from being overwritten by a
+      // non-array cloud value (cause of "JSON.parse(...).filter is not a function").
+      next = localParsed;
+    }
+    const serialized = typeof next === "string" ? next : JSON.stringify(next);
     setItemRaw(row.key, serialized);
+    mergedRows.push({ key: row.key, value: next });
+  }
+
+  // Push back any merged values so cloud reflects the union too.
+  if (mergedRows.length > 0) {
+    try {
+      await (supabase as any)
+        .from("kommenszlapf_user_data")
+        .upsert(
+          mergedRows.map((r) => ({ user_id: userId, app: APP_NAME, key: r.key, value: r.value })),
+          { onConflict: "user_id,app,key" }
+        );
+    } catch (e) {
+      console.warn("[kommenszlapf-sync] merge push failed (offline?)", e);
+    }
   }
 
   // Notify the app so React state reloads from the new localStorage values.
   window.dispatchEvent(new Event("storage"));
   window.dispatchEvent(new Event("appSettingsUpdated"));
+}
+
+/**
+ * Wipe every row of TaskBurst data for the signed-in user in the cloud.
+ * Returns true on success, false on failure (offline / not signed in).
+ */
+export async function wipeAllCloudData(userId: string): Promise<boolean> {
+  try {
+    const { error } = await (supabase as any)
+      .from("kommenszlapf_user_data")
+      .delete()
+      .eq("user_id", userId)
+      .eq("app", APP_NAME);
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.warn("[kommenszlapf-sync] wipe cloud failed", e);
+    return false;
+  }
 }
 
 export function deactivateSync() {
