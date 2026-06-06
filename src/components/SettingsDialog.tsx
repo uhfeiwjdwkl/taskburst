@@ -870,8 +870,19 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   ) : (
                     <p className="text-xs">This cannot be undone. Are you sure?</p>
                   )}
+                  {user?.email && (
+                    <>
+                      <Label>Enter your account password</Label>
+                      <Input type="password" value={wipePwd1} onChange={(e) => setWipePwd1(e.target.value)} />
+                      <Label>Re-enter your account password</Label>
+                      <Input type="password" value={wipePwd2} onChange={(e) => setWipePwd2(e.target.value)} />
+                      <p className="text-xs text-muted-foreground">
+                        You are signed in — this will also wipe your synced cloud data.
+                      </p>
+                    </>
+                  )}
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => { setWipeOpen(false); setWipePin1(''); setWipePin2(''); }} disabled={wipeBusy}>
+                    <Button variant="ghost" size="sm" onClick={() => { setWipeOpen(false); setWipePin1(''); setWipePin2(''); setWipePwd1(''); setWipePwd2(''); }} disabled={wipeBusy}>
                       Cancel
                     </Button>
                     <Button variant="destructive" size="sm" onClick={handleDeleteAllData} disabled={wipeBusy}>
@@ -880,6 +891,18 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Advanced: Data editor */}
+            <div className="space-y-2 border rounded-md p-4">
+              <h3 className="text-lg font-semibold">Advanced</h3>
+              <p className="text-xs text-muted-foreground">
+                Directly view and edit every piece of data this app keeps on
+                your device (and in your account when signed in).
+              </p>
+              <Button variant="outline" size="sm" onClick={() => { onClose(); navigate('/data'); }}>
+                <Database className="h-4 w-4 mr-2" /> Open data editor
+              </Button>
             </div>
 
             <div className="flex justify-end gap-2 pt-4">
