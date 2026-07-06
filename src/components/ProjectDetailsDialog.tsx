@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Calendar, Clock, FileText, ListTodo, CalendarDays } from 'lucide-react';
 import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
 import { ProjectCalendarDialog } from './ProjectCalendarDialog';
+import { sanitizeHtml } from '@/lib/sanitizeHtml';
 
 interface ProjectDetailsDialogProps {
   open: boolean;
@@ -59,7 +60,7 @@ export const ProjectDetailsDialog = ({ open, onClose, project, tasks, onEdit }: 
                   <p className="text-sm font-medium mb-1">Description</p>
                   <div
                     className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{ __html: project.description }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(project.description) }}
                   />
                 </div>
               </div>
