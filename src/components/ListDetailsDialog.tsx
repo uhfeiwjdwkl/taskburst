@@ -13,6 +13,7 @@ import { ListItemDetailsDialog } from './ListItemDetailsDialog';
 import { EditListDialog } from './EditListDialog';
 import { ExportListButton } from './ExportListButton';
 import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
+import { sanitizeHtml } from '@/lib/sanitizeHtml';
 
 interface ListDetailsDialogProps {
   list: List | null;
@@ -100,7 +101,7 @@ export const ListDetailsDialog = ({ list, open, onClose, onUpdate, onDelete, onA
             {list.description && (
               <div
                 className="text-muted-foreground prose prose-sm dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: list.description }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(list.description) }}
               />
             )}
 
@@ -120,7 +121,7 @@ export const ListDetailsDialog = ({ list, open, onClose, onUpdate, onDelete, onA
                 <div className="text-sm font-medium mb-1">Notes</div>
                 <div
                   className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap"
-                  dangerouslySetInnerHTML={{ __html: list.notes }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(list.notes) }}
                 />
               </div>
             )}
