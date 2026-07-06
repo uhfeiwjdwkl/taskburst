@@ -18,6 +18,7 @@ import { ExportTaskButton } from '@/components/ExportTaskButton';
 import { cn } from '@/lib/utils';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 import { UniversalProgressGrid } from './UniversalProgressGrid';
+import { sanitizeHtml } from '@/lib/sanitizeHtml';
 import { SubtaskDialog } from './SubtaskDialog';
 import { SubtaskFullDetailsDialog } from './SubtaskFullDetailsDialog';
 import { TaskLinkedAssessmentsSection } from './TaskLinkedAssessmentsSection';
@@ -217,7 +218,7 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
               <Label className="text-muted-foreground text-sm">Description</Label>
               <div
                 className="mt-1 text-sm prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap"
-                dangerouslySetInnerHTML={{ __html: task.description }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(task.description) }}
               />
             </div>
           )}
