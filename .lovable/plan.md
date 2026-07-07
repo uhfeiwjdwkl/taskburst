@@ -1,65 +1,187 @@
-# Plan
+## Goal
 
-A large request — grouping into focused units. I'll confirm scope before building.
+One login shared between `kommenszlapf.website` and `noventrum.kommenszlapf.website`, using the **same Supabase project** (`zgbodpdoflhephyyzhex`). Sign in on either app → signed in on both. Sign out on either → signed out on both.
 
-## 1. Auth UX (KommenszlapfAccountDialog + Navigation)
-- Move the account button into the mobile dropdown nav (kept inline on desktop).
-- **Sign in form**
-  - Single "Email or username" field + password.
-  - Sign-in resolves username → email via a public lookup edge function (cannot query auth.users from client).
-  - Persistent session (Supabase default JWT + refresh = up to ~1 year; explicit `persistSession: true`).
-  - "Show password" eye toggle on every password field.
-  - "Forgot password" link → sends `resetPasswordForEmail` with `redirectTo` of new `/reset-password` page.
-  - Warning banner: "Signing in will replace all current local data with your account data."
-- **Sign up form**
-  - Username + email + password + confirm password.
-  - Inline notice: "Check your email to confirm your account before signing in."
-  - Toast on submit reiterating it.
+Since noventrum lives in a different Lovable account, this plan gives you **everything the noventrum team needs to paste in**, plus what I'll change here.
 
-## 2. Email confirmation landing page
-- New route `/auth/confirmed` with a simple "Email confirmed" card and a "Return to TaskBurst" button → `/`.
-- Update Supabase signup `emailRedirectTo` and reset-password `redirectTo` to point at TaskBurst routes (`/auth/confirmed`, `/reset-password`).
-- Note: the URL the email actually sends to is also controlled by the Supabase "Site URL" / redirect allow-list in the dashboard. I'll update redirect params in code; the user will need to add these URLs to the Supabase auth redirect allow-list (I'll surface the link).
+---
 
-## 3. Reset password page
-- New `/reset-password` route. Reads recovery session, lets user set new password, redirects to `/` on success.
+## How it works
 
-## 4. Settings additions
-- **Account section** (when signed in):
-  - Export account data (downloads JSON of every `kommenszlapf_user_data` row + profile).
-  - Change username (requires password twice).
-  - Change email (requires password twice, triggers Supabase email change confirmation).
-  - Delete account (requires password twice) → edge function deletes auth user + rows.
-- **Data section**:
-  - "Delete all data" button — if a PIN or account password exists, requires double entry of that credential; otherwise a plain confirm.
+Supabase JS stores the session in `localStorage`, which is **per-origin**. To share it across subdomains, both apps switch to a **cookie-storage adapter** scoped to `.kommenszlapf.website`. Same cookie name, same domain → same session on both apps. No redirects, no OAuth handoff.
 
-## 5. Resilience
-- Wrap all Supabase reads/writes in `kommenszlapfSync` and `kommenszlapfAuth` with try/catch; on network failure, silently fall back to localStorage (already partly true, will harden).
-- Never throw or trigger a reload on Supabase outage.
+```text
+  Cookie: sb-zgbodpdoflhephyyzhex-auth-token   Domain=.kommenszlapf.website
+    ├── kommenszlapf.website               → reads cookie → signed in
+    └── noventrum.kommenszlapf.website     → reads cookie → signed in
+```
 
-## 6. Unverified-account cleanup
-- Daily pg_cron job that deletes `auth.users` rows where `email_confirmed_at IS NULL AND created_at < now() - interval '24 hours'`.
-- Cascading deletes via existing FK already remove `kommenszlapf_profiles` rows.
+---
 
-## 7. Calendar archive + recently deleted
-- Add `archivedAt` to `CalendarEvent` and surface:
-  - Archive action in event details dialog.
-  - New `RecentlyDeletedEvents` and `ArchivedEvents` sections inside the existing `RecentlyDeletedUnified` page (events were not yet wired in).
-- Homepage button to open the new sections.
+## Part A — Changes I'll make in this (Kommenszlapf) project
 
-## 8. Event ↔ Task linking
-- Add `linkedTaskId?: string` to `CalendarEvent` and `linkedEventIds?: string[]` to `Task`.
-- Event details dialog: "Link to task" picker; shows linked task with unlink button.
-- Task details dialog: "Linked events" list with unlink.
-- Linked events render under the task in `Index.tsx` like a pseudo-subtask row (read-only, click opens event).
+1. **New file `src/integrations/supabase/cookieStorage.ts`** — a `Storage`-shaped adapter:
+   - On production hostnames ending in `kommenszlapf.website`, reads/writes cookies with `Domain=.kommenszlapf.website; Path=/; Secure; SameSite=Lax; Max-Age=31536000`.
+   - On `localhost` / Lovable preview URLs, falls back to `localStorage` so dev keeps working.
+2. **Update `src/integrations/supabase/client.ts`** to pass:
+   ```ts
+   auth: {
+     storage: cookieStorage,
+     storageKey: 'sb-zgbodpdoflhephyyzhex-auth-token',
+     persistSession: true,
+     autoRefreshToken: true,
+     detectSessionInUrl: true,
+   }
+   ```
+3. **One-time migration**: if the old `localStorage[sb-…-auth-token]` exists but the cookie doesn't, copy it into the cookie then delete the localStorage copy. Keeps currently-signed-in users signed in.
+4. **Sign-out** already goes through `supabase.auth.signOut()`, which calls the adapter's `removeItem` → cookie deleted on the parent domain → both apps signed out.
 
-## 9. Refresh button on TaskBurst icon
-- On the navigation logo, show a small refresh icon on hover that calls `window.location.reload()`.
+No schema changes. No changes to `kommenszlapf_profiles`, `kommenszlapf_user_data`, RLS, or the `lookup-email-by-username` edge function.
 
-## Technical notes
-- New edge functions: `lookup-email-by-username` (public), `delete-account` (auth-required). Both use service role internally.
-- New migration: pg_cron job for unverified cleanup (requires `pg_cron` + `pg_net` — enable if missing).
-- Files touched (approx.): `Navigation.tsx`, `KommenszlapfAccountDialog.tsx`, `kommenszlapfAuth.tsx`, `kommenszlapfSync.ts`, `SettingsDialog.tsx`, `App.tsx`, new `pages/AuthConfirmed.tsx`, new `pages/ResetPassword.tsx`, `RecentlyDeletedUnified.tsx`, `Index.tsx`, `TaskDetailsDialog.tsx`, `EventDetailsViewDialog.tsx`, event/task types.
+---
 
-## Question before building
-This is ~15 features. Want me to ship it all in one pass, or split into batches (e.g. auth first, then settings, then calendar/linking)? One pass is faster but means a single huge diff.
+## Part B — Everything the noventrum team needs
+
+### B1. Environment variables (identical to kommenszlapf)
+
+```
+VITE_SUPABASE_URL=https://zgbodpdoflhephyyzhex.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnYm9kcGRvZmxoZXBoeXl6aGV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0MjExNTEsImV4cCI6MjA5MDk5NzE1MX0.aPCRwlg7A7ZErwnMBWuvo0ZwcA7k3Ol49276PCPFVpE
+VITE_SUPABASE_PROJECT_ID=zgbodpdoflhephyyzhex
+```
+
+The anon key is safe in client code. Do **not** put the service-role key in noventrum's frontend.
+
+### B2. Install
+
+```
+bun add @supabase/supabase-js
+```
+
+### B3. Drop-in file — `src/integrations/supabase/cookieStorage.ts`
+
+```ts
+// Cookie-backed storage adapter so the Supabase session cookie is shared
+// across all *.kommenszlapf.website subdomains.
+const ROOT_DOMAIN = "kommenszlapf.website";
+
+function useCookies(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.hostname.endsWith(ROOT_DOMAIN);
+}
+
+function readCookie(name: string): string | null {
+  const match = document.cookie.match(
+    new RegExp("(?:^|; )" + name.replace(/[.$?*|{}()\[\]\\/+^]/g, "\\$&") + "=([^;]*)")
+  );
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function writeCookie(name: string, value: string) {
+  document.cookie =
+    `${name}=${encodeURIComponent(value)}; Domain=.${ROOT_DOMAIN};` +
+    ` Path=/; Max-Age=31536000; Secure; SameSite=Lax`;
+}
+
+function deleteCookie(name: string) {
+  document.cookie =
+    `${name}=; Domain=.${ROOT_DOMAIN}; Path=/; Max-Age=0; Secure; SameSite=Lax`;
+}
+
+export const cookieStorage = {
+  getItem: (key: string) =>
+    useCookies() ? readCookie(key) : window.localStorage.getItem(key),
+  setItem: (key: string, value: string) =>
+    useCookies() ? writeCookie(key, value) : window.localStorage.setItem(key, value),
+  removeItem: (key: string) =>
+    useCookies() ? deleteCookie(key) : window.localStorage.removeItem(key),
+};
+```
+
+### B4. Drop-in file — `src/integrations/supabase/client.ts`
+
+```ts
+import { createClient } from "@supabase/supabase-js";
+import { cookieStorage } from "./cookieStorage";
+
+const SUPABASE_URL = "https://zgbodpdoflhephyyzhex.supabase.co";
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY!;
+const STORAGE_KEY = "sb-zgbodpdoflhephyyzhex-auth-token"; // MUST match kommenszlapf
+
+// One-time migration from localStorage → shared cookie
+if (typeof window !== "undefined" && window.location.hostname.endsWith("kommenszlapf.website")) {
+  const existing = window.localStorage.getItem(STORAGE_KEY);
+  const cookiePresent = document.cookie.includes(`${STORAGE_KEY}=`);
+  if (existing && !cookiePresent) {
+    cookieStorage.setItem(STORAGE_KEY, existing);
+    window.localStorage.removeItem(STORAGE_KEY);
+  }
+}
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: cookieStorage,
+    storageKey: STORAGE_KEY,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
+```
+
+The **`storageKey` must be exactly `sb-zgbodpdoflhephyyzhex-auth-token`** — that's what kommenszlapf uses, and the two apps must agree.
+
+### B5. Auth UI in noventrum
+
+Simplest option: link users to kommenszlapf's sign-in page. Once they sign in there, they come back to noventrum already signed in (cookie is shared). Example:
+
+```tsx
+<a href={`https://kommenszlapf.website/?returnTo=${encodeURIComponent(location.href)}`}>
+  Sign in with Kommenszlapf
+</a>
+```
+
+Or noventrum can build its own sign-in form using the same `supabase.auth.signInWithPassword(...)` — it hits the same Supabase project and produces the same shared cookie either way.
+
+Reading the user in noventrum:
+
+```ts
+const { data: { session } } = await supabase.auth.getSession();
+supabase.auth.onAuthStateChange((_e, s) => { /* update UI */ });
+```
+
+Signing out (from either app) clears the cookie for both:
+
+```ts
+await supabase.auth.signOut();
+```
+
+### B6. Supabase Dashboard changes (do once)
+
+In the Supabase dashboard for project `zgbodpdoflhephyyzhex`:
+
+- **Authentication → URL Configuration → Redirect URLs**, add:
+  - `https://noventrum.kommenszlapf.website/*`
+  - Any specific callback pages noventrum uses (e.g. `/auth/confirmed`, `/reset-password`).
+- **Site URL**: leave as `https://kommenszlapf.website` (used only as a fallback).
+
+### B7. RLS / data
+
+The two apps share `auth.uid()`. Noventrum should either:
+- Use its own tables with `user_id = auth.uid()` policies, or
+- Use `kommenszlapf_user_data` with a distinct `app` value (e.g. `app = 'noventrum'`) — existing RLS already scopes rows to the owning user.
+
+### B8. Gotchas
+
+- Both apps **must** be served over HTTPS in production — the cookie is `Secure`.
+- Cookie is scoped to `.kommenszlapf.website` only; a different root domain would need a full OAuth-style handoff (out of scope).
+- If a user is already signed into kommenszlapf via localStorage when this ships, the one-time migration in B4 promotes them to the shared cookie on their next visit.
+- Don't change `storageKey` on either side — they must match.
+
+---
+
+## Out of scope
+
+- No schema changes, no new tables, no edge-function changes.
+- No cross-**root**-domain SSO.
+- No changes to kommenszlapf's username sign-in flow — the resulting session is shared automatically.
