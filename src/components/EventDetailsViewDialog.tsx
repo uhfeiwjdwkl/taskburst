@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Clock, Calendar as CalendarIcon, Edit, MapPin, Repeat, CalendarRange } from 'lucide-react';
 import { ExportEventButton } from '@/components/ExportEventButton';
 import { differenceInDays, format, parseISO, eachDayOfInterval, addDays, startOfWeek, endOfWeek } from 'date-fns';
+import { sanitizeHtml } from '@/lib/sanitizeHtml';
 
 interface EventDetailsViewDialogProps {
   event: CalendarEvent | null;
@@ -78,7 +79,7 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit }: EventDetailsVi
               <Label className="text-muted-foreground text-sm">Description</Label>
               <div
                 className="mt-1 text-sm prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap"
-                dangerouslySetInnerHTML={{ __html: event.description }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(event.description) }}
               />
             </div>
           )}

@@ -78,23 +78,30 @@ export function KommenszlapfAuthProvider({ children }: { children: React.ReactNo
   };
 
   const signIn: AuthCtx["signIn"] = async ({ identifier, password }) => {
-    let email = identifier.trim();
-    // If it doesn't look like an email, treat as username and resolve.
-    if (!email.includes("@")) {
-      try {
-        const { data, error } = await supabase.functions.invoke(
-          "lookup-email-by-username",
-          { body: { username: email } },
-        );
-        if (error) throw error;
-        if (!data?.email) throw new Error("No account found for that username");
-        email = data.email as string;
-      } catch (e: any) {
-        throw new Error(e?.message ?? "Could not resolve username");
-      }
+    const identifierTrim = identifier.trim();
+    if (identifierTrim.includes("@")) {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: identifierTrim,
+        password,
+      });
+      if (error) throw error;
+      return;
     }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    // Username sign-in goes through an edge function that resolves the
+    // email server-side and returns a session. The email itself is never
+    // sent to the client, preventing username -> email enumeration.
+    const { data, error } = await supabase.functions.invoke(
+      "lookup-email-by-username",
+      { body: { username: identifierTrim, password } },
+    );
+    if (error || !data?.session) {
+      throw new Error(data?.error ?? "Invalid username or password");
+    }
+    const { error: setErr } = await supabase.auth.setSession({
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+    });
+    if (setErr) throw setErr;
   };
 
   const resetPassword: AuthCtx["resetPassword"] = async (email) => {
