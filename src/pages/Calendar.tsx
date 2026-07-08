@@ -423,6 +423,9 @@ const CalendarPage = () => {
                   </p>
                 </div>
                 <div className="flex gap-2">
+                  <Button size="sm" onClick={() => setExportDayOpen(true)} variant="outline" disabled={!selectedDate} title="Export day plan">
+                    <Download className="h-4 w-4 mr-1" /> Export Day
+                  </Button>
                   <Button size="sm" onClick={handleAddEventForDate} variant="outline" disabled={!selectedDate}>
                     <Plus className="h-4 w-4 mr-1" /> Event
                   </Button>
