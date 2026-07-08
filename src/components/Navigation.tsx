@@ -16,6 +16,7 @@ import { SettingsDialog } from "./SettingsDialog";
 import { KommenszlapfAccountButton, KommenszlapfAccountMenuItem } from "./KommenszlapfAccountDialog";
 import { AppSettings, DEFAULT_SETTINGS, PageConfig } from "@/types/settings";
 import { nowInZone } from "@/lib/timezone";
+import { Wifi, WifiOff, RefreshCw as RefreshIcon } from "lucide-react";
 
 export function Navigation() {
   const navigate = useNavigate();
@@ -27,6 +28,23 @@ export function Navigation() {
   const navRef = useRef<HTMLDivElement>(null);
   const [activeTaskName, setActiveTaskName] = useState<string | null>(null);
   const [todayItems, setTodayItems] = useState<{ id: string; name: string; kind: 'task' | 'event' | 'subtask' }[]>([]);
+  const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'offline'>(
+    typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'synced'
+  );
+
+  useEffect(() => {
+    const on = (e: any) => setSyncStatus(e.detail);
+    const off = () => setSyncStatus('offline');
+    const online = () => setSyncStatus('syncing');
+    window.addEventListener('kommenszlapf-sync-status', on as any);
+    window.addEventListener('offline', off);
+    window.addEventListener('online', online);
+    return () => {
+      window.removeEventListener('kommenszlapf-sync-status', on as any);
+      window.removeEventListener('offline', off);
+      window.removeEventListener('online', online);
+    };
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
