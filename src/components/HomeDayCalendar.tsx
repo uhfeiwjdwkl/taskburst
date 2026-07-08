@@ -527,5 +527,7 @@ export const HomeDayCalendar = ({
         </div>
       </div>
     </Card>
+    <ExportDayPlanDialog open={exportOpen} onClose={() => setExportOpen(false)} date={displayDate} />
+    </>
   );
 };
