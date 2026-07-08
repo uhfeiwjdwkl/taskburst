@@ -299,6 +299,14 @@ export function Navigation() {
                   )}
                 </PopoverContent>
               </Popover>
+              <Badge
+                variant="outline"
+                className={`text-[10px] gap-1 ${syncStatus === 'offline' ? 'border-destructive text-destructive' : syncStatus === 'syncing' ? 'text-muted-foreground' : 'text-success'}`}
+                title={syncStatus === 'offline' ? 'Offline — changes will sync when back online' : syncStatus === 'syncing' ? 'Syncing…' : 'Synced'}
+              >
+                {syncStatus === 'offline' ? <WifiOff className="h-3 w-3" /> : syncStatus === 'syncing' ? <RefreshIcon className="h-3 w-3 animate-spin" /> : <Wifi className="h-3 w-3" />}
+                {syncStatus === 'offline' ? 'Offline' : syncStatus === 'syncing' ? 'Syncing' : 'Synced'}
+              </Badge>
             </div>
 
             {/* Single row navigation - only show when navRows is 1 (fits) */}
