@@ -251,6 +251,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   useDropdownNav: false,
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   customUtcOffset: undefined,
+  overrideTimezone: false,
   colorTheme: 'default',
   customColors: [],
   progressGridIcon: 'square',
