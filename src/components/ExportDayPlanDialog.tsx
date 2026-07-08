@@ -149,7 +149,8 @@ function collectItemsForDate(date: Date): PlanItem[] {
 
   // Assessments due on this date (all-day → put at 09:00 as a marker)
   (Array.isArray(assessments) ? assessments : []).forEach(a => {
-    if (!a.date || a.date.split('T')[0] !== dateStr) return;
+    if (!a.dueDate || a.dueDate.split('T')[0] !== dateStr) return;
+    if (a.deletedAt) return;
     items.push({
       id: `assessment-${a.id}`,
       type: 'assessment',
