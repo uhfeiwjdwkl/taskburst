@@ -204,6 +204,7 @@ export interface AppSettings {
   // Timezone settings
   timezone: string;
   customUtcOffset?: number;
+  overrideTimezone: boolean;
   
   // Color theme
   colorTheme: string;
