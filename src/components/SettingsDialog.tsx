@@ -325,9 +325,27 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
               
               {/* Timezone */}
               <div>
-                <Label htmlFor="timezone">Timezone</Label>
+                <div className="flex items-center justify-between mb-2">
+                  <Label htmlFor="timezone">Timezone</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="override-tz" className="text-xs text-muted-foreground font-normal">
+                      Override system time
+                    </Label>
+                    <Switch
+                      id="override-tz"
+                      checked={!!settings.overrideTimezone}
+                      onCheckedChange={(v) => setSettings({ ...settings, overrideTimezone: v })}
+                    />
+                  </div>
+                </div>
+                {!settings.overrideTimezone && (
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Using system time ({Intl.DateTimeFormat().resolvedOptions().timeZone}). Toggle override to pick a UTC offset.
+                  </p>
+                )}
                 <Select
                   value={settings.timezone}
+                  disabled={!settings.overrideTimezone}
                   onValueChange={(value) => {
                     if (value === 'custom') {
                       setSettings({ ...settings, timezone: 'custom' });
@@ -348,7 +366,7 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   </SelectContent>
                 </Select>
                 
-                {settings.timezone === 'custom' && (
+                {settings.overrideTimezone && settings.timezone === 'custom' && (
                   <div className="mt-2">
                     <Label>Custom UTC Offset (hours)</Label>
                     <Input
