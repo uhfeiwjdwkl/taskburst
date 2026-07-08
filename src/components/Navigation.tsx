@@ -15,6 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { SettingsDialog } from "./SettingsDialog";
 import { KommenszlapfAccountButton, KommenszlapfAccountMenuItem } from "./KommenszlapfAccountDialog";
 import { AppSettings, DEFAULT_SETTINGS, PageConfig } from "@/types/settings";
+import { nowInZone } from "@/lib/timezone";
+import { Wifi, WifiOff, RefreshCw as RefreshIcon } from "lucide-react";
 
 export function Navigation() {
   const navigate = useNavigate();
@@ -26,13 +28,30 @@ export function Navigation() {
   const navRef = useRef<HTMLDivElement>(null);
   const [activeTaskName, setActiveTaskName] = useState<string | null>(null);
   const [todayItems, setTodayItems] = useState<{ id: string; name: string; kind: 'task' | 'event' | 'subtask' }[]>([]);
+  const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'offline'>(
+    typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'synced'
+  );
+
+  useEffect(() => {
+    const on = (e: any) => setSyncStatus(e.detail);
+    const off = () => setSyncStatus('offline');
+    const online = () => setSyncStatus('syncing');
+    window.addEventListener('kommenszlapf-sync-status', on as any);
+    window.addEventListener('offline', off);
+    window.addEventListener('online', online);
+    return () => {
+      window.removeEventListener('kommenszlapf-sync-status', on as any);
+      window.removeEventListener('offline', off);
+      window.removeEventListener('online', online);
+    };
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(new Date());
+      setCurrentTime(nowInZone(settings));
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [settings.overrideTimezone, settings.timezone, settings.customUtcOffset]);
 
   // Read active task & today items from localStorage
   useEffect(() => {
@@ -280,6 +299,14 @@ export function Navigation() {
                   )}
                 </PopoverContent>
               </Popover>
+              <Badge
+                variant="outline"
+                className={`text-[10px] gap-1 ${syncStatus === 'offline' ? 'border-destructive text-destructive' : syncStatus === 'syncing' ? 'text-muted-foreground' : 'text-success'}`}
+                title={syncStatus === 'offline' ? 'Offline — changes will sync when back online' : syncStatus === 'syncing' ? 'Syncing…' : 'Synced'}
+              >
+                {syncStatus === 'offline' ? <WifiOff className="h-3 w-3" /> : syncStatus === 'syncing' ? <RefreshIcon className="h-3 w-3 animate-spin" /> : <Wifi className="h-3 w-3" />}
+                {syncStatus === 'offline' ? 'Offline' : syncStatus === 'syncing' ? 'Syncing' : 'Synced'}
+              </Badge>
             </div>
 
             {/* Single row navigation - only show when navRows is 1 (fits) */}

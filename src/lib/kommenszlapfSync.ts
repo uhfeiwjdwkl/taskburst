@@ -1,13 +1,15 @@
 import { supabase } from "@/integrations/supabase/client";
 
 const APP_NAME = "taskburst";
-const PENDING: Map<string, number> = new Map();
-const DEBOUNCE_MS = 600;
+const PENDING_QUEUE_KEY = "kommenszlapf:pendingSync";
+const LAST_UPDATED_KEY = "kommenszlapf:lastUpdated"; // { [key]: isoString }
 let installed = false;
 let originalSetItem: typeof Storage.prototype.setItem | null = null;
 let originalRemoveItem: typeof Storage.prototype.removeItem | null = null;
 let originalClear: typeof Storage.prototype.clear | null = null;
 let currentUserId: string | null = null;
+let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+let onlineHandler: (() => void) | null = null;
 
 const SKIP_PREFIXES = ["sb-", "supabase.", "kommenszlapf:"];
 const SKIP_KEYS = new Set<string>([]);
@@ -17,41 +19,172 @@ function shouldSync(key: string) {
   return !SKIP_PREFIXES.some((p) => key.startsWith(p));
 }
 
-function scheduleUpsert(key: string) {
-  if (!currentUserId) return;
-  const existing = PENDING.get(key);
-  if (existing) window.clearTimeout(existing);
-  const handle = window.setTimeout(() => {
-    PENDING.delete(key);
-    void flushKey(key);
-  }, DEBOUNCE_MS);
-  PENDING.set(key, handle);
+// -------------------- pending queue helpers --------------------
+
+type PendingItem = { key: string; op: "upsert" | "delete"; ts: string };
+
+function readQueue(): PendingItem[] {
+  try {
+    const raw = (originalGetItem?.call(localStorage, PENDING_QUEUE_KEY)) ??
+      localStorage.getItem(PENDING_QUEUE_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+function writeQueue(items: PendingItem[]) {
+  const raw = JSON.stringify(items);
+  (originalSetItem ?? Storage.prototype.setItem).call(localStorage, PENDING_QUEUE_KEY, raw);
+}
+function enqueue(item: PendingItem) {
+  const q = readQueue();
+  // Collapse duplicates by key — keep newest.
+  const filtered = q.filter(x => x.key !== item.key);
+  filtered.push(item);
+  writeQueue(filtered);
 }
 
-async function flushKey(key: string) {
-  if (!currentUserId) return;
-  const raw = localStorage.getItem(key);
+function readLastUpdated(): Record<string, string> {
   try {
-    if (raw === null) {
-      await (supabase as any)
+    const raw = localStorage.getItem(LAST_UPDATED_KEY);
+    if (!raw) return {};
+    const obj = JSON.parse(raw);
+    return obj && typeof obj === "object" ? obj : {};
+  } catch { return {}; }
+}
+function writeLastUpdated(map: Record<string, string>) {
+  (originalSetItem ?? Storage.prototype.setItem).call(
+    localStorage, LAST_UPDATED_KEY, JSON.stringify(map)
+  );
+}
+function stampKey(key: string, ts: string) {
+  const map = readLastUpdated();
+  map[key] = ts;
+  writeLastUpdated(map);
+}
+
+// -------------------- push (immediate) --------------------
+
+let originalGetItem: typeof Storage.prototype.getItem | null = null;
+
+async function pushKey(key: string, op: "upsert" | "delete", ts: string): Promise<boolean> {
+  if (!currentUserId) return false;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
+  try {
+    if (op === "delete") {
+      const { error } = await (supabase as any)
         .from("kommenszlapf_user_data")
         .delete()
         .eq("user_id", currentUserId)
         .eq("app", APP_NAME)
         .eq("key", key);
+      if (error) throw error;
     } else {
+      const raw = localStorage.getItem(key);
       let parsed: any = raw;
-      try { parsed = JSON.parse(raw); } catch { /* keep string */ }
-      await (supabase as any)
+      if (raw !== null) { try { parsed = JSON.parse(raw); } catch { /* keep string */ } }
+      const { error } = await (supabase as any)
         .from("kommenszlapf_user_data")
         .upsert(
-          { user_id: currentUserId, app: APP_NAME, key, value: parsed },
+          { user_id: currentUserId, app: APP_NAME, key, value: parsed, updated_at: ts },
           { onConflict: "user_id,app,key" }
         );
+      if (error) throw error;
     }
+    return true;
   } catch (e) {
-    // Silently swallow — fall back to localStorage-only behaviour.
-    console.warn("[kommenszlapf-sync] flush failed (offline?)", key, e);
+    console.warn("[kommenszlapf-sync] push failed", key, e);
+    return false;
+  }
+}
+
+async function handleWrite(key: string, op: "upsert" | "delete") {
+  if (!currentUserId) return;
+  const ts = new Date().toISOString();
+  stampKey(key, ts);
+  const ok = await pushKey(key, op, ts);
+  if (!ok) enqueue({ key, op, ts });
+  else notifySyncStatus("synced");
+}
+
+function scheduleImmediate(key: string, op: "upsert" | "delete") {
+  // Fire-and-forget; UI shouldn't block on this.
+  void handleWrite(key, op);
+}
+
+export async function flushPendingQueue() {
+  if (!currentUserId) return;
+  const q = readQueue();
+  if (q.length === 0) return;
+  const remaining: PendingItem[] = [];
+  for (const item of q) {
+    const ok = await pushKey(item.key, item.op, item.ts);
+    if (!ok) remaining.push(item);
+  }
+  writeQueue(remaining);
+  if (remaining.length === 0) notifySyncStatus("synced");
+}
+
+function notifySyncStatus(status: "syncing" | "synced" | "offline") {
+  try {
+    window.dispatchEvent(new CustomEvent("kommenszlapf-sync-status", { detail: status }));
+  } catch { /* ignore */ }
+}
+
+// -------------------- realtime --------------------
+
+function mergeIncomingValue(key: string, incoming: any, incomingTs: string) {
+  const localRaw = localStorage.getItem(key);
+  const map = readLastUpdated();
+  const localTs = map[key];
+  // If our local copy is newer than the incoming one, keep ours.
+  if (localTs && new Date(localTs).getTime() > new Date(incomingTs).getTime()) return;
+  // Otherwise adopt the incoming value.
+  if (incoming === null || incoming === undefined) {
+    removeItemRaw(key);
+  } else {
+    const serialized = typeof incoming === "string" ? incoming : JSON.stringify(incoming);
+    if (serialized === localRaw) return;
+    setItemRaw(key, serialized);
+  }
+  stampKey(key, incomingTs);
+  window.dispatchEvent(new Event("storage"));
+  window.dispatchEvent(new Event("appSettingsUpdated"));
+}
+
+function subscribeRealtime(userId: string) {
+  if (realtimeChannel) return;
+  realtimeChannel = supabase
+    .channel(`kommenszlapf-user-data-${userId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "kommenszlapf_user_data",
+        filter: `user_id=eq.${userId}`,
+      },
+      (payload: any) => {
+        try {
+          const row = payload.new ?? payload.old;
+          if (!row || row.app !== APP_NAME) return;
+          if (payload.eventType === "DELETE") {
+            mergeIncomingValue(row.key, null, new Date().toISOString());
+          } else {
+            mergeIncomingValue(row.key, row.value, row.updated_at || new Date().toISOString());
+          }
+        } catch (e) {
+          console.warn("[kommenszlapf-sync] realtime handler error", e);
+        }
+      }
+    )
+    .subscribe();
+}
+
+function unsubscribeRealtime() {
+  if (realtimeChannel) {
+    void supabase.removeChannel(realtimeChannel);
+    realtimeChannel = null;
   }
 }
 
@@ -61,14 +194,15 @@ function installInterceptors() {
   originalSetItem = Storage.prototype.setItem;
   originalRemoveItem = Storage.prototype.removeItem;
   originalClear = Storage.prototype.clear;
+  originalGetItem = Storage.prototype.getItem;
 
   Storage.prototype.setItem = function (key: string, value: string) {
     originalSetItem!.call(this, key, value);
-    if (this === window.localStorage && shouldSync(key)) scheduleUpsert(key);
+    if (this === window.localStorage && shouldSync(key)) scheduleImmediate(key, "upsert");
   };
   Storage.prototype.removeItem = function (key: string) {
     originalRemoveItem!.call(this, key);
-    if (this === window.localStorage && shouldSync(key)) scheduleUpsert(key);
+    if (this === window.localStorage && shouldSync(key)) scheduleImmediate(key, "delete");
   };
   Storage.prototype.clear = function () {
     const keys: string[] = [];
@@ -79,8 +213,14 @@ function installInterceptors() {
       }
     }
     originalClear!.call(this);
-    keys.forEach(scheduleUpsert);
+    keys.forEach(k => scheduleImmediate(k, "delete"));
   };
+
+  if (typeof window !== "undefined" && !onlineHandler) {
+    onlineHandler = () => { notifySyncStatus("syncing"); void flushPendingQueue(); };
+    window.addEventListener("online", onlineHandler);
+    window.addEventListener("offline", () => notifySyncStatus("offline"));
+  }
 }
 
 function uninstallInterceptors() {
@@ -89,6 +229,10 @@ function uninstallInterceptors() {
   if (originalRemoveItem) Storage.prototype.removeItem = originalRemoveItem;
   if (originalClear) Storage.prototype.clear = originalClear;
   installed = false;
+  if (onlineHandler) {
+    window.removeEventListener("online", onlineHandler);
+    onlineHandler = null;
+  }
 }
 
 function setItemRaw(key: string, value: string) {
@@ -145,10 +289,13 @@ export async function pushAllLocalToCloud(userId: string) {
 export async function activateSync(userId: string) {
   currentUserId = userId;
   installInterceptors();
+  subscribeRealtime(userId);
+  notifySyncStatus("syncing");
 
   const cloudRows = await pullAllFromCloud(userId);
   if (cloudRows === null) {
     // Offline / Supabase unreachable — keep local data only.
+    notifySyncStatus("offline");
     return;
   }
 
@@ -242,6 +389,10 @@ export async function activateSync(userId: string) {
   // Notify the app so React state reloads from the new localStorage values.
   window.dispatchEvent(new Event("storage"));
   window.dispatchEvent(new Event("appSettingsUpdated"));
+
+  // Flush any writes made while offline.
+  await flushPendingQueue();
+  notifySyncStatus("synced");
 }
 
 /**
@@ -265,8 +416,7 @@ export async function wipeAllCloudData(userId: string): Promise<boolean> {
 
 export function deactivateSync() {
   currentUserId = null;
-  PENDING.forEach((h) => window.clearTimeout(h));
-  PENDING.clear();
+  unsubscribeRealtime();
   uninstallInterceptors();
 }
 

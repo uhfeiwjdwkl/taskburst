@@ -27,6 +27,8 @@ import { FlexibleEventDetailsDialog } from '@/components/FlexibleEventDetailsDia
 import TaskCard from '@/components/TaskCard';
 import { UniversalDayCalendar } from '@/components/UniversalDayCalendar';
 import { ExportImportButton } from '@/components/ExportImportButton';
+import { ExportDayPlanDialog } from '@/components/ExportDayPlanDialog';
+import { Download } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { format, isSameDay, parseISO, isAfter, startOfDay } from 'date-fns';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
@@ -68,6 +70,7 @@ const CalendarPage = () => {
     window.dispatchEvent(new Event('calendarSelectedTimetableIdChange'));
   };
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [exportDayOpen, setExportDayOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addEventDialogOpen, setAddEventDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -420,6 +423,9 @@ const CalendarPage = () => {
                   </p>
                 </div>
                 <div className="flex gap-2">
+                  <Button size="sm" onClick={() => setExportDayOpen(true)} variant="outline" disabled={!selectedDate} title="Export day plan">
+                    <Download className="h-4 w-4 mr-1" /> Export Day
+                  </Button>
                   <Button size="sm" onClick={handleAddEventForDate} variant="outline" disabled={!selectedDate}>
                     <Plus className="h-4 w-4 mr-1" /> Event
                   </Button>
@@ -645,6 +651,8 @@ const CalendarPage = () => {
 
         <AddEventDialog open={addEventDialogOpen} onClose={() => setAddEventDialogOpen(false)} onAdd={handleAddEvent}
           prefilledDate={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined} />
+
+        <ExportDayPlanDialog open={exportDayOpen} onClose={() => setExportDayOpen(false)} date={selectedDate} />
 
         <AddTaskDialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} onAdd={handleAddTask}
           prefilledDate={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined} />
