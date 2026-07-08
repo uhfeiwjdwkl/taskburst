@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { SettingsDialog } from "./SettingsDialog";
 import { KommenszlapfAccountButton, KommenszlapfAccountMenuItem } from "./KommenszlapfAccountDialog";
 import { AppSettings, DEFAULT_SETTINGS, PageConfig } from "@/types/settings";
+import { nowInZone } from "@/lib/timezone";
 
 export function Navigation() {
   const navigate = useNavigate();
@@ -29,10 +30,10 @@ export function Navigation() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(new Date());
+      setCurrentTime(nowInZone(settings));
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [settings.overrideTimezone, settings.timezone, settings.customUtcOffset]);
 
   // Read active task & today items from localStorage
   useEffect(() => {
