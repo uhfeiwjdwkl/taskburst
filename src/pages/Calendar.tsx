@@ -652,6 +652,8 @@ const CalendarPage = () => {
         <AddEventDialog open={addEventDialogOpen} onClose={() => setAddEventDialogOpen(false)} onAdd={handleAddEvent}
           prefilledDate={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined} />
 
+        <ExportDayPlanDialog open={exportDayOpen} onClose={() => setExportDayOpen(false)} date={selectedDate} />
+
         <AddTaskDialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} onAdd={handleAddTask}
           prefilledDate={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined} />
 
