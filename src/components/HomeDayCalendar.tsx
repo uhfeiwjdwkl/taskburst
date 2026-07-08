@@ -14,6 +14,8 @@ import { Clock, CheckCircle2, Play, Calendar, ChevronLeft, ChevronRight, Hand, Z
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useAppSettings } from '@/hooks/useAppSettings';
+import { ExportDayPlanDialog } from './ExportDayPlanDialog';
+import { Download } from 'lucide-react';
 
 interface HomeDayCalendarProps {
   date?: Date;
@@ -69,6 +71,7 @@ export const HomeDayCalendar = ({
   const [hZoom, setHZoom] = useState(1);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const panRef = useRef<{ y: number; scrollTop: number } | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   useEffect(() => {
     const handler = () => setSelTtId(localStorage.getItem('calendarSelectedTimetableId') || 'all');
@@ -350,6 +353,10 @@ export const HomeDayCalendar = ({
             <ToggleGroupItem value="pan" aria-label="Pan" className="h-7 px-2"><Hand className="h-3 w-3" /></ToggleGroupItem>
             <ToggleGroupItem value="zoom" aria-label="Zoom" className="h-7 px-2"><ZoomIn className="h-3 w-3" /></ToggleGroupItem>
           </ToggleGroup>
+          <Button variant="outline" size="sm" className="h-7 px-2 gap-1" onClick={() => setExportOpen(true)} title="Export day plan">
+            <Download className="h-3 w-3" />
+            <span className="hidden sm:inline text-xs">Export</span>
+          </Button>
           <Badge variant="outline" className="text-xs">{todayItems.length}</Badge>
         </div>
       </div>
