@@ -27,6 +27,8 @@ import { FlexibleEventDetailsDialog } from '@/components/FlexibleEventDetailsDia
 import TaskCard from '@/components/TaskCard';
 import { UniversalDayCalendar } from '@/components/UniversalDayCalendar';
 import { ExportImportButton } from '@/components/ExportImportButton';
+import { ExportDayPlanDialog } from '@/components/ExportDayPlanDialog';
+import { Download } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { format, isSameDay, parseISO, isAfter, startOfDay } from 'date-fns';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
@@ -68,6 +70,7 @@ const CalendarPage = () => {
     window.dispatchEvent(new Event('calendarSelectedTimetableIdChange'));
   };
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [exportDayOpen, setExportDayOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addEventDialogOpen, setAddEventDialogOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
