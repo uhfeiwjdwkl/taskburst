@@ -333,6 +333,7 @@ export const HomeDayCalendar = ({
   };
 
   return (
+    <>
     <Card className="p-4 h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1">
