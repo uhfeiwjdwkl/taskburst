@@ -1,6 +1,6 @@
 ---
 name: kommenszlapf-auth
-description: "Sign in with Kommenszlapf" — unified Supabase auth shared across every *.kommenszlapf.website subdomain. Covers the shared-cookie session storage, KommenszlapfAuthProvider + useKommenszlapfAuth hook, username-or-email sign-in via the lookup-email-by-username edge function, email confirmation and password reset flows, and the account management dialog (change username/email/password, export, delete). Apply when adding auth to any sibling app so a single session works across all of them.
+description: Sign in with Kommenszlapf — unified Supabase auth shared across every *.kommenszlapf.website subdomain. Covers the shared-cookie session storage, KommenszlapfAuthProvider + useKommenszlapfAuth hook, username-or-email sign-in via the lookup-email-by-username edge function, email confirmation and password reset flows, and the account management dialog (change username/email/password, export, delete). Apply when adding auth to any sibling app so a single session works across all of them.
 ---
 
 # Sign in with Kommenszlapf
