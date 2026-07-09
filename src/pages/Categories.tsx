@@ -137,7 +137,19 @@ const Categories = () => {
   };
 
   const categoryGroups = getCategoryGroups();
-  const categories = Object.keys(categoryGroups).sort();
+  // Also include categories that exist in the saved category list even if
+  // they currently have no tasks — empty categories must not disappear.
+  const savedCategoryList: string[] = (() => {
+    try {
+      const raw = localStorage.getItem('categories') || localStorage.getItem('taskCategories');
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((c) => typeof c === 'string') : [];
+    } catch { return []; }
+  })();
+  const categorySet = new Set<string>([...Object.keys(categoryGroups), ...savedCategoryList]);
+  const categories = Array.from(categorySet).sort();
+  savedCategoryList.forEach((c) => { if (!categoryGroups[c]) categoryGroups[c] = []; });
 
   const getSubcategoriesFor = (category: string) => {
     return subcategories.filter(s => s.parentCategory === category);
