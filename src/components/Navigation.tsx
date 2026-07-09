@@ -331,7 +331,7 @@ export function Navigation() {
                       <ChevronDown className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuContent align="end" className="w-48 max-h-[80vh] overflow-y-auto">
                     <DropdownMenuLabel>Pages</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {visiblePages.map((page) => (
@@ -367,7 +367,7 @@ export function Navigation() {
                     <Menu className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48 bg-background">
+                <DropdownMenuContent align="end" className="w-48 bg-background max-h-[80vh] overflow-y-auto">
                   <DropdownMenuLabel>Navigation</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {visiblePages.map((page) => (
