@@ -10,7 +10,7 @@ import { eventOccursOnDate, getEventTimeSpanForDate } from '@/lib/eventUtils';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Clock, CheckCircle2, Play, Calendar, ChevronLeft, ChevronRight, Hand, ZoomIn, MousePointer } from 'lucide-react';
+import { Clock, CheckCircle2, Play, Calendar, ChevronLeft, ChevronRight, Hand, ZoomIn, MousePointer, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useAppSettings } from '@/hooks/useAppSettings';
@@ -72,6 +72,10 @@ export const HomeDayCalendar = ({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const panRef = useRef<{ y: number; scrollTop: number } | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const startHour = expanded ? 0 : 6;
+  const endHour = expanded ? 24 : 22;
+  const totalHours = endHour - startHour;
 
   useEffect(() => {
     const handler = () => setSelTtId(localStorage.getItem('calendarSelectedTimetableId') || 'all');
@@ -119,7 +123,7 @@ export const HomeDayCalendar = ({
       const hours = now.getHours();
       const minutes = now.getMinutes();
       // Position as percentage of the day (6am to 10pm = 16 hours)
-      const position = ((hours - 6) * 60 + minutes) / (16 * 60) * 100;
+      const position = ((hours - startHour) * 60 + minutes) / (totalHours * 60) * 100;
       setCurrentTimePosition(Math.max(0, Math.min(100, position)));
     };
     
@@ -276,15 +280,15 @@ export const HomeDayCalendar = ({
     });
   }, [timedItems]);
 
-  const hours = Array.from({ length: 17 }, (_, i) => i + 6); // 6am to 10pm
+  const hoursArr = Array.from({ length: totalHours + 1 }, (_, i) => i + startHour);
 
   const getTimePosition = (time: string): number => {
-    const [hours, minutes] = time.split(':').map(Number);
-    return ((hours - 6) * 60 + minutes) / (16 * 60) * 100;
+    const [h, m] = time.split(':').map(Number);
+    return ((h - startHour) * 60 + m) / (totalHours * 60) * 100;
   };
 
   const getHeightForDuration = (minutes: number): number => {
-    return (minutes / (16 * 60)) * 100;
+    return (minutes / (totalHours * 60)) * 100;
   };
 
   const handleItemClick = (item: TimelineItem) => {
@@ -357,6 +361,10 @@ export const HomeDayCalendar = ({
           <Button variant="outline" size="sm" className="h-7 px-2 gap-1" onClick={() => setExportOpen(true)} title="Export day plan">
             <Download className="h-3 w-3" />
             <span className="hidden sm:inline text-xs">Export</span>
+          </Button>
+          <Button variant="outline" size="sm" className="h-7 px-2 gap-1" onClick={() => setExpanded(e => !e)} title={expanded ? 'Collapse to 6am–10pm' : 'Expand to full 24 hours'}>
+            {expanded ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+            <span className="hidden sm:inline text-xs">{expanded ? 'Collapse' : 'Expand'}</span>
           </Button>
           <Badge variant="outline" className="text-xs">{todayItems.length}</Badge>
         </div>
@@ -433,11 +441,11 @@ export const HomeDayCalendar = ({
       >
         <div className="relative" style={{ height: `${400 * zoomLevel}px`, width: `${100 * hZoom}%` }}>
           {/* Hour lines */}
-          {hours.map((hour, index) => (
+          {hoursArr.map((hour, index) => (
             <div
               key={hour}
               className="absolute left-0 right-0 border-t border-border/50 flex"
-              style={{ top: `${(index / 16) * 100}%` }}
+              style={{ top: `${(index / totalHours) * 100}%` }}
             >
               <div className="w-10 text-[10px] text-muted-foreground pr-1 text-right -mt-2 bg-card">
                 {hour.toString().padStart(2, '0')}:00

@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Trash2, Clock, Undo2 } from 'lucide-react';
+import { ArrowLeft, Trash2, Clock, Undo2, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ExportImportButton } from '@/components/ExportImportButton';
@@ -17,6 +18,7 @@ const Archive = () => {
   const [archivedTasks, setArchivedTasks] = useState<Task[]>([]);
   const [archivedLists, setArchivedLists] = useState<List[]>([]);
   const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     try {
@@ -133,6 +135,12 @@ const Archive = () => {
     'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
   ];
 
+  const q = search.trim().toLowerCase();
+  const matchStr = (...s: (string | undefined)[]) => !q || s.some((v) => (v || '').toLowerCase().includes(q));
+  const filteredTasks = archivedTasks.filter(t => matchStr(t.name, t.description, t.category, t.subcategory));
+  const filteredLists = archivedLists.filter(l => matchStr(l.title, l.description));
+  const filteredProjects = archivedProjects.filter(p => matchStr(p.title, p.description));
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-4xl mx-auto px-4 py-8">
@@ -167,21 +175,31 @@ const Archive = () => {
           />
         </header>
 
+        <div className="relative mb-4">
+          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search archived tasks, lists, projects…"
+            className="pl-9"
+          />
+        </div>
+
         <Tabs defaultValue="tasks" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="tasks">Tasks ({archivedTasks.length})</TabsTrigger>
-            <TabsTrigger value="lists">Lists ({archivedLists.length})</TabsTrigger>
-            <TabsTrigger value="projects">Projects ({archivedProjects.length})</TabsTrigger>
+            <TabsTrigger value="tasks">Tasks ({filteredTasks.length})</TabsTrigger>
+            <TabsTrigger value="lists">Lists ({filteredLists.length})</TabsTrigger>
+            <TabsTrigger value="projects">Projects ({filteredProjects.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tasks" className="space-y-4 mt-4">
-            {archivedTasks.length === 0 ? (
+            {filteredTasks.length === 0 ? (
               <Card className="p-8 text-center text-muted-foreground">
-                No completed tasks yet. Finish some tasks to see them here!
+                {archivedTasks.length === 0 ? 'No completed tasks yet. Finish some tasks to see them here!' : 'No tasks match your search.'}
               </Card>
             ) : (
               <div className="space-y-4">
-                {archivedTasks.map((task) => (
+                {filteredTasks.map((task) => (
               <Card key={task.id} className="p-4 opacity-80">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -239,13 +257,13 @@ const Archive = () => {
           </TabsContent>
 
           <TabsContent value="lists" className="space-y-4 mt-4">
-            {archivedLists.length === 0 ? (
+            {filteredLists.length === 0 ? (
               <Card className="p-8 text-center text-muted-foreground">
-                No archived lists yet. Archive some lists to see them here!
+                {archivedLists.length === 0 ? 'No archived lists yet. Archive some lists to see them here!' : 'No lists match your search.'}
               </Card>
             ) : (
               <div className="space-y-4">
-                {archivedLists.map((list) => (
+                {filteredLists.map((list) => (
                   <Card key={list.id} className="p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
@@ -295,13 +313,13 @@ const Archive = () => {
           </TabsContent>
 
           <TabsContent value="projects" className="space-y-4 mt-4">
-            {archivedProjects.length === 0 ? (
+            {filteredProjects.length === 0 ? (
               <Card className="p-8 text-center text-muted-foreground">
-                No archived projects yet. Archive some projects to see them here!
+                {archivedProjects.length === 0 ? 'No archived projects yet. Archive some projects to see them here!' : 'No projects match your search.'}
               </Card>
             ) : (
               <div className="space-y-4">
-                {archivedProjects.map((project) => (
+                {filteredProjects.map((project) => (
                   <Card key={project.id} className="p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">

@@ -7,13 +7,19 @@ const FLEXIBLE_EVENTS_KEY = 'flexibleTimetableEvents';
 export function getFlexibleEventsForTimetable(timetableId: string): FlexibleEvent[] {
   const saved = localStorage.getItem(FLEXIBLE_EVENTS_KEY);
   if (!saved) return [];
-  const allEvents = JSON.parse(saved) as FlexibleEvent[];
-  return allEvents.filter(e => e.timetableId === timetableId);
+  try {
+    const p = JSON.parse(saved);
+    const allEvents = (Array.isArray(p) ? p : []) as FlexibleEvent[];
+    return allEvents.filter(e => e.timetableId === timetableId);
+  } catch { return []; }
 }
 
 export function saveFlexibleEventsForTimetable(timetableId: string, newEvents: FlexibleEvent[]): void {
   const saved = localStorage.getItem(FLEXIBLE_EVENTS_KEY);
-  const allEvents = saved ? JSON.parse(saved) as FlexibleEvent[] : [];
+  let allEvents: FlexibleEvent[] = [];
+  if (saved) {
+    try { const p = JSON.parse(saved); if (Array.isArray(p)) allEvents = p as FlexibleEvent[]; } catch { /* ignore */ }
+  }
   const otherEvents = allEvents.filter(e => e.timetableId !== timetableId);
   localStorage.setItem(FLEXIBLE_EVENTS_KEY, JSON.stringify([...otherEvents, ...newEvents]));
 }

@@ -29,8 +29,11 @@ const Projects = () => {
   const loadProjects = () => {
     const saved = localStorage.getItem('projects');
     if (saved) {
-      const parsed = JSON.parse(saved) as Project[];
-      setProjects(parsed.filter(p => !p.deletedAt && !p.archivedAt).sort((a, b) => a.order - b.order));
+      try {
+        const parsedRaw = JSON.parse(saved);
+        const parsed = (Array.isArray(parsedRaw) ? parsedRaw : []) as Project[];
+        setProjects(parsed.filter(p => !p.deletedAt && !p.archivedAt).sort((a, b) => a.order - b.order));
+      } catch { setProjects([]); }
     }
   };
 
@@ -38,9 +41,18 @@ const Projects = () => {
     const saved = localStorage.getItem('tasks');
     const archived = localStorage.getItem('archivedTasks');
     if (saved) {
-      const parsed = JSON.parse(saved) as Task[];
-      const archivedParsed = archived ? JSON.parse(archived) as Task[] : [];
-      setAllTasks([...parsed, ...archivedParsed].filter(t => !t.deletedAt));
+      try {
+        const parsedRaw = JSON.parse(saved);
+        const parsed = (Array.isArray(parsedRaw) ? parsedRaw : []) as Task[];
+        let archivedParsed: Task[] = [];
+        if (archived) {
+          try {
+            const a = JSON.parse(archived);
+            if (Array.isArray(a)) archivedParsed = a as Task[];
+          } catch { /* ignore */ }
+        }
+        setAllTasks([...parsed, ...archivedParsed].filter(t => !t.deletedAt));
+      } catch { setAllTasks([]); }
     }
   };
 
