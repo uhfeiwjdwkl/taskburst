@@ -45,6 +45,7 @@ const Categories = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [savedCategoryList, setSavedCategoryList] = useState<string[]>([]);
   const [newSubcategoryName, setNewSubcategoryName] = useState('');
   const [addingSubcategoryFor, setAddingSubcategoryFor] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -68,6 +69,12 @@ const Categories = () => {
     if (savedSubcategories) {
       setSubcategories(JSON.parse(savedSubcategories));
     }
+
+    try {
+      const raw = localStorage.getItem('taskCategories') || localStorage.getItem('categories');
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) setSavedCategoryList(parsed.filter((c) => typeof c === 'string'));
+    } catch { /* ignore */ }
   }, []);
 
   useEffect(() => {
@@ -139,14 +146,6 @@ const Categories = () => {
   const categoryGroups = getCategoryGroups();
   // Also include categories that exist in the saved category list even if
   // they currently have no tasks — empty categories must not disappear.
-  const savedCategoryList: string[] = (() => {
-    try {
-      const raw = localStorage.getItem('categories') || localStorage.getItem('taskCategories');
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed.filter((c) => typeof c === 'string') : [];
-    } catch { return []; }
-  })();
   const categorySet = new Set<string>([...Object.keys(categoryGroups), ...savedCategoryList]);
   const categories = Array.from(categorySet).sort();
   savedCategoryList.forEach((c) => { if (!categoryGroups[c]) categoryGroups[c] = []; });
