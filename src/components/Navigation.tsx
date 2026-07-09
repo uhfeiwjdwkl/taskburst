@@ -14,6 +14,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { SettingsDialog } from "./SettingsDialog";
 import { KommenszlapfAccountButton, KommenszlapfAccountMenuItem } from "./KommenszlapfAccountDialog";
+import { KommenszlapfAccountDialog } from "./KommenszlapfAccountDialog";
+import { useKommenszlapfAuth } from "@/lib/kommenszlapfAuth";
 import { AppSettings, DEFAULT_SETTINGS, PageConfig } from "@/types/settings";
 import { nowInZone } from "@/lib/timezone";
 import { Wifi, WifiOff, RefreshCw as RefreshIcon } from "lucide-react";
@@ -31,6 +33,8 @@ export function Navigation() {
   const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'offline'>(
     typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'synced'
   );
+  const [accountOpen, setAccountOpen] = useState(false);
+  const { user, profile } = useKommenszlapfAuth();
 
   useEffect(() => {
     const on = (e: any) => setSyncStatus(e.detail);
@@ -346,9 +350,10 @@ export function Navigation() {
                       Settings
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <KommenszlapfAccountMenuItem />
-                    </div>
+                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setAccountOpen(true); }}>
+                      <span className="mr-2">👤</span>
+                      {user ? (profile?.username ?? user.email) : 'Sign in / Create account'}
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -377,9 +382,10 @@ export function Navigation() {
                     Settings
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <KommenszlapfAccountMenuItem />
-                  </div>
+                  <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setAccountOpen(true); }}>
+                    <span className="mr-2">👤</span>
+                    {user ? (profile?.username ?? user.email) : 'Sign in / Create account'}
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -395,6 +401,7 @@ export function Navigation() {
       </nav>
       
       <SettingsDialog open={showSettings} onClose={() => setShowSettings(false)} />
+      <KommenszlapfAccountDialog open={accountOpen} onOpenChange={setAccountOpen} />
     </>
   );
 }
