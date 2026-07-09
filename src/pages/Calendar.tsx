@@ -617,7 +617,17 @@ const CalendarPage = () => {
                             <p className="font-medium text-sm truncate">{event.title}</p>
                             <div className="flex gap-2 text-xs text-muted-foreground">
                               <span>{format(parseISO(event.date), 'MMM d, yyyy')}</span>
-                              {event.time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatTimeTo12Hour(event.time)}</span>}
+                              {event.time && (() => {
+                                const [h, m] = event.time.split(':').map(Number);
+                                const dur = event.duration ?? 60;
+                                const endMin = h * 60 + m + dur;
+                                const endTime = event.endTime ?? `${String(Math.floor((endMin/60)%24)).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`;
+                                return (
+                                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" />
+                                    {formatTimeTo12Hour(event.time)}–{formatTimeTo12Hour(endTime)} · {dur}m
+                                  </span>
+                                );
+                              })()}
                               {event.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{event.location}</span>}
                             </div>
                           </div>
