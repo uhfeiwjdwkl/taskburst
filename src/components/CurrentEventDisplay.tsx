@@ -54,7 +54,8 @@ export const CurrentEventDisplay = () => {
       // Check timetable events
       const timetablesData = localStorage.getItem('timetables');
       if (timetablesData) {
-        const timetables: Timetable[] = JSON.parse(timetablesData);
+        let timetables: Timetable[] = [];
+        try { const p = JSON.parse(timetablesData); if (Array.isArray(p)) timetables = p; } catch {}
         const activeTimetables = timetables.filter(t => !t.deletedAt && t.favorite);
 
         for (const timetable of activeTimetables) {
