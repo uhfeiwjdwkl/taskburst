@@ -492,7 +492,17 @@ const CalendarPage = () => {
                             <span className="font-semibold text-sm truncate">{event.title}</span>
                           </div>
                           <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                            {event.time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatTimeTo12Hour(event.time)}{event.duration && ` (${event.duration}m)`}</span>}
+                            {event.time && (() => {
+                              const [h, m] = event.time.split(':').map(Number);
+                              const dur = event.duration ?? 60;
+                              const endMin = h * 60 + m + dur;
+                              const endTime = event.endTime ?? `${String(Math.floor((endMin/60)%24)).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`;
+                              return (
+                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" />
+                                  {formatTimeTo12Hour(event.time)} – {formatTimeTo12Hour(endTime)} ({dur}m)
+                                </span>
+                              );
+                            })()}
                             {event.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{event.location}</span>}
                           </div>
                           <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive h-6 w-6 p-0 float-right -mt-8"
