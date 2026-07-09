@@ -14,7 +14,10 @@ const STORAGE_KEY = 'textBackups';
 
 export function getTextBackups(includeHidden = false): TextBackup[] {
   const stored = localStorage.getItem(STORAGE_KEY);
-  const backups: TextBackup[] = stored ? JSON.parse(stored) : [];
+  let backups: TextBackup[] = [];
+  if (stored) {
+    try { const p = JSON.parse(stored); if (Array.isArray(p)) backups = p as TextBackup[]; } catch { /* ignore */ }
+  }
   return includeHidden ? backups : backups.filter(b => !b.hidden);
 }
 
