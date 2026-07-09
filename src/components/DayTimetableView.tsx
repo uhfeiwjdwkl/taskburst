@@ -35,7 +35,8 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
   const loadTimetables = () => {
     const saved = localStorage.getItem('timetables');
     if (saved) {
-      const parsed = JSON.parse(saved) as Timetable[];
+      let parsed: Timetable[] = [];
+      try { const p = JSON.parse(saved); if (Array.isArray(p)) parsed = p as Timetable[]; } catch {}
       const active = parsed.filter(t => !t.deletedAt);
       setTimetables(active);
       if (active.length > 0 && !selectedTimetableId) {
