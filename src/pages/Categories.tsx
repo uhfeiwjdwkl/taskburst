@@ -205,9 +205,12 @@ const Categories = () => {
     if (newCategoryName.trim()) {
       // Categories are inferred from tasks, so we need to save it differently
       const savedCategories = JSON.parse(localStorage.getItem('taskCategories') || '[]');
-      if (!savedCategories.includes(newCategoryName.trim())) {
-        savedCategories.push(newCategoryName.trim());
+      const name = newCategoryName.trim();
+      if (!savedCategories.includes(name)) {
+        savedCategories.push(name);
         localStorage.setItem('taskCategories', JSON.stringify(savedCategories));
+        localStorage.setItem('categories', JSON.stringify(savedCategories));
+        setSavedCategoryList(savedCategories);
         toast.success('Category added');
       }
       setNewCategoryName('');
@@ -237,6 +240,8 @@ const Categories = () => {
     const savedCategories = JSON.parse(localStorage.getItem('taskCategories') || '[]');
     const newCategories = savedCategories.map((c: string) => c === oldName ? newName.trim() : c);
     localStorage.setItem('taskCategories', JSON.stringify(newCategories));
+    localStorage.setItem('categories', JSON.stringify(newCategories));
+    setSavedCategoryList(newCategories);
     
     if (selectedCategory === oldName) {
       setSelectedCategory(newName.trim());
@@ -261,6 +266,8 @@ const Categories = () => {
     const savedCategories = JSON.parse(localStorage.getItem('taskCategories') || '[]');
     const newCategories = savedCategories.filter((c: string) => c !== categoryName);
     localStorage.setItem('taskCategories', JSON.stringify(newCategories));
+    localStorage.setItem('categories', JSON.stringify(newCategories));
+    setSavedCategoryList(newCategories);
     
     if (selectedCategory === categoryName) {
       setSelectedCategory(null);
