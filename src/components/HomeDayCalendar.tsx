@@ -73,8 +73,8 @@ export const HomeDayCalendar = ({
   const panRef = useRef<{ y: number; scrollTop: number } | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const startHour = expanded ? 0 : 6;
-  const endHour = expanded ? 24 : 22;
+  const startHour = expanded ? 0 : Math.max(0, Math.min(23, (settings as any).calendarStartHour ?? 6));
+  const endHour = expanded ? 24 : Math.max(startHour + 1, Math.min(24, (settings as any).calendarEndHour ?? 22));
   const totalHours = endHour - startHour;
 
   useEffect(() => {
