@@ -115,6 +115,12 @@ Ship a `KommenszlapfAccountDialog` with:
 - **Signed in**: shows `username` + `email`, and buttons for Export account data, Change username, Change email, Change password, Delete account, Sign out. All destructive/mutating actions require re-entering the current password twice and reverifying via `supabase.auth.signInWithPassword` before proceeding.
 - Expose two entry points from `Navigation`: `KommenszlapfAccountButton` (button style) and `KommenszlapfAccountMenuItem` (dropdown-friendly).
 
+### Mounting the dialog (important)
+
+Mount `<KommenszlapfAccountDialog>` ONCE at the `Navigation` component level and control its `open` state from there — do NOT render it inside a `DropdownMenuItem` or any element that unmounts when a menu/sheet closes, or the dialog will disappear the instant the dropdown collapses. Both `KommenszlapfAccountButton` and `KommenszlapfAccountMenuItem` should just call an `onOpen` handler passed down from `Navigation`. Make sure the sidebar/mobile dropdown surfaces the account entry too — it's easy to add it to the desktop nav and forget the collapsed menu.
+
+Long dropdown menus should be scrollable (`max-h-[80vh] overflow-y-auto`) so the account item is always reachable.
+
 ## Required routes
 
 - `/auth/confirmed` — landing after email confirmation. Simple success card + "Return to <app> home".
