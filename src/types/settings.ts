@@ -233,6 +233,10 @@ export interface AppSettings {
 
   // Timer mode: 'countdown' (subtractive/pomodoro) or 'stopwatch' (additive)
   timerMode: 'countdown' | 'stopwatch';
+
+  // Calendar visible time range (hours 0-24)
+  calendarStartHour: number;
+  calendarEndHour: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -263,6 +267,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   homepageTimetableSchedule: undefined,
   autoLinkSubtasksToGrid: false,
   timerMode: 'countdown',
+  calendarStartHour: 6,
+  calendarEndHour: 22,
 };
 
 // Legacy color palettes for backwards compatibility

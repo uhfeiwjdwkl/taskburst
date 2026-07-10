@@ -431,6 +431,42 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   onCheckedChange={(checked) => setSettings({ ...settings, showAnalogueClock: checked } as any)}
                 />
               </div>
+
+              {/* Calendar visible time range */}
+              <div>
+                <Label>Calendar visible time range (hours)</Label>
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Start</Label>
+                    <Select
+                      value={String((settings as any).calendarStartHour ?? 6)}
+                      onValueChange={(v) => setSettings({ ...settings, calendarStartHour: parseInt(v) } as any)}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <SelectItem key={i} value={String(i)}>{i}:00</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">End</Label>
+                    <Select
+                      value={String((settings as any).calendarEndHour ?? 22)}
+                      onValueChange={(v) => setSettings({ ...settings, calendarEndHour: parseInt(v) } as any)}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        {Array.from({ length: 24 }, (_, i) => i + 1).map((h) => (
+                          <SelectItem key={h} value={String(h)}>{h}:00</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Applies to homepage and calendar day view. Use the "Expand" button on those pages to temporarily view the full 24 hours.</p>
+              </div>
             </div>
 
             {/* Progress Grid Section */}

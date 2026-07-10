@@ -28,7 +28,8 @@ export const CurrentEventDisplay = () => {
       // Check calendar events
       const eventsData = localStorage.getItem('calendarEvents');
       if (eventsData) {
-        const events: CalendarEvent[] = JSON.parse(eventsData);
+        let events: CalendarEvent[] = [];
+        try { const p = JSON.parse(eventsData); if (Array.isArray(p)) events = p as CalendarEvent[]; } catch {}
         const activeEvent = events.find(event => {
           if (event.deletedAt) return false;
           if (event.date !== today) return false;
