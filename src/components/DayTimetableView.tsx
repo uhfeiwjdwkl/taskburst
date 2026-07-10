@@ -11,6 +11,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import TimetableCellDetailsDialog from '@/components/TimetableCellDetailsDialog';
+import { Button } from '@/components/ui/button';
+import { Maximize2, Minimize2 } from 'lucide-react';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface DayTimetableViewProps {
   events: CalendarEvent[];
@@ -26,6 +29,12 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
   const [selectedCell, setSelectedCell] = useState<any>(null);
   const [cellDetailsOpen, setCellDetailsOpen] = useState(false);
   const [cellRowCol, setCellRowCol] = useState<{ row: number; col: number } | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const settings = useAppSettings();
+  const configStart = Math.max(0, Math.min(23, (settings as any).calendarStartHour ?? 6));
+  const configEnd = Math.max(configStart + 1, Math.min(24, (settings as any).calendarEndHour ?? 23));
+  const startHour = expanded ? 0 : configStart;
+  const endHour = expanded ? 24 : configEnd;
 
   // Load timetables
   useEffect(() => {
@@ -77,8 +86,8 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
 
   const selectedTimetable = timetables.find(t => t.id === selectedTimetableId);
   
-  // Generate time slots from 6 AM to 11 PM
-  const hours = Array.from({ length: 18 }, (_, i) => i + 6);
+  // Generate time slots based on visible range
+  const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => i + startHour);
   
   // Filter events that have a time set
   const timedEvents = events.filter(e => e.time);
@@ -157,8 +166,8 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
       totalColumns: number;
     }> = [];
 
-    const startMinutes = 6 * 60; // 6 AM
-    const endMinutes = 23 * 60; // 11 PM
+    const startMinutes = startHour * 60;
+    const endMinutes = endHour * 60;
 
     // Sort events by start time
     const sortedEvents = [...timedEvents].sort((a, b) => {
@@ -238,8 +247,8 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
     const hours = currentTime.getHours();
     const minutes = currentTime.getMinutes();
     const totalMinutes = hours * 60 + minutes;
-    const startMinutes = 6 * 60; // 6 AM
-    const endMinutes = 23 * 60; // 11 PM
+    const startMinutes = startHour * 60;
+    const endMinutes = endHour * 60;
     
     if (totalMinutes < startMinutes || totalMinutes >= endMinutes) {
       return null;
@@ -258,7 +267,11 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
           <Clock className="h-4 w-4" />
           Day Schedule
         </h3>
-        {timetables.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setExpanded(v => !v)}>
+            {expanded ? <><Minimize2 className="h-4 w-4 mr-1" />Collapse</> : <><Maximize2 className="h-4 w-4 mr-1" />Expand</>}
+          </Button>
+          {timetables.length > 0 && (
           <Select value={selectedTimetableId || undefined} onValueChange={setSelectedTimetableId}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Select timetable" />
@@ -271,7 +284,8 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
               ))}
             </SelectContent>
           </Select>
-        )}
+          )}
+        </div>
       </div>
       <div className="relative h-[600px] overflow-auto">
         {/* Time labels on the left edge */}
@@ -280,7 +294,7 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
             <div
               key={hour}
               className="absolute w-full"
-              style={{ top: `${((hour - 6) / 17) * 100}%` }}
+              style={{ top: `${((hour - startHour) / (endHour - startHour)) * 100}%` }}
             >
               <span className="text-xs text-muted-foreground bg-background px-1 block text-right">
                 {formatTime(hour)}
@@ -295,7 +309,7 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
             <div
               key={hour}
               className="absolute w-full border-t border-border"
-              style={{ top: `${((hour - 6) / 17) * 100}%`, left: 0 }}
+              style={{ top: `${((hour - startHour) / (endHour - startHour)) * 100}%`, left: 0 }}
             />
           ))}
         </div>
@@ -305,8 +319,8 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
           {timetableCells.map((cell, idx) => {
             const [hours, minutes] = cell.timeSlot.startTime.split(':').map(Number);
             const totalMinutes = hours * 60 + minutes;
-            const startMinutes = 6 * 60;
-            const endMinutes = 23 * 60;
+            const startMinutes = startHour * 60;
+            const endMinutes = endHour * 60;
             
             if (totalMinutes < startMinutes || totalMinutes >= endMinutes) return null;
 
