@@ -689,10 +689,11 @@ const Index = () => {
             onClose={() => setListDetailsOpen(false)}
             onUpdate={(updatedList) => {
               const allLists = JSON.parse(localStorage.getItem('lists') || '[]');
-              const updated = allLists.map((l: List) => l.id === updatedList.id ? updatedList : l);
+              const safeAll = Array.isArray(allLists) ? allLists : [];
+              const updated = safeAll.map((l: List) => l.id === updatedList.id ? updatedList : l);
               localStorage.setItem('lists', JSON.stringify(updated));
+              setSelectedList(updatedList);
               setFavoriteLists(updated.filter((l: List) => l.favorite && !l.deletedAt && !l.archivedAt));
-              toast.success('List updated!');
             }}
             onDelete={() => {
               if (selectedList) {
