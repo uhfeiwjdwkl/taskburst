@@ -95,7 +95,10 @@ export const HomeDayCalendar = ({
   useEffect(() => {
     const savedEvents = localStorage.getItem('calendarEvents');
     if (savedEvents) {
-      setEvents(JSON.parse(savedEvents));
+      try {
+        const p = JSON.parse(savedEvents);
+        setEvents(Array.isArray(p) ? p : []);
+      } catch { setEvents([]); }
     }
     
     const savedTimetables = localStorage.getItem('timetables');
