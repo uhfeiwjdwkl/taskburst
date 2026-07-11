@@ -153,6 +153,7 @@ export const HomeDayCalendar = ({
           type: 'task',
           title: task.name,
           completed: task.completed,
+          color: task.color,
           data: task,
         });
       }
