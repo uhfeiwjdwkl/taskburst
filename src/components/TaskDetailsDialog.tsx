@@ -32,6 +32,8 @@ import { TaskScheduleDialog } from './TaskScheduleDialog';
 import { TaskLinkedAssessmentsSection } from './TaskLinkedAssessmentsSection';
 import { syncLinkedAssessmentsForTask } from '@/lib/assessmentUtils';
 import { toast } from 'sonner';
+import { ColorPickerGrid } from '@/components/ColorPickerGrid';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface TaskDetailsDialogProps {
   task: Task | null;
@@ -44,6 +46,13 @@ interface TaskDetailsDialogProps {
 
 const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerExtra }: TaskDetailsDialogProps) => {
   const [editedTask, setEditedTask] = useState<Task | null>(null);
+  const settings = useAppSettings();
+  const persistCustomColors = (next: string[]) => {
+    const saved = JSON.parse(localStorage.getItem('appSettings') || '{}');
+    saved.customColors = next;
+    localStorage.setItem('appSettings', JSON.stringify(saved));
+    window.dispatchEvent(new Event('appSettingsUpdated'));
+  };
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState('');
   const [showAddCategory, setShowAddCategory] = useState(false);
