@@ -195,6 +195,7 @@ export const UniversalDayCalendar = ({
           title: event.title,
           time: span.time,
           duration: span.duration,
+          color: event.color,
           data: event,
         });
       }
