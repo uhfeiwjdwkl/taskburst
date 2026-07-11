@@ -56,7 +56,10 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
   };
 
   return (
-    <Card className="p-4 hover:shadow-lg transition-shadow">
+    <Card
+      className="p-4 hover:shadow-lg transition-shadow"
+      style={task.color ? { borderLeft: `4px solid ${task.color}`, backgroundColor: `${task.color}12` } : undefined}
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
