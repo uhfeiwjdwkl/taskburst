@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { PRESET_COLORS } from "@/types/settings";
 
 interface TimetableCellProps {
   cell?: TimetableCellType;
@@ -28,12 +29,6 @@ interface TimetableCellProps {
   onCellClick?: (cell: TimetableCellType, rowIndex: number, colIndex: number) => void;
   timeSlot?: { startTime: string; duration: number };
 }
-
-const PRESET_COLORS = [
-  '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e',
-  '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1',
-  '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'
-];
 
 export function TimetableCell({
   cell,
