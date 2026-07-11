@@ -164,6 +164,7 @@ export const UniversalDayCalendar = ({
           type: 'task',
           title: task.name,
           completed: task.completed,
+          color: task.color,
           data: task,
         });
       }
@@ -194,6 +195,7 @@ export const UniversalDayCalendar = ({
           title: event.title,
           time: span.time,
           duration: span.duration,
+          color: event.color,
           data: event,
         });
       }

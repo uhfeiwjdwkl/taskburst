@@ -15,6 +15,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { CalendarEvent } from '@/types/event';
+import { ColorPickerGrid } from '@/components/ColorPickerGrid';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface EditEventDialogProps {
   event: CalendarEvent | null;
@@ -37,7 +39,15 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringDays, setRecurringDays] = useState('7');
   const [recurringEndDate, setRecurringEndDate] = useState('');
+  const [color, setColor] = useState<string>('');
   const originalEventRef = useRef<CalendarEvent | null>(null);
+  const settings = useAppSettings();
+  const persistCustomColors = (next: string[]) => {
+    const saved = JSON.parse(localStorage.getItem('appSettings') || '{}');
+    saved.customColors = next;
+    localStorage.setItem('appSettings', JSON.stringify(saved));
+    window.dispatchEvent(new Event('appSettingsUpdated'));
+  };
 
   useEffect(() => {
     if (event) {
@@ -54,6 +64,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       setIsRecurring(event.recurring?.enabled || false);
       setRecurringDays(event.recurring?.intervalDays?.toString() || '7');
       setRecurringEndDate(event.recurring?.endDate || '');
+      setColor(event.color || '');
       originalEventRef.current = { ...event };
     }
   }, [event]);
@@ -122,6 +133,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       endTime: isMultiDay && endTime ? endTime : (useEnd ? endTime : undefined),
       duration: !isMultiDay && time ? calculatedDuration : undefined,
       location: location.trim() || undefined,
+      color: color || undefined,
       recurring: isRecurring ? {
         enabled: true,
         intervalDays: parseInt(recurringDays) || 7,
@@ -289,6 +301,27 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="Event location (optional)"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Colour</Label>
+              <ColorPickerGrid
+                value={color}
+                onChange={setColor}
+                customColors={settings.customColors || []}
+                onAddCustomColor={(c) => persistCustomColors([...(settings.customColors || []), c])}
+                onEditCustomColor={(oldC, newC) =>
+                  persistCustomColors((settings.customColors || []).map((x) => (x === oldC ? newC : x)))
+                }
+                onDeleteCustomColor={(c) =>
+                  persistCustomColors((settings.customColors || []).filter((x) => x !== c))
+                }
+              />
+              {color && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setColor('')}>
+                  Clear colour
+                </Button>
+              )}
             </div>
 
             <div className="space-y-3 pt-2 border-t">

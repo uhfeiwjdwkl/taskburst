@@ -8,6 +8,7 @@ export interface CalendarEvent {
   endTime?: string; // "17:00" format (end time for multi-day events)
   duration?: number; // in minutes (only for single-day events)
   location?: string;
+  color?: string; // Optional custom colour for calendar/timetable display and cards
   recurring?: {
     enabled: boolean;
     intervalDays: number; // Repeat every X days

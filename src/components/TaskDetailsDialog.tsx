@@ -32,6 +32,8 @@ import { TaskScheduleDialog } from './TaskScheduleDialog';
 import { TaskLinkedAssessmentsSection } from './TaskLinkedAssessmentsSection';
 import { syncLinkedAssessmentsForTask } from '@/lib/assessmentUtils';
 import { toast } from 'sonner';
+import { ColorPickerGrid } from '@/components/ColorPickerGrid';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 interface TaskDetailsDialogProps {
   task: Task | null;
@@ -44,6 +46,13 @@ interface TaskDetailsDialogProps {
 
 const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerExtra }: TaskDetailsDialogProps) => {
   const [editedTask, setEditedTask] = useState<Task | null>(null);
+  const settings = useAppSettings();
+  const persistCustomColors = (next: string[]) => {
+    const saved = JSON.parse(localStorage.getItem('appSettings') || '{}');
+    saved.customColors = next;
+    localStorage.setItem('appSettings', JSON.stringify(saved));
+    window.dispatchEvent(new Event('appSettingsUpdated'));
+  };
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState('');
   const [showAddCategory, setShowAddCategory] = useState(false);
@@ -445,6 +454,34 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
               step={1}
               className="mt-2"
             />
+          </div>
+
+          <div>
+            <Label>Colour</Label>
+            <div className="mt-2">
+              <ColorPickerGrid
+                value={editedTask.color || ''}
+                onChange={(c) => setEditedTask({ ...editedTask, color: c || undefined })}
+                customColors={settings.customColors || []}
+                onAddCustomColor={(c) => persistCustomColors([...(settings.customColors || []), c])}
+                onEditCustomColor={(oldC, newC) =>
+                  persistCustomColors((settings.customColors || []).map((x) => (x === oldC ? newC : x)))
+                }
+                onDeleteCustomColor={(c) =>
+                  persistCustomColors((settings.customColors || []).filter((x) => x !== c))
+                }
+              />
+              {editedTask.color && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditedTask({ ...editedTask, color: undefined })}
+                >
+                  Clear colour
+                </Button>
+              )}
+            </div>
           </div>
 
           <div>

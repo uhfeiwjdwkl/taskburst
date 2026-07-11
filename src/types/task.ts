@@ -56,6 +56,8 @@ export interface Task {
   order?: number;
   // Flag state — when true the details dialog highlights editable fields
   flagged?: boolean;
+  // Optional custom colour used for card accents and calendar display
+  color?: string;
 }
 
 export type TimerPhase = 'focus' | 'break';
