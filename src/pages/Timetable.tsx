@@ -558,7 +558,7 @@ const Timetable = () => {
                              }
                            }}
                            isEditing={isEditing && selectedTimetable?.id === timetable.id}
-                           focusedColor={focusedColor}
+                           focusedColor={focusedColor || activeIsolatedColour || undefined}
                            onCellClick={(cell, rowIndex, colIndex) => {
                              const timeSlot = timetable.rows[rowIndex];
                              setSelectedCell({
