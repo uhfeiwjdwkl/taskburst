@@ -303,6 +303,27 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
               />
             </div>
 
+            <div className="space-y-2">
+              <Label>Colour</Label>
+              <ColorPickerGrid
+                value={color}
+                onChange={setColor}
+                customColors={settings.customColors || []}
+                onAddCustomColor={(c) => persistCustomColors([...(settings.customColors || []), c])}
+                onEditCustomColor={(oldC, newC) =>
+                  persistCustomColors((settings.customColors || []).map((x) => (x === oldC ? newC : x)))
+                }
+                onDeleteCustomColor={(c) =>
+                  persistCustomColors((settings.customColors || []).filter((x) => x !== c))
+                }
+              />
+              {color && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setColor('')}>
+                  Clear colour
+                </Button>
+              )}
+            </div>
+
             <div className="space-y-3 pt-2 border-t">
               <div className="flex items-center space-x-2">
                 <Checkbox
