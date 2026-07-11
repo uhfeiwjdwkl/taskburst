@@ -486,7 +486,12 @@ const CalendarPage = () => {
                     if (type === 'event') {
                       const event = item as CalendarEvent;
                       return (
-                        <Card key={`event-${event.id}`} className="p-3 cursor-pointer hover:bg-accent transition-colors" onClick={() => handleEventClick(event)}>
+                        <Card
+                          key={`event-${event.id}`}
+                          className="p-3 cursor-pointer hover:bg-accent transition-colors"
+                          style={event.color ? { borderLeft: `4px solid ${event.color}`, backgroundColor: `${event.color}12` } : undefined}
+                          onClick={() => handleEventClick(event)}
+                        >
                           <div className="flex items-center gap-2 mb-1">
                             <Badge variant="secondary" className="text-xs">Event</Badge>
                             <span className="font-semibold text-sm truncate">{event.title}</span>
