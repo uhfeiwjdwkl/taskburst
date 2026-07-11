@@ -457,6 +457,34 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
           </div>
 
           <div>
+            <Label>Colour</Label>
+            <div className="mt-2">
+              <ColorPickerGrid
+                value={editedTask.color || ''}
+                onChange={(c) => setEditedTask({ ...editedTask, color: c || undefined })}
+                customColors={settings.customColors || []}
+                onAddCustomColor={(c) => persistCustomColors([...(settings.customColors || []), c])}
+                onEditCustomColor={(oldC, newC) =>
+                  persistCustomColors((settings.customColors || []).map((x) => (x === oldC ? newC : x)))
+                }
+                onDeleteCustomColor={(c) =>
+                  persistCustomColors((settings.customColors || []).filter((x) => x !== c))
+                }
+              />
+              {editedTask.color && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditedTask({ ...editedTask, color: undefined })}
+                >
+                  Clear colour
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div>
             <Label htmlFor="estimatedMinutes">Estimated Time (minutes)</Label>
             <Input
               id="estimatedMinutes"
