@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download, Briefcase, ChevronDown, ChevronRight, GripVertical, Search, Trash2, CheckCircle, ChevronLeft, Info } from 'lucide-react';
+import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download, Briefcase, ChevronDown, ChevronRight, GripVertical, Search, Trash2, CheckCircle, ChevronLeft, Info, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { playTaskCompleteSound } from '@/lib/sounds';
@@ -215,14 +215,14 @@ const Index = () => {
   const handleCompleteTask = (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
     if (task) {
-      const completedTask = { ...task, completed: true };
+      const completedTask = { ...task, completed: true, archivedAt: new Date().toISOString() };
       
       // Play completion sound
       playTaskCompleteSound();
       
       // Move to archive
       const archived = JSON.parse(localStorage.getItem('archivedTasks') || '[]');
-      localStorage.setItem('archivedTasks', JSON.stringify([...archived, completedTask]));
+      localStorage.setItem('archivedTasks', JSON.stringify([completedTask, ...archived]));
       
       // Remove from active tasks
       setTasks(tasks.filter(t => t.id !== taskId));
@@ -289,15 +289,18 @@ const Index = () => {
     return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
   });
 
+  const hiddenTasks = sortedTasks.filter(t => t.hidden);
+  const visibleSortedTasks = sortedTasks.filter(t => !t.hidden);
+
   const filteredTasks = useMemo(() => {
-    if (!searchQuery.trim()) return sortedTasks;
+    if (!searchQuery.trim()) return visibleSortedTasks;
     const q = searchQuery.toLowerCase();
-    return sortedTasks.filter(t =>
+    return visibleSortedTasks.filter(t =>
       t.name.toLowerCase().includes(q) ||
       t.category?.toLowerCase().includes(q) ||
       t.description?.toLowerCase().includes(q)
     );
-  }, [sortedTasks, searchQuery]);
+  }, [visibleSortedTasks, searchQuery]);
 
   const handleToggleTaskSelection = (taskId: string) => {
     setSelectedTaskIds(prev => {
@@ -319,7 +322,7 @@ const Index = () => {
   const handleBulkComplete = () => {
     const toComplete = tasks.filter(t => selectedTaskIds.has(t.id));
     const archived = JSON.parse(localStorage.getItem('archivedTasks') || '[]');
-    localStorage.setItem('archivedTasks', JSON.stringify([...archived, ...toComplete.map(t => ({ ...t, completed: true }))]));
+    localStorage.setItem('archivedTasks', JSON.stringify([...toComplete.map(t => ({ ...t, completed: true, archivedAt: new Date().toISOString() })), ...archived]));
     setTasks(tasks.filter(t => !selectedTaskIds.has(t.id)));
     toast.success(`${toComplete.length} tasks completed and archived!`);
     setSelectedTaskIds(new Set());
@@ -337,6 +340,14 @@ const Index = () => {
   };
 
   const activeTask = tasks.find(t => t.id === activeTaskId) || null;
+  const handleHideTask = (taskId: string) => {
+    setTasks(tasks.map(t => t.id === taskId ? { ...t, hidden: true } : t));
+    toast.success('Task hidden');
+  };
+  const handleUnhideTask = (taskId: string) => {
+    setTasks(tasks.map(t => t.id === taskId ? { ...t, hidden: false } : t));
+    toast.success('Task shown');
+  };
 
   return (
     <div className="min-h-screen bg-background relative">
@@ -548,6 +559,7 @@ const Index = () => {
                                   setActiveTaskId(parentTask.id);
                                   toast.success(`Starting focus session for: ${subtask.title}`);
                                 }}
+                                onHide={handleHideTask}
                               />
                             </div>
                           </div>
@@ -561,6 +573,30 @@ const Index = () => {
             </Droppable>
           </DragDropContext>
         </section>
+
+        {hiddenTasks.length > 0 && (
+          <Collapsible className="mt-8">
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" className="w-full justify-between">
+                Hidden Tasks ({hiddenTasks.length})
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-3 space-y-2">
+              {hiddenTasks.map(task => (
+                <Card key={task.id} className="p-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{task.name}</p>
+                    {task.category && <p className="text-xs text-muted-foreground truncate">{task.category}</p>}
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => handleUnhideTask(task.id)}>
+                    <Eye className="h-4 w-4 mr-1" /> Show
+                  </Button>
+                </Card>
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+        )}
 
         {/* Favorite Lists Section */}
         {favoriteLists.length > 0 && (() => {
@@ -650,7 +686,7 @@ const Index = () => {
                     <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                   </div>
                   <DayTimetableView
-                    events={[]}
+                    events={JSON.parse(localStorage.getItem('calendarEvents') || '[]').filter((e: CalendarEvent) => !e.deletedAt)}
                     selectedDate={new Date()}
                     onEventClick={() => navigate('/timetable')}
                   />

@@ -23,24 +23,25 @@ const Archive = () => {
   useEffect(() => {
     try {
       const archived = JSON.parse(localStorage.getItem('archivedTasks') || '[]');
-      setArchivedTasks(Array.isArray(archived) ? archived : []);
+      setArchivedTasks(Array.isArray(archived) ? archived.sort((a: Task, b: Task) => new Date((b as any).archivedAt || b.createdAt).getTime() - new Date((a as any).archivedAt || a.createdAt).getTime()) : []);
     } catch { setArchivedTasks([]); }
 
     try {
       const allLists = JSON.parse(localStorage.getItem('lists') || '[]');
-      if (Array.isArray(allLists)) setArchivedLists(allLists.filter((l: List) => l.archivedAt && !l.deletedAt));
+      if (Array.isArray(allLists)) setArchivedLists(allLists.filter((l: List) => l.archivedAt && !l.deletedAt).sort((a: List, b: List) => new Date(b.archivedAt!).getTime() - new Date(a.archivedAt!).getTime()));
     } catch {}
 
     try {
       const allProjects = JSON.parse(localStorage.getItem('projects') || '[]');
-      if (Array.isArray(allProjects)) setArchivedProjects(allProjects.filter((p: Project) => p.archivedAt && !p.deletedAt));
+      if (Array.isArray(allProjects)) setArchivedProjects(allProjects.filter((p: Project) => p.archivedAt && !p.deletedAt).sort((a: Project, b: Project) => new Date(b.archivedAt!).getTime() - new Date(a.archivedAt!).getTime()));
     } catch {}
   }, []);
 
   const handleUncomplete = (taskId: string) => {
     const task = archivedTasks.find(t => t.id === taskId);
     if (task) {
-      const uncompleted = { ...task, completed: false };
+      const { archivedAt, ...restoredTask } = task as Task & { archivedAt?: string };
+      const uncompleted = { ...restoredTask, completed: false };
       const activeTasks = JSON.parse(localStorage.getItem('tasks') || '[]');
       localStorage.setItem('tasks', JSON.stringify([...activeTasks, uncompleted]));
       

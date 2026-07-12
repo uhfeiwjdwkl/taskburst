@@ -462,8 +462,8 @@ const CalendarPage = () => {
                               const t = tasks.find(x => x.id === taskId);
                               if (t) {
                                 const completed = { ...t, completed: true };
-                                const archived = safeParse('archivedTasks');
-                                localStorage.setItem('archivedTasks', JSON.stringify([...archived, completed]));
+                const archived = safeParse('archivedTasks');
+                localStorage.setItem('archivedTasks', JSON.stringify([{ ...completed, archivedAt: new Date().toISOString() }, ...archived]));
                                 const updated = tasks.filter(x => x.id !== taskId);
                                 setTasks(updated);
                                 toast.success('Task completed and archived! 🎉');

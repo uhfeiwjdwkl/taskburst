@@ -147,6 +147,36 @@ function collectItemsForDate(date: Date): PlanItem[] {
     });
   });
 
+  // Rigid timetable cells for this day
+  (Array.isArray(timetables) ? timetables : [])
+    .filter(tt => tt.mode === 'rigid' && !tt.deletedAt)
+    .forEach(tt => {
+      const dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][ttDayIdx];
+      const colIndex = tt.columns.indexOf(dayName);
+      if (colIndex < 0) return;
+      let wk: 1 | 2 = 1;
+      if (tt.type === 'fortnightly' && tt.fortnightStartDate) {
+        const start = new Date(tt.fortnightStartDate);
+        const daysDiff = Math.floor((date.getTime() - start.getTime()) / 86400000);
+        wk = (Math.floor(daysDiff / 7) % 2) === 0 ? 1 : 2;
+      }
+      tt.rows.forEach((row, rowIndex) => {
+        const cell = tt.cells[`${rowIndex}-${colIndex}`];
+        if (!cell || cell.hidden || (cell.week && cell.week !== wk)) return;
+        const fields = (cell.fields || []).filter(Boolean);
+        if (fields.length === 0) return;
+        const [h, m] = row.startTime.split(':').map(Number);
+        items.push({
+          id: `rigid-${tt.id}-${rowIndex}-${colIndex}`,
+          type: 'timetable',
+          title: `${fields.join(' · ')} (${tt.name})`,
+          startMin: h * 60 + m,
+          endMin: h * 60 + m + row.duration,
+          color: cell.color || '#f59e0b',
+        });
+      });
+    });
+
   // Assessments due on this date (all-day → put at 09:00 as a marker)
   (Array.isArray(assessments) ? assessments : []).forEach(a => {
     if (!a.dueDate || a.dueDate.split('T')[0] !== dateStr) return;

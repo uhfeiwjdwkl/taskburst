@@ -3,7 +3,7 @@ import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Clock, Info, Play, CheckCircle2, Edit, Trash2, ChevronDown, ChevronRight, Eye, Calendar } from 'lucide-react';
+import { Clock, Info, Play, CheckCircle2, Edit, Trash2, ChevronDown, ChevronRight, EyeOff, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UniversalProgressGrid } from './UniversalProgressGrid';
@@ -22,9 +22,10 @@ interface TaskCardProps {
   onDelete: (taskId: string) => void;
   onUpdateTask: (task: Task) => void;
   onStartSubtask?: (subtask: Subtask, task: Task) => void;
+  onHide?: (taskId: string) => void;
 }
 
-const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDelete, onUpdateTask, onStartSubtask }: TaskCardProps) => {
+const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDelete, onUpdateTask, onStartSubtask, onHide }: TaskCardProps) => {
   const [subtasksOpen, setSubtasksOpen] = useState(false);
   const [detailsSubtask, setDetailsSubtask] = useState<Subtask | null>(null);
   const [editSubtask, setEditSubtask] = useState<Subtask | null>(null);
@@ -263,6 +264,16 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
               <Calendar className="h-4 w-4 mr-1" />
               Schedule
             </Button>
+            {onHide && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onHide(task.id)}
+              >
+                <EyeOff className="h-4 w-4 mr-1" />
+                Hide
+              </Button>
+            )}
             <Button
               size="sm"
               variant="ghost"
