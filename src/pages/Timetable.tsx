@@ -537,7 +537,7 @@ const Timetable = () => {
                            timetable={isEditing && selectedTimetable?.id === timetable.id ? selectedTimetable : timetable}
                            currentWeek={currentWeek}
                            isEditing={isEditing && selectedTimetable?.id === timetable.id}
-                           activeIsolatedColour={activeIsolatedColour}
+                           activeIsolatedColour={activeIsolatedColour || focusedColor || null}
                            onUpdateTimetable={(updated) => {
                              if (isEditing && selectedTimetable?.id === timetable.id) {
                                setSelectedTimetable(updated);

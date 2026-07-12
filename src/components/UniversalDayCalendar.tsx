@@ -14,8 +14,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, CheckCircle2, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, CheckCircle2, Play, Maximize2, Minimize2, Download } from 'lucide-react';
 import { useAppSettings } from '@/hooks/useAppSettings';
+import { ExportDayPlanDialog } from './ExportDayPlanDialog';
 
 const safeParse = (key: string): any[] => {
   try {
@@ -87,6 +88,8 @@ export const UniversalDayCalendar = ({
   const mirrorColor = Boolean((settings as any).mirrorColorToProgressBox);
   const [internalDate, setInternalDate] = useState(initialDate || new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const currentDate = controlledDate || internalDate;
 
@@ -141,13 +144,15 @@ export const UniversalDayCalendar = ({
       const now = new Date();
       const hours = now.getHours();
       const minutes = now.getMinutes();
-      const position = ((hours - 6) * 60 + minutes) / (16 * 60) * 100;
+      const startHour = expanded ? 0 : Math.max(0, Math.min(23, (settings as any).calendarStartHour ?? 6));
+      const endHour = expanded ? 24 : Math.max(startHour + 1, Math.min(24, (settings as any).calendarEndHour ?? 22));
+      const position = ((hours - startHour) * 60 + minutes) / ((endHour - startHour) * 60) * 100;
       setCurrentTimePosition(Math.max(0, Math.min(100, position)));
     };
     updatePosition();
     const interval = setInterval(updatePosition, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [expanded, settings]);
 
   const dateStr = format(currentDate, 'yyyy-MM-dd');
   const dayOfWeek = currentDate.getDay();
@@ -349,15 +354,18 @@ export const UniversalDayCalendar = ({
     });
   }, [timedItems, currentDate]);
 
-  const hours = Array.from({ length: 17 }, (_, i) => i + 6);
+  const startHour = expanded ? 0 : Math.max(0, Math.min(23, (settings as any).calendarStartHour ?? 6));
+  const endHour = expanded ? 24 : Math.max(startHour + 1, Math.min(24, (settings as any).calendarEndHour ?? 22));
+  const totalHours = endHour - startHour;
+  const hours = Array.from({ length: totalHours + 1 }, (_, i) => i + startHour);
 
   const getTimePosition = (time: string): number => {
     const [hours, minutes] = time.split(':').map(Number);
-    return ((hours - 6) * 60 + minutes) / (16 * 60) * 100;
+    return ((hours - startHour) * 60 + minutes) / (totalHours * 60) * 100;
   };
 
   const getHeightForDuration = (minutes: number): number => {
-    return (minutes / (16 * 60)) * 100;
+    return (minutes / (totalHours * 60)) * 100;
   };
 
   const handleItemClick = (item: TimelineItem) => {
@@ -426,6 +434,14 @@ export const UniversalDayCalendar = ({
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-7 px-2 gap-1" onClick={() => setExportOpen(true)} title="Export day plan">
+            <Download className="h-3 w-3" />
+            <span className="hidden sm:inline text-xs">Export</span>
+          </Button>
+          <Button variant="outline" size="sm" className="h-7 px-2 gap-1" onClick={() => setExpanded(v => !v)} title={expanded ? 'Collapse' : 'Expand to full 24 hours'}>
+            {expanded ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
+            <span className="hidden sm:inline text-xs">{expanded ? 'Collapse' : 'Expand'}</span>
+          </Button>
           <h3 className="font-semibold text-sm">
             {format(currentDate, 'EEE, MMM d')}
           </h3>
@@ -516,7 +532,7 @@ export const UniversalDayCalendar = ({
             <div
               key={hour}
               className="absolute left-0 right-0 border-t border-border/50 flex"
-              style={{ top: `${(index / 16) * 100}%` }}
+              style={{ top: `${(index / totalHours) * 100}%` }}
             >
               <div className="w-10 text-[10px] text-muted-foreground pr-1 text-right -mt-2 bg-card">
                 {hour.toString().padStart(2, '0')}:00
@@ -597,5 +613,8 @@ export const UniversalDayCalendar = ({
     return <Card className={cn("p-4 h-full flex flex-col", className)}>{content}</Card>;
   }
 
-  return <div className={cn("h-full flex flex-col", className)}>{content}</div>;
+  return <>
+    <div className={cn("h-full flex flex-col", className)}>{content}</div>
+    <ExportDayPlanDialog open={exportOpen} onClose={() => setExportOpen(false)} date={currentDate} />
+  </>;
 };

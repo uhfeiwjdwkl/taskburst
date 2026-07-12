@@ -131,16 +131,24 @@ function notifySyncStatus(status: "syncing" | "synced" | "offline") {
   } catch { /* ignore */ }
 }
 
+function getRawLocalValue(key: string) {
+  return (originalGetItem ?? Storage.prototype.getItem).call(localStorage, key);
+}
+
 // -------------------- realtime --------------------
 
 function mergeIncomingValue(key: string, incoming: any, incomingTs: string) {
-  const localRaw = localStorage.getItem(key);
+  const localRaw = getRawLocalValue(key);
   const map = readLastUpdated();
   const localTs = map[key];
   // If our local copy is newer than the incoming one, keep ours.
   if (localTs && new Date(localTs).getTime() > new Date(incomingTs).getTime()) return;
   // Otherwise adopt the incoming value.
   if (incoming === null || incoming === undefined) {
+    // Never let a realtime cloud delete clear a populated local key. That is
+    // safer for TaskBurst's local-first model and prevents transient/remote
+    // delete events from wiping tasks, events, archive or recently deleted.
+    if (localRaw !== null) return;
     removeItemRaw(key);
   } else {
     const serialized = typeof incoming === "string" ? incoming : JSON.stringify(incoming);
@@ -169,7 +177,8 @@ function subscribeRealtime(userId: string) {
           const row = payload.new ?? payload.old;
           if (!row || row.app !== APP_NAME) return;
           if (payload.eventType === "DELETE") {
-            mergeIncomingValue(row.key, null, new Date().toISOString());
+            // Local-first safety: ignore remote delete events to avoid data loss.
+            return;
           } else {
             mergeIncomingValue(row.key, row.value, row.updated_at || new Date().toISOString());
           }

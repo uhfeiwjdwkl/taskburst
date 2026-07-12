@@ -44,6 +44,8 @@ export interface Task {
   progressGridSize: number; // Total number of squares in the grid
   progressGridFilled: number; // Number of filled squares
   deletedAt?: string; // ISO string - when moved to recently deleted
+  archivedAt?: string; // ISO string - when completed/moved to archive
+  hidden?: boolean; // Hide from main homepage task list without deleting
   instructions?: string; // Optional instructions/guidelines for the task
   projectId?: string; // Optional reference to a project
   subtasks?: Subtask[]; // Array of subtasks

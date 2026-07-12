@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { Timetable } from "@/types/timetable";
 import { TimetableCell as TimetableCellComponent } from "@/components/TimetableCell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 interface TimetableGridProps {
@@ -100,6 +101,14 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
     const interval = setInterval(updateCurrentTime, 60000); // Update every minute
     return () => clearInterval(interval);
   }, [timetable, currentWeek]);
+
+  useEffect(() => {
+    if (!isEditing || !focusedColor) return;
+    const keys = Object.entries(timetable.cells)
+      .filter(([, cell]) => !cell.hidden && cell.color === focusedColor && (timetable.type !== 'fortnightly' || !cell.week || cell.week === currentWeek))
+      .map(([key]) => key);
+    setSelectedCells(new Set(keys));
+  }, [focusedColor, isEditing, timetable.cells, timetable.type, currentWeek]);
 
   const getCellKey = (row: number, col: number) => `${row}-${col}`;
 
@@ -292,6 +301,18 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
     toast.success(`Color applied to ${selectedCells.size} cells`);
   };
 
+  const handleBulkFieldChange = (index: number, value: string) => {
+    const updatedCells = { ...timetable.cells };
+    selectedCells.forEach(key => {
+      const [row, col] = key.split('-').map(Number);
+      const existing = updatedCells[key] || { rowIndex: row, colIndex: col, fields: Array(timetable.fieldsPerCell).fill('') };
+      const fields = [...(existing.fields || [])];
+      fields[index] = value;
+      updatedCells[key] = { ...existing, fields, week: timetable.type === 'fortnightly' ? currentWeek : undefined };
+    });
+    onUpdate({ ...timetable, cells: updatedCells });
+  };
+
   const handleCustomColorAdd = (color: string) => {
     const customColors = timetable.customColors || [];
     if (!customColors.includes(color)) {
@@ -329,6 +350,17 @@ export function TimetableGrid({ timetable, currentWeek, onUpdate, isEditing, foc
             <Button size="sm" variant="outline" onClick={() => handleBulkColorChange(undefined)}>
               Clear
             </Button>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-muted-foreground">Fields:</span>
+            {Array.from({ length: timetable.fieldsPerCell }).map((_, index) => (
+              <Input
+                key={index}
+                className="h-8 w-36 text-xs"
+                placeholder={`Set field ${index + 1}`}
+                onChange={(e) => handleBulkFieldChange(index, e.target.value)}
+              />
+            ))}
           </div>
           <Button size="sm" variant="ghost" onClick={() => setSelectedCells(new Set())}>
             Clear Selection

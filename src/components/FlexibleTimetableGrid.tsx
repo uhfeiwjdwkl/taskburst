@@ -53,6 +53,7 @@ export function FlexibleTimetableGrid({
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [bulkColor, setBulkColor] = useState<string>('#3b82f6');
   const [bulkName, setBulkName] = useState<string>('');
+  const [bulkDescription, setBulkDescription] = useState<string>('');
 
   // Form state for adding new events (full settings)
   const [newEventDraft, setNewEventDraft] = useState<FlexibleEvent | null>(null);
@@ -386,6 +387,21 @@ export function FlexibleTimetableGrid({
     const updated = events.map(e => selectedEventIds.includes(e.id) ? { ...e, title: name } : e);
     saveEvents(updated);
   };
+  const applyBulkDescription = (description: string) => {
+    setBulkDescription(description);
+    if (selectedEventIds.length === 0) return;
+    saveEvents(events.map(e => selectedEventIds.includes(e.id) ? { ...e, description } : e));
+  };
+  const applyBulkField = (index: number, key: 'label' | 'value', value: string) => {
+    if (selectedEventIds.length === 0) return;
+    saveEvents(events.map(e => {
+      if (!selectedEventIds.includes(e.id)) return e;
+      const fields = [...(e.fields || [])];
+      while (fields.length <= index) fields.push({ label: '', value: '' });
+      fields[index] = { ...fields[index], [key]: value };
+      return { ...e, fields };
+    }));
+  };
   const handleBulkDelete = () => {
     if (selectedEventIds.length === 0) return;
     saveEvents(events.filter(e => !selectedEventIds.includes(e.id)));
@@ -471,6 +487,21 @@ export function FlexibleTimetableGrid({
                 colorKey={timetable.colorKey}
               />
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs">Description:</Label>
+            <Input
+              value={bulkDescription}
+              onChange={(e) => applyBulkDescription(e.target.value)}
+              placeholder="Apply description"
+              className="h-7 w-52 text-xs"
+              disabled={selectedEventIds.length === 0}
+            />
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Label className="text-xs">Field:</Label>
+            <Input className="h-7 w-28 text-xs" placeholder="Label" disabled={selectedEventIds.length === 0} onChange={(e) => applyBulkField(0, 'label', e.target.value)} />
+            <Input className="h-7 w-36 text-xs" placeholder="Value" disabled={selectedEventIds.length === 0} onChange={(e) => applyBulkField(0, 'value', e.target.value)} />
           </div>
           <ConfirmDelete
             onConfirm={handleBulkDelete}
