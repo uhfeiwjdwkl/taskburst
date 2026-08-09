@@ -306,11 +306,10 @@ async function pull(uid: string): Promise<boolean> {
       if (applyRemoteRow(uid, row, pendingKeys)) changed = true;
       if (row.rev > maxRev) maxRev = row.rev;
     }
-    writeMeta(uid, { rev: Math.max(maxRev, Number(data?.server_rev ?? maxRev) === maxRev ? maxRev : maxRev) });
-    if (!data?.has_more) {
-      writeMeta(uid, { rev: Math.max(maxRev, rows.length === 0 ? Number(data?.server_rev ?? maxRev) : maxRev) });
-      break;
-    }
+    const serverRev = Number(data?.server_rev ?? maxRev);
+    if (rows.length === 0 && Number.isFinite(serverRev)) maxRev = Math.max(maxRev, serverRev);
+    writeMeta(uid, { rev: maxRev });
+    if (!data?.has_more) break;
   }
   return changed;
 }
