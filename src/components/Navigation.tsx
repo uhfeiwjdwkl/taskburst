@@ -30,21 +30,29 @@ export function Navigation() {
   const navRef = useRef<HTMLDivElement>(null);
   const [activeTaskName, setActiveTaskName] = useState<string | null>(null);
   const [todayItems, setTodayItems] = useState<{ id: string; name: string; kind: 'task' | 'event' | 'subtask' }[]>([]);
-  const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'offline'>(
+  const [syncStatus, setSyncStatus] = useState<'syncing' | 'synced' | 'offline' | 'error'>(
     typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'synced'
   );
+  const [pendingChanges, setPendingChanges] = useState(0);
+  const [lastSyncAt, setLastSyncAt] = useState<string | undefined>(undefined);
   const [accountOpen, setAccountOpen] = useState(false);
   const { user, profile } = useKommenszlapfAuth();
 
   useEffect(() => {
     const on = (e: any) => setSyncStatus(e.detail);
+    const info = (e: any) => {
+      setPendingChanges(e.detail?.pending ?? 0);
+      setLastSyncAt(e.detail?.lastSyncAt);
+    };
     const off = () => setSyncStatus('offline');
     const online = () => setSyncStatus('syncing');
     window.addEventListener('kommenszlapf-sync-status', on as any);
+    window.addEventListener('kommenszlapf-sync-info', info as any);
     window.addEventListener('offline', off);
     window.addEventListener('online', online);
     return () => {
       window.removeEventListener('kommenszlapf-sync-status', on as any);
+      window.removeEventListener('kommenszlapf-sync-info', info as any);
       window.removeEventListener('offline', off);
       window.removeEventListener('online', online);
     };
@@ -304,14 +312,44 @@ export function Navigation() {
                 </PopoverContent>
               </Popover>
               {user ? (
-                <Badge
-                  variant="outline"
-                  className={`text-[10px] gap-1 ${syncStatus === 'offline' ? 'border-destructive text-destructive' : syncStatus === 'syncing' ? 'text-muted-foreground' : 'text-success'}`}
-                  title={syncStatus === 'offline' ? 'Offline — changes will sync when back online' : syncStatus === 'syncing' ? 'Syncing…' : 'Synced'}
+                <button
+                  type="button"
+                  onClick={() => { void forceSync(); }}
+                  title={
+                    syncStatus === 'offline'
+                      ? `Offline — ${pendingChanges} change(s) queued. Click to retry.`
+                      : syncStatus === 'syncing'
+                        ? 'Syncing…'
+                        : syncStatus === 'error'
+                          ? `Sync failed — ${pendingChanges} change(s) queued. Click to retry.`
+                          : `Synced${lastSyncAt ? ` at ${new Date(lastSyncAt).toLocaleTimeString()}` : ''}. Click to sync now.`
+                  }
                 >
-                  {syncStatus === 'offline' ? <WifiOff className="h-3 w-3" /> : syncStatus === 'syncing' ? <RefreshIcon className="h-3 w-3 animate-spin" /> : <Wifi className="h-3 w-3" />}
-                  {syncStatus === 'offline' ? 'Offline' : syncStatus === 'syncing' ? 'Syncing' : 'Synced'}
-                </Badge>
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] gap-1 cursor-pointer hover:bg-accent ${
+                      syncStatus === 'offline' || syncStatus === 'error'
+                        ? 'border-destructive text-destructive'
+                        : syncStatus === 'syncing'
+                          ? 'text-muted-foreground'
+                          : 'text-success'
+                    }`}
+                  >
+                    {syncStatus === 'offline' || syncStatus === 'error'
+                      ? <WifiOff className="h-3 w-3" />
+                      : syncStatus === 'syncing'
+                        ? <RefreshIcon className="h-3 w-3 animate-spin" />
+                        : <Wifi className="h-3 w-3" />}
+                    {syncStatus === 'offline'
+                      ? 'Offline'
+                      : syncStatus === 'syncing'
+                        ? 'Syncing'
+                        : syncStatus === 'error'
+                          ? 'Retry'
+                          : 'Synced'}
+                    {pendingChanges > 0 && syncStatus !== 'syncing' && ` (${pendingChanges})`}
+                  </Badge>
+                </button>
               ) : (
                 <Badge variant="outline" className="text-[10px] gap-1 text-muted-foreground" title="Sign in to sync">
                   <WifiOff className="h-3 w-3" /> Signed out
