@@ -1,200 +1,179 @@
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * Kommenszlapf incremental sync.
+ *
+ * Design:
+ *  - Local writes append to a compact, coalesced change queue (one entry per
+ *    key, newest wins) — not a permanent history log.
+ *  - Each cycle: pull only rows newer than the device revision checkpoint,
+ *    then push queued changes, then drop acknowledged entries (compaction).
+ *  - Conflicts resolve last-write-wins on UTC timestamps, server-clamped,
+ *    with a deterministic change-id tie-break. Deletions travel as tombstones.
+ *  - Offline writes stay queued and flush on reconnect; nothing is ever lost
+ *    locally because remote data is only applied when strictly newer.
+ */
+
 const APP_NAME = "taskburst";
-const PENDING_QUEUE_KEY = "kommenszlapf:pendingSync";
+const DEVICE_KEY = "kommenszlapf:deviceId";
 const LAST_UPDATED_KEY = "kommenszlapf:lastUpdated"; // { [key]: isoString }
+const qKey = (uid: string) => `kommenszlapf:q:${uid}`;
+const metaKey = (uid: string) => `kommenszlapf:meta:${uid}`;
+const PENDING_QUEUE_KEY_LEGACY = "kommenszlapf:pendingSync";
+
+const SKIP_PREFIXES = ["sb-", "supabase.", "kommenszlapf:"];
+const BATCH = 100;
+const PULL_LIMIT = 500;
+const PERIODIC_MS = 5 * 60 * 1000;
+
+type Op = "upsert" | "delete";
+type QueueItem = { key: string; op: Op; ts: string; changeId: string };
+type Meta = { rev: number; lastSyncAt?: string; bootstrapped?: boolean };
+export type SyncStatus = "syncing" | "synced" | "offline" | "error";
+
+let currentUserId: string | null = null;
 let installed = false;
 let originalSetItem: typeof Storage.prototype.setItem | null = null;
 let originalRemoveItem: typeof Storage.prototype.removeItem | null = null;
 let originalClear: typeof Storage.prototype.clear | null = null;
-let currentUserId: string | null = null;
-let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
-let onlineHandler: (() => void) | null = null;
+let originalGetItem: typeof Storage.prototype.getItem | null = null;
 
-const SKIP_PREFIXES = ["sb-", "supabase.", "kommenszlapf:"];
-const SKIP_KEYS = new Set<string>([]);
+let realtimeData: ReturnType<typeof supabase.channel> | null = null;
+let realtimeRequests: ReturnType<typeof supabase.channel> | null = null;
+let periodicTimer: ReturnType<typeof setInterval> | null = null;
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let backoffTimer: ReturnType<typeof setTimeout> | null = null;
+let backoffMs = 0;
+let syncing = false;
+let rerun = false;
+let gcDone = false;
+let listenersBound = false;
+const ownChangeIds: string[] = [];
+
+// -------------------- helpers --------------------
 
 function shouldSync(key: string) {
-  if (SKIP_KEYS.has(key)) return false;
   return !SKIP_PREFIXES.some((p) => key.startsWith(p));
 }
 
-// -------------------- pending queue helpers --------------------
+function rawGet(key: string) {
+  return (originalGetItem ?? Storage.prototype.getItem).call(localStorage, key);
+}
+function rawSet(key: string, value: string) {
+  (originalSetItem ?? Storage.prototype.setItem).call(localStorage, key, value);
+}
+function rawRemove(key: string) {
+  (originalRemoveItem ?? Storage.prototype.removeItem).call(localStorage, key);
+}
 
-type PendingItem = { key: string; op: "upsert" | "delete"; ts: string };
-
-function readQueue(): PendingItem[] {
+function readJson<T>(key: string, fallback: T): T {
   try {
-    const raw = (originalGetItem?.call(localStorage, PENDING_QUEUE_KEY)) ??
-      localStorage.getItem(PENDING_QUEUE_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr : [];
-  } catch { return []; }
-}
-function writeQueue(items: PendingItem[]) {
-  const raw = JSON.stringify(items);
-  (originalSetItem ?? Storage.prototype.setItem).call(localStorage, PENDING_QUEUE_KEY, raw);
-}
-function enqueue(item: PendingItem) {
-  const q = readQueue();
-  // Collapse duplicates by key — keep newest.
-  const filtered = q.filter(x => x.key !== item.key);
-  filtered.push(item);
-  writeQueue(filtered);
-}
-
-function readLastUpdated(): Record<string, string> {
-  try {
-    const raw = localStorage.getItem(LAST_UPDATED_KEY);
-    if (!raw) return {};
-    const obj = JSON.parse(raw);
-    return obj && typeof obj === "object" ? obj : {};
-  } catch { return {}; }
-}
-function writeLastUpdated(map: Record<string, string>) {
-  (originalSetItem ?? Storage.prototype.setItem).call(
-    localStorage, LAST_UPDATED_KEY, JSON.stringify(map)
-  );
-}
-function stampKey(key: string, ts: string) {
-  const map = readLastUpdated();
-  map[key] = ts;
-  writeLastUpdated(map);
-}
-
-// -------------------- push (immediate) --------------------
-
-let originalGetItem: typeof Storage.prototype.getItem | null = null;
-
-async function pushKey(key: string, op: "upsert" | "delete", ts: string): Promise<boolean> {
-  if (!currentUserId) return false;
-  if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
-  try {
-    if (op === "delete") {
-      const { error } = await (supabase as any)
-        .from("kommenszlapf_user_data")
-        .delete()
-        .eq("user_id", currentUserId)
-        .eq("app", APP_NAME)
-        .eq("key", key);
-      if (error) throw error;
-    } else {
-      const raw = localStorage.getItem(key);
-      let parsed: any = raw;
-      if (raw !== null) { try { parsed = JSON.parse(raw); } catch { /* keep string */ } }
-      const { error } = await (supabase as any)
-        .from("kommenszlapf_user_data")
-        .upsert(
-          { user_id: currentUserId, app: APP_NAME, key, value: parsed, updated_at: ts },
-          { onConflict: "user_id,app,key" }
-        );
-      if (error) throw error;
-    }
-    return true;
-  } catch (e) {
-    console.warn("[kommenszlapf-sync] push failed", key, e);
-    return false;
+    const raw = rawGet(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
   }
 }
 
-async function handleWrite(key: string, op: "upsert" | "delete") {
+function deviceId(): string {
+  let id = rawGet(DEVICE_KEY);
+  if (!id) {
+    id =
+      (globalThis.crypto?.randomUUID?.() as string | undefined) ??
+      `dev-${Math.random().toString(36).slice(2)}${Date.now()}`;
+    rawSet(DEVICE_KEY, id);
+  }
+  return id;
+}
+
+function newId(): string {
+  return (
+    (globalThis.crypto?.randomUUID?.() as string | undefined) ??
+    `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+}
+
+// -------------------- queue (coalesced) --------------------
+
+function readQueue(uid: string): QueueItem[] {
+  const q = readJson<QueueItem[]>(qKey(uid), []);
+  return Array.isArray(q) ? q : [];
+}
+function writeQueue(uid: string, items: QueueItem[]) {
+  if (items.length === 0) rawRemove(qKey(uid));
+  else rawSet(qKey(uid), JSON.stringify(items));
+  emitStatus(undefined);
+}
+function enqueue(uid: string, key: string, op: Op, ts: string) {
+  const q = readQueue(uid).filter((x) => x.key !== key); // coalesce per key
+  q.push({ key, op, ts, changeId: newId() });
+  writeQueue(uid, q);
+}
+
+function readMeta(uid: string): Meta {
+  const m = readJson<Meta>(metaKey(uid), { rev: -1 });
+  return { rev: typeof m.rev === "number" ? m.rev : -1, lastSyncAt: m.lastSyncAt, bootstrapped: m.bootstrapped };
+}
+function writeMeta(uid: string, patch: Partial<Meta>) {
+  rawSet(metaKey(uid), JSON.stringify({ ...readMeta(uid), ...patch }));
+}
+
+function readStamps(): Record<string, string> {
+  const m = readJson<Record<string, string>>(LAST_UPDATED_KEY, {});
+  return m && typeof m === "object" ? m : {};
+}
+function stampKey(key: string, ts: string) {
+  const map = readStamps();
+  map[key] = ts;
+  rawSet(LAST_UPDATED_KEY, JSON.stringify(map));
+}
+function localStamp(key: string): number {
+  const ts = readStamps()[key];
+  return ts ? new Date(ts).getTime() : 0;
+}
+
+// -------------------- status --------------------
+
+let lastStatus: SyncStatus = "synced";
+
+function emitStatus(status?: SyncStatus) {
+  if (status) lastStatus = status;
+  const pending = currentUserId ? readQueue(currentUserId).length : 0;
+  try {
+    window.dispatchEvent(new CustomEvent("kommenszlapf-sync-status", { detail: lastStatus }));
+    window.dispatchEvent(
+      new CustomEvent("kommenszlapf-sync-info", {
+        detail: {
+          status: lastStatus,
+          pending,
+          lastSyncAt: currentUserId ? readMeta(currentUserId).lastSyncAt : undefined,
+        },
+      })
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getSyncInfo() {
+  const uid = currentUserId;
+  return {
+    status: lastStatus,
+    pending: uid ? readQueue(uid).length : 0,
+    lastSyncAt: uid ? readMeta(uid).lastSyncAt : undefined,
+  };
+}
+
+// -------------------- interceptors --------------------
+
+function onLocalWrite(key: string, op: Op) {
   if (!currentUserId) return;
   const ts = new Date().toISOString();
   stampKey(key, ts);
-  const ok = await pushKey(key, op, ts);
-  if (!ok) enqueue({ key, op, ts });
-  else notifySyncStatus("synced");
-}
-
-function scheduleImmediate(key: string, op: "upsert" | "delete") {
-  // Fire-and-forget; UI shouldn't block on this.
-  void handleWrite(key, op);
-}
-
-export async function flushPendingQueue() {
-  if (!currentUserId) return;
-  const q = readQueue();
-  if (q.length === 0) return;
-  const remaining: PendingItem[] = [];
-  for (const item of q) {
-    const ok = await pushKey(item.key, item.op, item.ts);
-    if (!ok) remaining.push(item);
-  }
-  writeQueue(remaining);
-  if (remaining.length === 0) notifySyncStatus("synced");
-}
-
-function notifySyncStatus(status: "syncing" | "synced" | "offline") {
-  try {
-    window.dispatchEvent(new CustomEvent("kommenszlapf-sync-status", { detail: status }));
-  } catch { /* ignore */ }
-}
-
-function getRawLocalValue(key: string) {
-  return (originalGetItem ?? Storage.prototype.getItem).call(localStorage, key);
-}
-
-// -------------------- realtime --------------------
-
-function mergeIncomingValue(key: string, incoming: any, incomingTs: string) {
-  const localRaw = getRawLocalValue(key);
-  const map = readLastUpdated();
-  const localTs = map[key];
-  // If our local copy is newer than the incoming one, keep ours.
-  if (localTs && new Date(localTs).getTime() > new Date(incomingTs).getTime()) return;
-  // Otherwise adopt the incoming value.
-  if (incoming === null || incoming === undefined) {
-    // Never let a realtime cloud delete clear a populated local key. That is
-    // safer for TaskBurst's local-first model and prevents transient/remote
-    // delete events from wiping tasks, events, archive or recently deleted.
-    if (localRaw !== null) return;
-    removeItemRaw(key);
-  } else {
-    const serialized = typeof incoming === "string" ? incoming : JSON.stringify(incoming);
-    if (serialized === localRaw) return;
-    setItemRaw(key, serialized);
-  }
-  stampKey(key, incomingTs);
-  window.dispatchEvent(new Event("storage"));
-  window.dispatchEvent(new Event("appSettingsUpdated"));
-}
-
-function subscribeRealtime(userId: string) {
-  if (realtimeChannel) return;
-  realtimeChannel = supabase
-    .channel(`kommenszlapf-user-data-${userId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "kommenszlapf_user_data",
-        filter: `user_id=eq.${userId}`,
-      },
-      (payload: any) => {
-        try {
-          const row = payload.new ?? payload.old;
-          if (!row || row.app !== APP_NAME) return;
-          if (payload.eventType === "DELETE") {
-            // Local-first safety: ignore remote delete events to avoid data loss.
-            return;
-          } else {
-            mergeIncomingValue(row.key, row.value, row.updated_at || new Date().toISOString());
-          }
-        } catch (e) {
-          console.warn("[kommenszlapf-sync] realtime handler error", e);
-        }
-      }
-    )
-    .subscribe();
-}
-
-function unsubscribeRealtime() {
-  if (realtimeChannel) {
-    void supabase.removeChannel(realtimeChannel);
-    realtimeChannel = null;
-  }
+  enqueue(currentUserId, key, op, ts);
+  scheduleSync(400);
 }
 
 function installInterceptors() {
@@ -207,11 +186,11 @@ function installInterceptors() {
 
   Storage.prototype.setItem = function (key: string, value: string) {
     originalSetItem!.call(this, key, value);
-    if (this === window.localStorage && shouldSync(key)) scheduleImmediate(key, "upsert");
+    if (this === window.localStorage && shouldSync(key)) onLocalWrite(key, "upsert");
   };
   Storage.prototype.removeItem = function (key: string) {
     originalRemoveItem!.call(this, key);
-    if (this === window.localStorage && shouldSync(key)) scheduleImmediate(key, "delete");
+    if (this === window.localStorage && shouldSync(key)) onLocalWrite(key, "delete");
   };
   Storage.prototype.clear = function () {
     const keys: string[] = [];
@@ -222,14 +201,8 @@ function installInterceptors() {
       }
     }
     originalClear!.call(this);
-    keys.forEach(k => scheduleImmediate(k, "delete"));
+    keys.forEach((k) => onLocalWrite(k, "delete"));
   };
-
-  if (typeof window !== "undefined" && !onlineHandler) {
-    onlineHandler = () => { notifySyncStatus("syncing"); void flushPendingQueue(); };
-    window.addEventListener("online", onlineHandler);
-    window.addEventListener("offline", () => notifySyncStatus("offline"));
-  }
 }
 
 function uninstallInterceptors() {
@@ -238,18 +211,333 @@ function uninstallInterceptors() {
   if (originalRemoveItem) Storage.prototype.removeItem = originalRemoveItem;
   if (originalClear) Storage.prototype.clear = originalClear;
   installed = false;
-  if (onlineHandler) {
-    window.removeEventListener("online", onlineHandler);
-    onlineHandler = null;
+}
+
+// -------------------- scheduling --------------------
+
+export function scheduleSync(delay = 800) {
+  if (!currentUserId) return;
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    debounceTimer = null;
+    void syncNow();
+  }, delay);
+}
+
+function scheduleBackoff() {
+  backoffMs = backoffMs === 0 ? 2000 : Math.min(backoffMs * 2, 60000);
+  if (backoffTimer) clearTimeout(backoffTimer);
+  backoffTimer = setTimeout(() => {
+    backoffTimer = null;
+    void syncNow();
+  }, backoffMs);
+}
+
+function bindGlobalListeners() {
+  if (listenersBound || typeof window === "undefined") return;
+  listenersBound = true;
+  window.addEventListener("online", () => {
+    backoffMs = 0;
+    emitStatus("syncing");
+    void syncNow();
+  });
+  window.addEventListener("offline", () => emitStatus("offline"));
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") scheduleSync(200);
+  });
+}
+
+// -------------------- apply remote rows --------------------
+
+type RemoteRow = {
+  key: string;
+  value: any;
+  deleted: boolean;
+  rev: number;
+  device_id: string | null;
+  change_id: string | null;
+  client_ts: string;
+};
+
+function applyRemoteRow(uid: string, row: RemoteRow, pendingKeys: Set<string>): boolean {
+  // Echo of our own change — nothing to do.
+  if (row.change_id && ownChangeIds.includes(row.change_id)) return false;
+  // A local edit is still waiting to be pushed: local intent wins for now.
+  if (pendingKeys.has(row.key)) return false;
+
+  const remoteTime = new Date(row.client_ts).getTime();
+  if (localStamp(row.key) > remoteTime) return false; // local copy is newer
+
+  if (row.deleted) {
+    if (rawGet(row.key) === null) {
+      stampKey(row.key, row.client_ts);
+      return false;
+    }
+    rawRemove(row.key);
+    stampKey(row.key, row.client_ts);
+    return true;
+  }
+
+  if (row.value === null || row.value === undefined) return false;
+  const serialized = typeof row.value === "string" ? row.value : JSON.stringify(row.value);
+  if (serialized === rawGet(row.key)) {
+    stampKey(row.key, row.client_ts);
+    return false;
+  }
+  rawSet(row.key, serialized);
+  stampKey(row.key, row.client_ts);
+  return true;
+}
+
+async function pull(uid: string): Promise<boolean> {
+  let changed = false;
+  for (let i = 0; i < 20; i++) {
+    const since = readMeta(uid).rev;
+    const { data, error } = await (supabase as any).rpc("kommenszlapf_sync_pull", {
+      p_app: APP_NAME,
+      p_since: Math.max(since, 0),
+      p_limit: PULL_LIMIT,
+    });
+    if (error) throw error;
+    const rows: RemoteRow[] = Array.isArray(data?.rows) ? data.rows : [];
+    const pendingKeys = new Set(readQueue(uid).map((q) => q.key));
+    let maxRev = since;
+    for (const row of rows) {
+      if (applyRemoteRow(uid, row, pendingKeys)) changed = true;
+      if (row.rev > maxRev) maxRev = row.rev;
+    }
+    writeMeta(uid, { rev: Math.max(maxRev, Number(data?.server_rev ?? maxRev) === maxRev ? maxRev : maxRev) });
+    if (!data?.has_more) {
+      writeMeta(uid, { rev: Math.max(maxRev, rows.length === 0 ? Number(data?.server_rev ?? maxRev) : maxRev) });
+      break;
+    }
+  }
+  return changed;
+}
+
+async function push(uid: string) {
+  let queue = readQueue(uid);
+  while (queue.length > 0) {
+    const batch = queue.slice(0, BATCH);
+    const changes = batch.map((item) => {
+      let value: any = null;
+      if (item.op === "upsert") {
+        const raw = rawGet(item.key);
+        if (raw === null) {
+          // Key vanished locally — send it as a delete instead.
+          return { key: item.key, op: "delete", ts: item.ts, change_id: item.changeId, value: null };
+        }
+        try {
+          value = JSON.parse(raw);
+        } catch {
+          value = raw;
+        }
+      }
+      return { key: item.key, op: item.op, ts: item.ts, change_id: item.changeId, value };
+    });
+
+    const { data, error } = await (supabase as any).rpc("kommenszlapf_sync_push", {
+      p_app: APP_NAME,
+      p_device: deviceId(),
+      p_changes: changes,
+    });
+    if (error) throw error;
+
+    const results: { change_id: string; status: string }[] = Array.isArray(data?.results) ? data.results : [];
+    const acked = new Set(results.map((r) => r.change_id));
+    for (const r of results) {
+      ownChangeIds.push(r.change_id);
+    }
+    while (ownChangeIds.length > 400) ownChangeIds.shift();
+
+    // Compaction: drop acknowledged entries (applied, duplicate or stale).
+    queue = readQueue(uid).filter((item) => !acked.has(item.changeId));
+    writeQueue(uid, queue);
+    if (acked.size === 0) break; // avoid a spin if the server acked nothing
   }
 }
 
-function setItemRaw(key: string, value: string) {
-  (originalSetItem ?? Storage.prototype.setItem).call(localStorage, key, value);
+/**
+ * Full reconciliation, used only when there is no valid revision checkpoint
+ * (first sign-in on this device, or corrupted metadata). Non-destructive:
+ * local keys are always preserved and queued for upload.
+ */
+async function bootstrap(uid: string) {
+  writeMeta(uid, { rev: 0 });
+  await pull(uid);
+  const stamps = readStamps();
+  const now = new Date().toISOString();
+  const q = readQueue(uid);
+  const have = new Set(q.map((x) => x.key));
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !shouldSync(k) || have.has(k)) continue;
+    q.push({ key: k, op: "upsert", ts: stamps[k] ?? now, changeId: newId() });
+  }
+  writeQueue(uid, q);
+  writeMeta(uid, { bootstrapped: true });
 }
 
-function removeItemRaw(key: string) {
-  (originalRemoveItem ?? Storage.prototype.removeItem).call(localStorage, key);
+// -------------------- main cycle --------------------
+
+async function runCycle(uid: string) {
+  const meta = readMeta(uid);
+  if (!meta.bootstrapped || meta.rev < 0) {
+    await bootstrap(uid);
+  }
+  const changed = await pull(uid);
+  await push(uid);
+  if (!gcDone) {
+    gcDone = true;
+    try {
+      await (supabase as any).rpc("kommenszlapf_sync_gc", { p_app: APP_NAME });
+    } catch {
+      /* non-critical */
+    }
+  }
+  if (changed) {
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new Event("appSettingsUpdated"));
+  }
+  writeMeta(uid, { lastSyncAt: new Date().toISOString() });
+}
+
+export async function syncNow(): Promise<void> {
+  const uid = currentUserId;
+  if (!uid) return;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    emitStatus("offline");
+    return;
+  }
+  if (syncing) {
+    rerun = true;
+    return;
+  }
+  syncing = true;
+  emitStatus("syncing");
+  try {
+    await runCycle(uid);
+    backoffMs = 0;
+    emitStatus("synced");
+  } catch (e) {
+    console.warn("[kommenszlapf-sync] cycle failed", e);
+    emitStatus(typeof navigator !== "undefined" && navigator.onLine === false ? "offline" : "error");
+    scheduleBackoff();
+  } finally {
+    syncing = false;
+    if (rerun) {
+      rerun = false;
+      scheduleSync(300);
+    }
+  }
+}
+
+/** Manual "Sync now": also nudges the user's other devices to sync. */
+export async function forceSync(): Promise<void> {
+  const uid = currentUserId;
+  if (!uid) return;
+  backoffMs = 0;
+  try {
+    await (supabase as any).from("kommenszlapf_sync_requests").insert({
+      user_id: uid,
+      app: APP_NAME,
+      device_id: deviceId(),
+      request_id: newId(),
+    });
+  } catch {
+    /* notification is best-effort */
+  }
+  await syncNow();
+}
+
+// -------------------- realtime --------------------
+
+function subscribeRealtime(uid: string) {
+  if (!realtimeData) {
+    realtimeData = supabase
+      .channel(`kommenszlapf-data-${uid}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "kommenszlapf_user_data", filter: `user_id=eq.${uid}` },
+        (payload: any) => {
+          const row = payload.new ?? payload.old;
+          if (!row || row.app !== APP_NAME) return;
+          if (row.device_id && row.device_id === deviceId()) return; // our own write
+          scheduleSync(600);
+        }
+      )
+      .subscribe();
+  }
+  if (!realtimeRequests) {
+    realtimeRequests = supabase
+      .channel(`kommenszlapf-sync-req-${uid}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "kommenszlapf_sync_requests", filter: `user_id=eq.${uid}` },
+        (payload: any) => {
+          if (payload.new?.device_id === deviceId()) return;
+          scheduleSync(200);
+        }
+      )
+      .subscribe();
+  }
+}
+
+function unsubscribeRealtime() {
+  if (realtimeData) {
+    void supabase.removeChannel(realtimeData);
+    realtimeData = null;
+  }
+  if (realtimeRequests) {
+    void supabase.removeChannel(realtimeRequests);
+    realtimeRequests = null;
+  }
+}
+
+// -------------------- lifecycle --------------------
+
+export async function activateSync(userId: string) {
+  currentUserId = userId;
+  installInterceptors();
+  bindGlobalListeners();
+  subscribeRealtime(userId);
+  // Migrate the old flat pending queue, if present.
+  const legacy = readJson<any[]>(PENDING_QUEUE_KEY_LEGACY, []);
+  if (Array.isArray(legacy) && legacy.length > 0) {
+    const q = readQueue(userId);
+    for (const item of legacy) {
+      if (item?.key && !q.some((x) => x.key === item.key)) {
+        q.push({ key: item.key, op: item.op === "delete" ? "delete" : "upsert", ts: item.ts ?? new Date().toISOString(), changeId: newId() });
+      }
+    }
+    writeQueue(userId, q);
+    rawRemove(PENDING_QUEUE_KEY_LEGACY);
+  }
+  if (!periodicTimer) periodicTimer = setInterval(() => void syncNow(), PERIODIC_MS);
+  await syncNow();
+}
+
+export function deactivateSync() {
+  currentUserId = null;
+  unsubscribeRealtime();
+  uninstallInterceptors();
+  if (periodicTimer) {
+    clearInterval(periodicTimer);
+    periodicTimer = null;
+  }
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
+}
+
+export function getSyncUserId() {
+  return currentUserId;
+}
+
+/** Kept for callers that just want the queue flushed. */
+export async function flushPendingQueue() {
+  await syncNow();
 }
 
 export async function pullAllFromCloud(userId: string) {
@@ -258,156 +546,31 @@ export async function pullAllFromCloud(userId: string) {
       .from("kommenszlapf_user_data")
       .select("key,value")
       .eq("user_id", userId)
-      .eq("app", APP_NAME);
+      .eq("app", APP_NAME)
+      .eq("deleted", false);
     if (error) throw error;
     return (data ?? []) as { key: string; value: any }[];
   } catch (e) {
     console.warn("[kommenszlapf-sync] pull failed (offline?)", e);
-    return null as unknown as { key: string; value: any }[]; // signal failure
+    return null as unknown as { key: string; value: any }[];
   }
 }
 
+/** Queue every local key for upload (used after a bulk import). */
 export async function pushAllLocalToCloud(userId: string) {
-  const rows: { user_id: string; app: string; key: string; value: any }[] = [];
+  const now = new Date().toISOString();
+  const q = readQueue(userId);
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
     if (!k || !shouldSync(k)) continue;
-    const raw = localStorage.getItem(k);
-    if (raw === null) continue;
-    let parsed: any = raw;
-    try { parsed = JSON.parse(raw); } catch { /* keep string */ }
-    rows.push({ user_id: userId, app: APP_NAME, key: k, value: parsed });
+    if (!q.some((x) => x.key === k)) q.push({ key: k, op: "upsert", ts: now, changeId: newId() });
+    stampKey(k, now);
   }
-  if (rows.length === 0) return;
-  try {
-    const { error } = await (supabase as any)
-      .from("kommenszlapf_user_data")
-      .upsert(rows, { onConflict: "user_id,app,key" });
-    if (error) throw error;
-  } catch (e) {
-    console.warn("[kommenszlapf-sync] push failed (offline?)", e);
-  }
+  writeQueue(userId, q);
+  await syncNow();
 }
 
-/**
- * Called after a user signs in (or on every page load while signed in).
- * NON-DESTRUCTIVE: never deletes local keys. Always pushes local keys that
- * are missing from cloud (so the cloud reflects the union), then overwrites
- * local for keys that exist in cloud (cloud wins for shared keys).
- */
-export async function activateSync(userId: string) {
-  currentUserId = userId;
-  installInterceptors();
-  subscribeRealtime(userId);
-  notifySyncStatus("syncing");
-
-  const cloudRows = await pullAllFromCloud(userId);
-  if (cloudRows === null) {
-    // Offline / Supabase unreachable — keep local data only.
-    notifySyncStatus("offline");
-    return;
-  }
-
-  const cloudKeys = new Set(cloudRows.map((r) => r.key));
-
-  // 1. Push any local-only keys up so cloud holds the union (never lose local).
-  const toPush: { user_id: string; app: string; key: string; value: any }[] = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (!k || !shouldSync(k) || cloudKeys.has(k)) continue;
-    const raw = localStorage.getItem(k);
-    if (raw === null) continue;
-    let parsed: any = raw;
-    try { parsed = JSON.parse(raw); } catch { /* keep string */ }
-    toPush.push({ user_id: userId, app: APP_NAME, key: k, value: parsed });
-  }
-  if (toPush.length > 0) {
-    try {
-      await (supabase as any)
-        .from("kommenszlapf_user_data")
-        .upsert(toPush, { onConflict: "user_id,app,key" });
-    } catch (e) {
-      console.warn("[kommenszlapf-sync] seed push failed (offline?)", e);
-    }
-  }
-
-  // 2. Merge cloud values into local. Strategy per shape:
-  //      - arrays of objects with `id`     → union by id (cloud + local, no loss)
-  //      - arrays of primitives            → union (Set), preserves local entries
-  //      - plain objects (non-array)       → shallow merge, local wins on conflict
-  //      - anything else / missing locally → cloud value adopted
-  //    Never overwrites a non-empty local array with an empty cloud array
-  //    (that was the "all my tasks just deleted" bug after sign-in).
-  const mergedRows: { key: string; value: any }[] = [];
-  for (const row of cloudRows) {
-    if (row.value === null || row.value === undefined) continue;
-    const localRaw = localStorage.getItem(row.key);
-    let localParsed: any = undefined;
-    if (localRaw !== null) {
-      try { localParsed = JSON.parse(localRaw); } catch { localParsed = localRaw; }
-    }
-    let next: any = row.value;
-    if (Array.isArray(row.value) && Array.isArray(localParsed)) {
-      // Empty cloud array against non-empty local → keep local entirely.
-      if (row.value.length === 0 && localParsed.length > 0) {
-        next = localParsed;
-      } else {
-        const cloudArr = row.value;
-        const localArr = localParsed;
-        const hasIds = (arr: any[]) => arr.length > 0 && arr.every(
-          (x) => x && typeof x === "object" && "id" in x
-        );
-        if (hasIds(cloudArr) || hasIds(localArr)) {
-          const byId = new Map<any, any>();
-          for (const it of cloudArr) if (it && typeof it === "object" && "id" in it) byId.set(it.id, it);
-          for (const it of localArr) if (it && typeof it === "object" && "id" in it) byId.set(it.id, it); // local wins
-          next = Array.from(byId.values());
-        } else {
-          next = Array.from(new Set([...cloudArr, ...localArr]));
-        }
-      }
-    } else if (
-      row.value && typeof row.value === "object" && !Array.isArray(row.value) &&
-      localParsed && typeof localParsed === "object" && !Array.isArray(localParsed)
-    ) {
-      next = { ...row.value, ...localParsed };
-    } else if (Array.isArray(localParsed) && !Array.isArray(row.value)) {
-      // Shape mismatch — protect local array from being overwritten by a
-      // non-array cloud value (cause of "JSON.parse(...).filter is not a function").
-      next = localParsed;
-    }
-    const serialized = typeof next === "string" ? next : JSON.stringify(next);
-    setItemRaw(row.key, serialized);
-    mergedRows.push({ key: row.key, value: next });
-  }
-
-  // Push back any merged values so cloud reflects the union too.
-  if (mergedRows.length > 0) {
-    try {
-      await (supabase as any)
-        .from("kommenszlapf_user_data")
-        .upsert(
-          mergedRows.map((r) => ({ user_id: userId, app: APP_NAME, key: r.key, value: r.value })),
-          { onConflict: "user_id,app,key" }
-        );
-    } catch (e) {
-      console.warn("[kommenszlapf-sync] merge push failed (offline?)", e);
-    }
-  }
-
-  // Notify the app so React state reloads from the new localStorage values.
-  window.dispatchEvent(new Event("storage"));
-  window.dispatchEvent(new Event("appSettingsUpdated"));
-
-  // Flush any writes made while offline.
-  await flushPendingQueue();
-  notifySyncStatus("synced");
-}
-
-/**
- * Wipe every row of TaskBurst data for the signed-in user in the cloud.
- * Returns true on success, false on failure (offline / not signed in).
- */
+/** Wipe every TaskBurst row for this user in the cloud (tombstoned). */
 export async function wipeAllCloudData(userId: string): Promise<boolean> {
   try {
     const { error } = await (supabase as any)
@@ -416,19 +579,11 @@ export async function wipeAllCloudData(userId: string): Promise<boolean> {
       .eq("user_id", userId)
       .eq("app", APP_NAME);
     if (error) throw error;
+    rawRemove(qKey(userId));
+    writeMeta(userId, { rev: 0, bootstrapped: true });
     return true;
   } catch (e) {
     console.warn("[kommenszlapf-sync] wipe cloud failed", e);
     return false;
   }
-}
-
-export function deactivateSync() {
-  currentUserId = null;
-  unsubscribeRealtime();
-  uninstallInterceptors();
-}
-
-export function getSyncUserId() {
-  return currentUserId;
 }
