@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download, Briefcase, ChevronDown, ChevronRight, GripVertical, Search, Trash2, CheckCircle, ChevronLeft, Info, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { readArray } from '@/lib/safeStore';
 import { toast } from 'sonner';
 import { playTaskCompleteSound } from '@/lib/sounds';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -201,7 +202,7 @@ const Index = () => {
     const task = tasks.find(t => t.id === taskId);
     if (task) {
       const deletedTask = { ...task, deletedAt: new Date().toISOString() };
-      const deleted = JSON.parse(localStorage.getItem('deletedTasks') || '[]');
+      const deleted = readArray('deletedTasks');
       localStorage.setItem('deletedTasks', JSON.stringify([...deleted, deletedTask]));
       setTasks(tasks.filter(t => t.id !== taskId));
       toast.success('Task moved to recently deleted');
@@ -221,7 +222,7 @@ const Index = () => {
       playTaskCompleteSound();
       
       // Move to archive
-      const archived = JSON.parse(localStorage.getItem('archivedTasks') || '[]');
+      const archived = readArray('archivedTasks');
       localStorage.setItem('archivedTasks', JSON.stringify([completedTask, ...archived]));
       
       // Remove from active tasks
@@ -334,7 +335,7 @@ const Index = () => {
 
   const handleBulkComplete = () => {
     const toComplete = tasks.filter(t => selectedTaskIds.has(t.id));
-    const archived = JSON.parse(localStorage.getItem('archivedTasks') || '[]');
+    const archived = readArray('archivedTasks');
     localStorage.setItem('archivedTasks', JSON.stringify([...toComplete.map(t => ({ ...t, completed: true, archivedAt: new Date().toISOString() })), ...archived]));
     setTasks(tasks.filter(t => !selectedTaskIds.has(t.id)));
     toast.success(`${toComplete.length} tasks completed and archived!`);
@@ -344,7 +345,7 @@ const Index = () => {
 
   const handleBulkDelete = () => {
     const toDelete = tasks.filter(t => selectedTaskIds.has(t.id));
-    const deleted = JSON.parse(localStorage.getItem('deletedTasks') || '[]');
+    const deleted = readArray('deletedTasks');
     localStorage.setItem('deletedTasks', JSON.stringify([...deleted, ...toDelete.map(t => ({ ...t, deletedAt: new Date().toISOString() }))]));
     setTasks(tasks.filter(t => !selectedTaskIds.has(t.id)));
     toast.success(`${toDelete.length} tasks moved to recently deleted`);
@@ -620,7 +621,7 @@ const Index = () => {
               it.id === itemId ? { ...it, completed: !it.completed } : it
             );
             const updatedList = { ...current, items: updatedItems };
-            const allLists = JSON.parse(localStorage.getItem('lists') || '[]');
+            const allLists = readArray('lists');
             const next = allLists.map((l: List) => l.id === updatedList.id ? updatedList : l);
             localStorage.setItem('lists', JSON.stringify(next));
             setFavoriteLists(favoriteLists.map(l => l.id === updatedList.id ? updatedList : l));
@@ -699,7 +700,7 @@ const Index = () => {
                     <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                   </div>
                   <DayTimetableView
-                    events={JSON.parse(localStorage.getItem('calendarEvents') || '[]').filter((e: CalendarEvent) => !e.deletedAt)}
+                    events={readArray<CalendarEvent>('calendarEvents').filter((e) => !e.deletedAt)}
                     selectedDate={new Date()}
                     onEventClick={() => navigate('/timetable')}
                   />
@@ -737,7 +738,7 @@ const Index = () => {
             open={listDetailsOpen}
             onClose={() => setListDetailsOpen(false)}
             onUpdate={(updatedList) => {
-              const allLists = JSON.parse(localStorage.getItem('lists') || '[]');
+              const allLists = readArray('lists');
               const safeAll = Array.isArray(allLists) ? allLists : [];
               const updated = safeAll.map((l: List) => l.id === updatedList.id ? updatedList : l);
               localStorage.setItem('lists', JSON.stringify(updated));
@@ -747,7 +748,7 @@ const Index = () => {
             onDelete={() => {
               if (selectedList) {
                 const deletedList = { ...selectedList, deletedAt: new Date().toISOString() };
-                const allLists = JSON.parse(localStorage.getItem('lists') || '[]');
+                const allLists = readArray('lists');
                 localStorage.setItem('lists', JSON.stringify([...allLists.filter((l: List) => l.id !== selectedList.id), deletedList]));
                 setFavoriteLists(favoriteLists.filter(l => l.id !== selectedList.id));
                 setListDetailsOpen(false);
@@ -757,7 +758,7 @@ const Index = () => {
             onArchive={() => {
               if (selectedList) {
                 const archivedList = { ...selectedList, archivedAt: new Date().toISOString() };
-                const allLists = JSON.parse(localStorage.getItem('lists') || '[]');
+                const allLists = readArray('lists');
                 localStorage.setItem('lists', JSON.stringify([...allLists.filter((l: List) => l.id !== selectedList.id), archivedList]));
                 setFavoriteLists(favoriteLists.filter(l => l.id !== selectedList.id));
                 setListDetailsOpen(false);
@@ -768,14 +769,14 @@ const Index = () => {
               if (selectedList) {
                 const deletedItem = selectedList.items.find(item => item.id === itemId);
                 if (deletedItem) {
-                  const deletedItems = JSON.parse(localStorage.getItem('deletedListItems') || '[]');
+                  const deletedItems = readArray('deletedListItems');
                   localStorage.setItem('deletedListItems', JSON.stringify([...deletedItems, { ...deletedItem, deletedAt: new Date().toISOString(), listId: selectedList.id }]));
                   const updatedList = {
                     ...selectedList,
                     items: selectedList.items.filter(item => item.id !== itemId),
                   };
                   setSelectedList(updatedList);
-                  const allLists = JSON.parse(localStorage.getItem('lists') || '[]');
+                  const allLists = readArray('lists');
                   const updated = allLists.map((l: List) => l.id === updatedList.id ? updatedList : l);
                   localStorage.setItem('lists', JSON.stringify(updated));
                   setFavoriteLists(updated.filter((l: List) => l.favorite && !l.deletedAt && !l.archivedAt));
@@ -919,7 +920,7 @@ const Index = () => {
           open={assessmentDetailsOpen}
           onClose={() => { setAssessmentDetailsOpen(false); setSelectedAssessment(null); }}
           onSave={(updated) => {
-            const all = JSON.parse(localStorage.getItem('assessments') || '[]') as Assessment[];
+            const all = readArray('assessments') as Assessment[];
             const next = (Array.isArray(all) ? all : []).map(a => a.id === updated.id ? updated : a);
             localStorage.setItem('assessments', JSON.stringify(next));
             setSelectedAssessment(updated);
