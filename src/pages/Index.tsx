@@ -266,21 +266,34 @@ const Index = () => {
   // Handle drag and drop reordering
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
-    
-    const items = Array.from(sortedTasks);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-    
-    // Update order property for all tasks
-    const updatedTasks = items.map((task, index) => ({ ...task, order: index }));
-    setTasks(updatedTasks);
+    if (result.destination.index === result.source.index) return;
+
+    // The rendered list is `filteredTasks` (visible + search-filtered), so the
+    // drag indices refer to that list — reorder it, then map the result back
+    // onto the positions those tasks occupy in the full sorted list.
+    const visible = Array.from(filteredTasks);
+    const [moved] = visible.splice(result.source.index, 1);
+    if (!moved) return;
+    visible.splice(result.destination.index, 0, moved);
+
+    const visibleIds = new Set(filteredTasks.map(t => t.id));
+    const slots: number[] = [];
+    sortedTasks.forEach((t, i) => { if (visibleIds.has(t.id)) slots.push(i); });
+
+    const nextSorted = [...sortedTasks];
+    slots.forEach((slot, i) => { nextSorted[slot] = visible[i]; });
+
+    // Re-index every task so orders are always unique and contiguous.
+    setTasks(nextSorted.map((task, index) => ({ ...task, order: index })));
   };
 
   // Sort tasks by manual order first, then by importance and due date
   const sortedTasks = [...tasks].sort((a, b) => {
     // If both have order, use that
     if (a.order !== undefined && b.order !== undefined) {
-      return a.order - b.order;
+      if (a.order !== b.order) return a.order - b.order;
+      // Stable tie-break so equal orders never shuffle between renders
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     }
     // Otherwise fall back to importance and due date
     if (b.importance !== a.importance) {
