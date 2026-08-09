@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { SettingsDialog } from "./SettingsDialog";
 import { KommenszlapfAccountButton, KommenszlapfAccountMenuItem } from "./KommenszlapfAccountDialog";
 import { KommenszlapfAccountDialog } from "./KommenszlapfAccountDialog";
+import { forceSync } from '@/lib/kommenszlapfSync';
 import { useKommenszlapfAuth } from "@/lib/kommenszlapfAuth";
 import { AppSettings, DEFAULT_SETTINGS, PageConfig } from "@/types/settings";
 import { nowInZone } from "@/lib/timezone";
