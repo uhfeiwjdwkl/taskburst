@@ -20,11 +20,15 @@ interface DayTimetableViewProps {
   selectedDate: Date;
   onEventClick: (event: CalendarEvent) => void;
   onTimetableUpdate?: () => void;
+  /** Pin the view to one timetable (hides the selector). */
+  timetableId?: string;
+  /** Overlay calendar events on top of the timetable grid. */
+  showEvents?: boolean;
 }
 
-export function DayTimetableView({ events, selectedDate, onEventClick, onTimetableUpdate }: DayTimetableViewProps) {
+export function DayTimetableView({ events, selectedDate, onEventClick, onTimetableUpdate, timetableId, showEvents = true }: DayTimetableViewProps) {
   const [timetables, setTimetables] = useState<Timetable[]>([]);
-  const [selectedTimetableId, setSelectedTimetableId] = useState<string | null>(null);
+  const [selectedTimetableId, setSelectedTimetableId] = useState<string | null>(timetableId ?? null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedCell, setSelectedCell] = useState<any>(null);
   const [cellDetailsOpen, setCellDetailsOpen] = useState(false);
@@ -41,6 +45,10 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
     loadTimetables();
   }, []);
 
+  useEffect(() => {
+    if (timetableId) setSelectedTimetableId(timetableId);
+  }, [timetableId]);
+
   const loadTimetables = () => {
     const saved = localStorage.getItem('timetables');
     if (saved) {
@@ -48,7 +56,9 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
       try { const p = JSON.parse(saved); if (Array.isArray(p)) parsed = p as Timetable[]; } catch {}
       const active = parsed.filter(t => !t.deletedAt);
       setTimetables(active);
-      if (active.length > 0 && !selectedTimetableId) {
+      if (timetableId) {
+        setSelectedTimetableId(timetableId);
+      } else if (active.length > 0 && !selectedTimetableId) {
         setSelectedTimetableId(active[0].id);
       }
     } else {
@@ -84,13 +94,13 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
     return () => clearInterval(interval);
   }, []);
 
-  const selectedTimetable = timetables.find(t => t.id === selectedTimetableId);
+  const selectedTimetable = timetables.find(t => t.id === (timetableId ?? selectedTimetableId));
   
   // Generate time slots based on visible range
   const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => i + startHour);
   
-  // Filter events that have a time set
-  const timedEvents = events.filter(e => e.time);
+  // Filter events that have a time set (only when the overlay is enabled)
+  const timedEvents = showEvents ? events.filter(e => e.time) : [];
 
   // Get timetable cells for the selected day
   const getTimetableCells = () => {
@@ -265,13 +275,13 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold flex items-center gap-2">
           <Clock className="h-4 w-4" />
-          Day Schedule
+          {selectedTimetable ? selectedTimetable.name : 'Day Schedule'}
         </h3>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setExpanded(v => !v)}>
             {expanded ? <><Minimize2 className="h-4 w-4 mr-1" />Collapse</> : <><Maximize2 className="h-4 w-4 mr-1" />Expand</>}
           </Button>
-          {timetables.length > 0 && (
+          {!timetableId && timetables.length > 0 && (
           <Select value={selectedTimetableId || undefined} onValueChange={setSelectedTimetableId}>
             <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Select timetable" />
@@ -330,11 +340,12 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
             return (
               <div
                 key={idx}
-                className="absolute rounded-md p-2 border opacity-30 overflow-hidden cursor-pointer hover:opacity-50 transition-opacity"
+                className={`absolute rounded-md p-2 border overflow-hidden cursor-pointer transition-opacity ${showEvents ? 'opacity-30 hover:opacity-50' : 'opacity-90 hover:opacity-100'}`}
                 style={{
                   top: `${top}%`,
                   height: `${Math.max(height, 3)}%`,
                   left: '68px',
+                  right: '4px',
                   backgroundColor: cell.color || '#e5e7eb',
                 }}
                 onClick={() => {

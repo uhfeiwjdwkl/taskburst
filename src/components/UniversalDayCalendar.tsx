@@ -17,6 +17,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, CheckCircle2, Play, Maximize2, Minimize2, Download } from 'lucide-react';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { ExportDayPlanDialog } from './ExportDayPlanDialog';
+import { getPartialSlotsForDate } from '@/lib/partialSchedule';
 
 const safeParse = (key: string): any[] => {
   try {
@@ -47,7 +48,7 @@ interface UniversalDayCalendarProps {
 
 interface TimelineItem {
   id: string;
-  type: 'task' | 'subtask' | 'event' | 'timetable' | 'assessment' | 'rigid-timetable';
+  type: 'task' | 'subtask' | 'event' | 'timetable' | 'assessment' | 'rigid-timetable' | 'partial';
   title: string;
   time?: string;
   endTime?: string;
@@ -294,8 +295,32 @@ export const UniversalDayCalendar = ({
         });
       });
 
+    // Partial scheduling slots (task/subtask/list-item work sessions)
+    getPartialSlotsForDate(dateStr).forEach(slot => {
+      const parentTask = tasks.find(t => t.id === slot.itemId);
+      let subtaskMatch: { subtask: Subtask; task: Task } | null = null;
+      if (!parentTask) {
+        for (const t of tasks) {
+          const s = t.subtasks?.find(x => x.id === slot.itemId);
+          if (s) { subtaskMatch = { subtask: s, task: t }; break; }
+        }
+      }
+      const title = parentTask?.name || subtaskMatch?.subtask.title || slot.itemTitle || 'Scheduled session';
+      items.push({
+        id: `partial-${slot.id}`,
+        type: 'partial',
+        title,
+        time: slot.time,
+        duration: slot.duration,
+        completed: slot.completed,
+        color: parentTask?.color || (mirrorColor ? subtaskMatch?.subtask.color : undefined),
+        parentTitle: subtaskMatch ? subtaskMatch.task.name : 'Partial session',
+        data: { slot, task: parentTask, subtask: subtaskMatch?.subtask, parentTask: subtaskMatch?.task },
+      });
+    });
+
     return items;
-  }, [tasks, events, assessments, timetables, flexibleEvents, dateStr, currentDate, timetableDayIndex, selectedTimetableId]);
+  }, [tasks, events, assessments, timetables, flexibleEvents, dateStr, currentDate, timetableDayIndex, selectedTimetableId, mirrorColor]);
 
   const allDayItems = todayItems.filter(item => !item.time);
   const timedItems = todayItems.filter(item => item.time).sort((a, b) =>
@@ -388,6 +413,10 @@ export const UniversalDayCalendar = ({
       case 'rigid-timetable':
         // For rigid timetable, we can still fire timetable event click with a synthetic FlexibleEvent
         break;
+      case 'partial':
+        if (item.data.subtask) onSubtaskClick?.(item.data.subtask, item.data.parentTask);
+        else if (item.data.task) onTaskClick?.(item.data.task);
+        break;
     }
   };
 
@@ -397,6 +426,7 @@ export const UniversalDayCalendar = ({
       case 'subtask': return '📝 ';
       case 'assessment': return '📊 ';
       case 'rigid-timetable': return '🕐 ';
+      case 'partial': return '⏱ ';
       default: return '';
     }
   };
@@ -407,6 +437,7 @@ export const UniversalDayCalendar = ({
       case 'timetable': return 'bg-purple-500/20 border-purple-500';
       case 'rigid-timetable': return 'bg-indigo-500/20 border-indigo-500';
       case 'assessment': return 'bg-amber-500/20 border-amber-500';
+      case 'partial': return 'bg-teal-500/20 border-teal-500';
       default: return item.completed ? 'bg-green-500/20 border-green-500' : 'bg-primary/20 border-primary';
     }
   };
@@ -492,6 +523,22 @@ export const UniversalDayCalendar = ({
                 <Button size="sm" variant="ghost" className="ml-auto h-6 px-2" onClick={(e) => {
                   e.stopPropagation();
                   onStartSubtask(item.data.subtask, item.data.task);
+                }}>
+                  <Play className="h-3 w-3" />
+                </Button>
+              )}
+              {item.type === 'partial' && onStartSubtask && item.data.subtask && (
+                <Button size="sm" variant="ghost" className="ml-auto h-6 px-2" onClick={(e) => {
+                  e.stopPropagation();
+                  onStartSubtask(item.data.subtask, item.data.parentTask);
+                }}>
+                  <Play className="h-3 w-3" />
+                </Button>
+              )}
+              {item.type === 'partial' && onTaskClick && !item.data.subtask && item.data.task && (
+                <Button size="sm" variant="ghost" className="ml-auto h-6 px-2" onClick={(e) => {
+                  e.stopPropagation();
+                  onTaskClick(item.data.task);
                 }}>
                   <Play className="h-3 w-3" />
                 </Button>
@@ -590,6 +637,15 @@ export const UniversalDayCalendar = ({
                         <Play className="h-3 w-3" />
                       </Button>
                     )}
+                    {item.type === 'partial' && !item.completed && (onStartSubtask || onTaskClick) && (
+                      <Button size="sm" variant="ghost" className="ml-auto h-5 w-5 p-0 flex-shrink-0" onClick={(e) => {
+                        e.stopPropagation();
+                        if (item.data.subtask) onStartSubtask?.(item.data.subtask, item.data.parentTask);
+                        else if (item.data.task) onTaskClick?.(item.data.task);
+                      }}>
+                        <Play className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                   <div className="text-[10px] text-muted-foreground">
                     {formatTimeTo12Hour(item.time!)}
@@ -610,7 +666,12 @@ export const UniversalDayCalendar = ({
   );
 
   if (showCard) {
-    return <Card className={cn("p-4 h-full flex flex-col", className)}>{content}</Card>;
+    return (
+      <>
+        <Card className={cn("p-4 h-full flex flex-col", className)}>{content}</Card>
+        <ExportDayPlanDialog open={exportOpen} onClose={() => setExportOpen(false)} date={currentDate} />
+      </>
+    );
   }
 
   return <>
