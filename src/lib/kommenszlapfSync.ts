@@ -21,10 +21,16 @@ const qKey = (uid: string) => `kommenszlapf:q:${uid}`;
 const metaKey = (uid: string) => `kommenszlapf:meta:${uid}`;
 const PENDING_QUEUE_KEY_LEGACY = "kommenszlapf:pendingSync";
 
-const SKIP_PREFIXES = ["sb-", "supabase.", "kommenszlapf:"];
+const SKIP_PREFIXES = ["sb-", "supabase.", "kommenszlapf:", "taskburst-heartbeat"];
+/** Ephemeral / device-local keys that must never trigger or travel through sync. */
+const SKIP_EXACT = new Set([
+  "taskburst-heartbeat",
+  "taskburst-instance",
+  "taskburst-instance-id",
+]);
 const BATCH = 100;
 const PULL_LIMIT = 500;
-const PERIODIC_MS = 5 * 60 * 1000;
+const PERIODIC_MS = 15 * 60 * 1000;
 
 type Op = "upsert" | "delete";
 type QueueItem = { key: string; op: Op; ts: string; changeId: string };
@@ -53,6 +59,8 @@ const ownChangeIds: string[] = [];
 // -------------------- helpers --------------------
 
 function shouldSync(key: string) {
+  if (SKIP_EXACT.has(key)) return false;
+  if (/heartbeat|instanceid|instance-id/i.test(key)) return false;
   return !SKIP_PREFIXES.some((p) => key.startsWith(p));
 }
 
@@ -242,9 +250,6 @@ function bindGlobalListeners() {
     void syncNow();
   });
   window.addEventListener("offline", () => emitStatus("offline"));
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") scheduleSync(200);
-  });
 }
 
 // -------------------- apply remote rows --------------------
@@ -363,18 +368,48 @@ async function push(uid: string) {
  */
 async function bootstrap(uid: string) {
   writeMeta(uid, { rev: 0 });
-  await pull(uid);
+  // A fresh sign-in on this device must never let stale local state (edited
+  // while signed out, possibly long ago) overwrite the account. The cloud is
+  // authoritative for every key it already holds; local-only keys are merged up.
+  rawRemove(qKey(uid));
+  const cloudKeys = new Set<string>();
+  for (let i = 0; i < 20; i++) {
+    const since = readMeta(uid).rev;
+    const { data, error } = await (supabase as any).rpc("kommenszlapf_sync_pull", {
+      p_app: APP_NAME,
+      p_since: Math.max(since, 0),
+      p_limit: PULL_LIMIT,
+    });
+    if (error) throw error;
+    const rows: RemoteRow[] = Array.isArray(data?.rows) ? data.rows : [];
+    let maxRev = since;
+    for (const row of rows) {
+      cloudKeys.add(row.key);
+      if (!row.deleted && row.value !== null && row.value !== undefined) {
+        const serialized = typeof row.value === "string" ? row.value : JSON.stringify(row.value);
+        rawSet(row.key, serialized);
+        stampKey(row.key, row.client_ts);
+      }
+      if (row.rev > maxRev) maxRev = row.rev;
+    }
+    const serverRev = Number(data?.server_rev ?? maxRev);
+    if (rows.length === 0 && Number.isFinite(serverRev)) maxRev = Math.max(maxRev, serverRev);
+    writeMeta(uid, { rev: maxRev });
+    if (!data?.has_more) break;
+  }
+
   const stamps = readStamps();
   const now = new Date().toISOString();
-  const q = readQueue(uid);
-  const have = new Set(q.map((x) => x.key));
+  const q: QueueItem[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (!k || !shouldSync(k) || have.has(k)) continue;
+    if (!k || !shouldSync(k) || cloudKeys.has(k)) continue;
     q.push({ key: k, op: "upsert", ts: stamps[k] ?? now, changeId: newId() });
   }
   writeQueue(uid, q);
   writeMeta(uid, { bootstrapped: true });
+  window.dispatchEvent(new Event("storage"));
+  window.dispatchEvent(new Event("appSettingsUpdated"));
 }
 
 // -------------------- main cycle --------------------
