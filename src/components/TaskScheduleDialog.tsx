@@ -16,13 +16,7 @@ import { UniversalDayCalendar } from '@/components/UniversalDayCalendar';
 import { Calendar, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, isToday, parseISO } from 'date-fns';
 
-// Partial scheduling slots stored separately so the type definitions remain untouched
-interface PartialSlot { id: string; itemId: string; itemType: 'task' | 'subtask' | 'listItem'; date: string; time: string; duration: number; }
-const PARTIAL_KEY = 'partialScheduleSlots';
-const loadPartials = (): PartialSlot[] => {
-  try { const raw = localStorage.getItem(PARTIAL_KEY); const p = raw ? JSON.parse(raw) : []; return Array.isArray(p) ? p : []; } catch { return []; }
-};
-const savePartials = (slots: PartialSlot[]) => localStorage.setItem(PARTIAL_KEY, JSON.stringify(slots));
+import { PartialSlot, loadPartialSlots, savePartialSlots } from '@/lib/partialSchedule';
 
 interface TaskScheduleDialogProps {
   task: Task | null;
@@ -38,11 +32,11 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
   const [editedTask, setEditedTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [selectedSubtaskId, setSelectedSubtaskId] = useState<string | null>(null);
-  const [partialMode, setPartialMode] = useState(false);
+  const [partialTarget, setPartialTarget] = useState<'task' | 'subtask'>('task');
   const [partialSlots, setPartialSlots] = useState<PartialSlot[]>([]);
   const [newPartial, setNewPartial] = useState({ date: '', time: '', duration: 30 });
 
-  useEffect(() => { if (open) setPartialSlots(loadPartials()); }, [open]);
+  useEffect(() => { if (open) setPartialSlots(loadPartialSlots()); }, [open]);
   
   const [allEvents, setAllEvents] = useState<CalendarEvent[]>([]);
   const [allTasks, setAllTasks] = useState<Task[]>([]);
@@ -172,20 +166,31 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
   };
 
   const selectedSubtask = subtasks.find(s => s.id === selectedSubtaskId);
-  const targetItemId = selectedSubtaskId || task?.id || '';
-  const targetItemType: 'task' | 'subtask' = selectedSubtaskId ? 'subtask' : 'task';
+  const usingSubtask = partialTarget === 'subtask' && !!selectedSubtask;
+  const targetItemId = (usingSubtask ? selectedSubtaskId : task?.id) || '';
+  const targetItemType: 'task' | 'subtask' = usingSubtask ? 'subtask' : 'task';
+  const targetItemTitle = usingSubtask ? (selectedSubtask?.title || '') : task.name;
   const itemSlots = partialSlots.filter(p => p.itemId === targetItemId);
 
   const addPartialSlot = () => {
-    if (!newPartial.date || !newPartial.time || !newPartial.duration) return;
-    const slot: PartialSlot = { id: Date.now().toString(), itemId: targetItemId, itemType: targetItemType, ...newPartial };
+    const date = newPartial.date || (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '');
+    if (!date || !newPartial.time || !newPartial.duration) return;
+    const slot: PartialSlot = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      itemId: targetItemId,
+      itemType: targetItemType,
+      itemTitle: targetItemTitle,
+      date,
+      time: newPartial.time,
+      duration: newPartial.duration,
+    };
     const next = [...partialSlots, slot];
-    setPartialSlots(next); savePartials(next);
+    setPartialSlots(next); savePartialSlots(next);
     setNewPartial({ date: '', time: '', duration: 30 });
   };
   const removePartialSlot = (id: string) => {
     const next = partialSlots.filter(p => p.id !== id);
-    setPartialSlots(next); savePartials(next);
+    setPartialSlots(next); savePartialSlots(next);
   };
 
   return (
@@ -451,14 +456,25 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
         <div className="border-t pt-4 mt-4">
           <div className="flex items-center justify-between mb-2">
             <h4 className="font-medium">Partial Scheduling</h4>
-            <Button size="sm" variant={partialMode ? 'default' : 'outline'} onClick={() => setPartialMode(v => !v)}>
-              {partialMode ? 'On' : 'Off'}
-            </Button>
+            <div className="flex gap-1">
+              <Button size="sm" variant={partialTarget === 'task' ? 'default' : 'outline'} onClick={() => setPartialTarget('task')}>
+                Whole task
+              </Button>
+              <Button
+                size="sm"
+                variant={partialTarget === 'subtask' ? 'default' : 'outline'}
+                disabled={!selectedSubtask}
+                onClick={() => setPartialTarget('subtask')}
+              >
+                Selected subtask
+              </Button>
+            </div>
           </div>
-          {partialMode && targetItemId && (
+          {targetItemId && (
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                Schedule this {targetItemType} for multiple time slots across different dates.
+                Schedule <span className="font-medium">{targetItemTitle}</span> for multiple time slots across different dates.
+                Slots appear on every day calendar and can be started from there.
               </p>
               <div className="grid grid-cols-4 gap-2 items-end">
                 <div>

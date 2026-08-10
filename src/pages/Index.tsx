@@ -700,7 +700,9 @@ const Index = () => {
                     <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                   </div>
                   <DayTimetableView
-                    events={readArray<CalendarEvent>('calendarEvents').filter((e) => !e.deletedAt)}
+                    timetableId={timetable.id}
+                    showEvents={false}
+                    events={[]}
                     selectedDate={new Date()}
                     onEventClick={() => navigate('/timetable')}
                   />

@@ -16,6 +16,8 @@ import { CalendarEvent } from '@/types/event';
 import { Timetable, FlexibleEvent } from '@/types/timetable';
 import { Assessment } from '@/types/assessment';
 import { eventOccursOnDate, getEventTimeSpanForDate } from '@/lib/eventUtils';
+import { List } from '@/types/list';
+import { getPartialSlotsForDate } from '@/lib/partialSchedule';
 
 interface ExportDayPlanDialogProps {
   open: boolean;
@@ -25,11 +27,12 @@ interface ExportDayPlanDialogProps {
 
 type PlanItem = {
   id: string;
-  type: 'event' | 'task' | 'subtask' | 'timetable' | 'assessment';
+  type: 'event' | 'task' | 'subtask' | 'timetable' | 'assessment' | 'list' | 'partial';
   title: string;
   startMin: number; // minutes from midnight
   endMin: number;
   color: string;
+  allDay?: boolean;
 };
 
 const safeParse = <T,>(key: string, fallback: T): T => {
@@ -68,13 +71,25 @@ function collectItemsForDate(date: Date): PlanItem[] {
   const timetables = safeParse<Timetable[]>('timetables', []);
   const flexEvents = safeParse<FlexibleEvent[]>('flexibleTimetableEvents', []);
   const assessments = safeParse<Assessment[]>('assessments', []);
+  const lists = safeParse<List[]>('lists', []);
 
   // Events
   (Array.isArray(events) ? events : []).forEach(ev => {
     try {
       if (!eventOccursOnDate(ev, date)) return;
       const span = getEventTimeSpanForDate(ev, date);
-      if (!span.time) return; // skip all-day for timeline
+      if (!span.time) {
+        items.push({
+          id: `event-${ev.id}`,
+          type: 'event',
+          title: ev.title,
+          startMin: 0,
+          endMin: 0,
+          color: ev.color || '#3b82f6',
+          allDay: true,
+        });
+        return;
+      }
       const [h, m] = span.time.split(':').map(Number);
       const start = h * 60 + m;
       items.push({
@@ -83,7 +98,7 @@ function collectItemsForDate(date: Date): PlanItem[] {
         title: ev.title,
         startMin: start,
         endMin: start + (span.duration || 60),
-        color: '#3b82f6',
+        color: ev.color || '#3b82f6',
       });
     } catch { /* ignore */ }
   });
@@ -104,13 +119,34 @@ function collectItemsForDate(date: Date): PlanItem[] {
         title: t.name,
         startMin,
         endMin: startMin + dur,
-        color: '#8b5cf6',
+        color: t.color || '#8b5cf6',
+      });
+    } else {
+      items.push({
+        id: `task-${t.id}`,
+        type: 'task',
+        title: t.name,
+        startMin: 0,
+        endMin: 0,
+        color: t.color || '#8b5cf6',
+        allDay: true,
       });
     }
     // Subtasks with scheduled time
     (t.subtasks || []).forEach(s => {
       if (s.dueDate !== dateStr) return;
-      if (!s.scheduledTime) return;
+      if (!s.scheduledTime) {
+        items.push({
+          id: `subtask-${s.id}`,
+          type: 'subtask',
+          title: `${s.title} — ${t.name}`,
+          startMin: 0,
+          endMin: 0,
+          color: s.color || '#10b981',
+          allDay: true,
+        });
+        return;
+      }
       const [h, m] = s.scheduledTime.split(':').map(Number);
       const start = h * 60 + m;
       const dur = s.estimatedMinutes || 30;
@@ -185,9 +221,75 @@ function collectItemsForDate(date: Date): PlanItem[] {
       id: `assessment-${a.id}`,
       type: 'assessment',
       title: `Assessment: ${a.name}`,
-      startMin: 9 * 60,
-      endMin: 9 * 60 + 30,
+      startMin: 0,
+      endMin: 0,
       color: '#ef4444',
+      allDay: true,
+    });
+  });
+
+  // Lists: the list itself when due today, plus any items scheduled today
+  (Array.isArray(lists) ? lists : []).forEach(l => {
+    if (l.deletedAt) return;
+    if (l.dueDateTime && l.dueDateTime.split('T')[0] === dateStr) {
+      items.push({
+        id: `list-${l.id}`,
+        type: 'list',
+        title: `List: ${l.title}`,
+        startMin: 0,
+        endMin: 0,
+        color: '#0ea5e9',
+        allDay: true,
+      });
+    }
+    (l.items || []).forEach(it => {
+      if (it.deletedAt || !it.dateTime) return;
+      if (it.dateTime.split('T')[0] !== dateStr) return;
+      const d = parseISO(it.dateTime);
+      const hasTime = it.dateTime.includes('T') && isValid(d) && (d.getHours() !== 0 || d.getMinutes() !== 0);
+      if (!hasTime) {
+        items.push({
+          id: `listitem-${it.id}`,
+          type: 'list',
+          title: `${it.title} — ${l.title}`,
+          startMin: 0,
+          endMin: 0,
+          color: '#0ea5e9',
+          allDay: true,
+        });
+        return;
+      }
+      const start = d.getHours() * 60 + d.getMinutes();
+      items.push({
+        id: `listitem-${it.id}`,
+        type: 'list',
+        title: `${it.title} — ${l.title}`,
+        startMin: start,
+        endMin: start + 30,
+        color: '#0ea5e9',
+      });
+    });
+  });
+
+  // Partial scheduling slots (task / subtask work sessions)
+  getPartialSlotsForDate(dateStr).forEach(slot => {
+    const parentTask = (Array.isArray(tasks) ? tasks : []).find(t => t.id === slot.itemId);
+    let label = parentTask?.name || slot.itemTitle || 'Scheduled session';
+    if (!parentTask) {
+      for (const t of (Array.isArray(tasks) ? tasks : [])) {
+        const s = t.subtasks?.find(x => x.id === slot.itemId);
+        if (s) { label = `${s.title} — ${t.name}`; break; }
+      }
+    }
+    const [h, m] = slot.time.split(':').map(Number);
+    const start = h * 60 + m;
+    items.push({
+      id: `partial-${slot.id}`,
+      type: 'partial',
+      title: label,
+      startMin: start,
+      endMin: start + (slot.duration || 30),
+      color: parentTask?.color || '#14b8a6',
     });
   });
 
@@ -246,6 +348,8 @@ const TYPE_LABEL: Record<PlanItem['type'], string> = {
   subtask: 'Subtask',
   timetable: 'Timetable',
   assessment: 'Assessment',
+  list: 'List',
+  partial: 'Session',
 };
 
 export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialogProps) {
@@ -281,7 +385,9 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
     [allItems, excluded]
   );
 
-  const clusters = useMemo(() => packColumns(selectedItems), [selectedItems]);
+  const timedSelected = useMemo(() => selectedItems.filter(i => !i.allDay), [selectedItems]);
+  const allDaySelected = useMemo(() => selectedItems.filter(i => i.allDay), [selectedItems]);
+  const clusters = useMemo(() => packColumns(timedSelected), [timedSelected]);
 
   const toggle = (id: string) =>
     setExcluded(prev => {
@@ -304,7 +410,7 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
     setBusy(true);
     try {
       if (outputFormat === 'html') {
-        const html = renderStandaloneHtml(parsedDate, clusters, colour, format12);
+        const html = renderStandaloneHtml(parsedDate, clusters, allDaySelected, colour, format12);
         const blob = new Blob([html], { type: 'text/html' });
         downloadBlob(blob, `${filename}.html`);
       } else {
@@ -419,7 +525,9 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
                         <label htmlFor={`chk-${it.id}`} className="flex-1 cursor-pointer flex items-center gap-2 min-w-0">
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted flex-shrink-0">{TYPE_LABEL[it.type]}</span>
                           <span className="truncate">{it.title}</span>
-                          <span className="text-xs text-muted-foreground flex-shrink-0">{fmt(it.startMin, format12)}–{fmt(it.endMin, format12)}</span>
+                          <span className="text-xs text-muted-foreground flex-shrink-0">
+                            {it.allDay ? 'All day' : `${fmt(it.startMin, format12)}–${fmt(it.endMin, format12)}`}
+                          </span>
                         </label>
                       </li>
                     ))}
@@ -432,7 +540,7 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
           <div>
             <Label className="text-xs text-muted-foreground">Preview</Label>
             <div className="border rounded p-2 bg-white overflow-auto max-h-[60vh]">
-              <TimelinePreview ref={previewRef} date={parsedDate} clusters={clusters} colour={colour} format12={format12} />
+              <TimelinePreview ref={previewRef} date={parsedDate} clusters={clusters} allDay={allDaySelected} colour={colour} format12={format12} />
             </div>
           </div>
         </div>
@@ -453,6 +561,7 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
 interface TimelinePreviewProps {
   date: Date;
   clusters: (PlanItem & { col: number; cols: number })[][];
+  allDay: PlanItem[];
   colour: boolean;
   format12: boolean;
 }
@@ -460,7 +569,7 @@ interface TimelinePreviewProps {
 import { forwardRef } from 'react';
 
 const TimelinePreview = forwardRef<HTMLDivElement, TimelinePreviewProps>(function TimelinePreview(
-  { date, clusters, colour, format12 }, ref
+  { date, clusters, allDay, colour, format12 }, ref
 ) {
   const boxHeight = 88; // px per item (content-driven fixed for legibility)
   const gap = 8;
@@ -471,7 +580,29 @@ const TimelinePreview = forwardRef<HTMLDivElement, TimelinePreviewProps>(functio
         <div style={{ fontSize: 20, fontWeight: 700 }}>Day Plan</div>
         <div style={{ fontSize: 14 }}>{format(date, 'EEEE, d MMMM yyyy')}</div>
       </div>
-      {clusters.length === 0 ? (
+      {allDay.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, opacity: 0.7, marginBottom: 6 }}>All day</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {allDay.map(it => (
+              <div
+                key={it.id}
+                style={{
+                  border: `1.5px solid ${colour ? it.color : '#000'}`,
+                  background: colour ? `${it.color}18` : '#fff',
+                  borderRadius: 6,
+                  padding: '4px 8px',
+                  fontSize: 11,
+                }}
+              >
+                <strong style={{ fontWeight: 600 }}>{it.title}</strong>
+                <span style={{ opacity: 0.7 }}> · {TYPE_LABEL[it.type]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {clusters.length === 0 && allDay.length === 0 ? (
         <div style={{ fontSize: 14, color: '#666' }}>No items to display.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -532,7 +663,7 @@ const TimelinePreview = forwardRef<HTMLDivElement, TimelinePreviewProps>(functio
   );
 });
 
-function renderStandaloneHtml(date: Date, clusters: (PlanItem & { col: number; cols: number })[][], colour: boolean, format12: boolean): string {
+function renderStandaloneHtml(date: Date, clusters: (PlanItem & { col: number; cols: number })[][], allDay: PlanItem[], colour: boolean, format12: boolean): string {
   const style = `
     body { font-family: system-ui, sans-serif; margin: 24px; color: #000; background: #fff; }
     h1 { font-size: 22px; margin: 0 0 4px; }
@@ -543,9 +674,20 @@ function renderStandaloneHtml(date: Date, clusters: (PlanItem & { col: number; c
     .type { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; }
     .title { font-weight: 600; font-size: 13px; word-break: break-word; }
     .time { font-size: 11px; opacity: 0.85; }
+    .allday { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .chip { border: 1.5px solid #000; border-radius: 6px; padding: 4px 8px; font-size: 11px; }
   `;
   let body = `<h1>Day Plan</h1><h2>${format(date, 'EEEE, d MMMM yyyy')}</h2>`;
-  if (clusters.length === 0) body += `<p>No items to display.</p>`;
+  if (allDay.length > 0) {
+    body += `<div class="type">All day</div><div class="allday">`;
+    allDay.forEach(it => {
+      const border = colour ? it.color : '#000';
+      const bg = colour ? `${it.color}18` : '#fff';
+      body += `<div class="chip" style="border-color:${border};background:${bg};"><strong>${escapeHtml(it.title)}</strong> · ${TYPE_LABEL[it.type]}</div>`;
+    });
+    body += `</div>`;
+  }
+  if (clusters.length === 0 && allDay.length === 0) body += `<p>No items to display.</p>`;
   clusters.forEach(cluster => {
     const cols = cluster[0]?.cols || 1;
     const perCol: number[] = Array.from({ length: cols }, () => 0);
