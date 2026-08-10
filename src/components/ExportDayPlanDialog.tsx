@@ -16,6 +16,8 @@ import { CalendarEvent } from '@/types/event';
 import { Timetable, FlexibleEvent } from '@/types/timetable';
 import { Assessment } from '@/types/assessment';
 import { eventOccursOnDate, getEventTimeSpanForDate } from '@/lib/eventUtils';
+import { List } from '@/types/list';
+import { getPartialSlotsForDate } from '@/lib/partialSchedule';
 
 interface ExportDayPlanDialogProps {
   open: boolean;
@@ -25,11 +27,12 @@ interface ExportDayPlanDialogProps {
 
 type PlanItem = {
   id: string;
-  type: 'event' | 'task' | 'subtask' | 'timetable' | 'assessment';
+  type: 'event' | 'task' | 'subtask' | 'timetable' | 'assessment' | 'list' | 'partial';
   title: string;
   startMin: number; // minutes from midnight
   endMin: number;
   color: string;
+  allDay?: boolean;
 };
 
 const safeParse = <T,>(key: string, fallback: T): T => {
@@ -68,13 +71,25 @@ function collectItemsForDate(date: Date): PlanItem[] {
   const timetables = safeParse<Timetable[]>('timetables', []);
   const flexEvents = safeParse<FlexibleEvent[]>('flexibleTimetableEvents', []);
   const assessments = safeParse<Assessment[]>('assessments', []);
+  const lists = safeParse<List[]>('lists', []);
 
   // Events
   (Array.isArray(events) ? events : []).forEach(ev => {
     try {
       if (!eventOccursOnDate(ev, date)) return;
       const span = getEventTimeSpanForDate(ev, date);
-      if (!span.time) return; // skip all-day for timeline
+      if (!span.time) {
+        items.push({
+          id: `event-${ev.id}`,
+          type: 'event',
+          title: ev.title,
+          startMin: 0,
+          endMin: 0,
+          color: ev.color || '#3b82f6',
+          allDay: true,
+        });
+        return;
+      }
       const [h, m] = span.time.split(':').map(Number);
       const start = h * 60 + m;
       items.push({
@@ -83,7 +98,7 @@ function collectItemsForDate(date: Date): PlanItem[] {
         title: ev.title,
         startMin: start,
         endMin: start + (span.duration || 60),
-        color: '#3b82f6',
+        color: ev.color || '#3b82f6',
       });
     } catch { /* ignore */ }
   });
@@ -104,13 +119,34 @@ function collectItemsForDate(date: Date): PlanItem[] {
         title: t.name,
         startMin,
         endMin: startMin + dur,
-        color: '#8b5cf6',
+        color: t.color || '#8b5cf6',
+      });
+    } else {
+      items.push({
+        id: `task-${t.id}`,
+        type: 'task',
+        title: t.name,
+        startMin: 0,
+        endMin: 0,
+        color: t.color || '#8b5cf6',
+        allDay: true,
       });
     }
     // Subtasks with scheduled time
     (t.subtasks || []).forEach(s => {
       if (s.dueDate !== dateStr) return;
-      if (!s.scheduledTime) return;
+      if (!s.scheduledTime) {
+        items.push({
+          id: `subtask-${s.id}`,
+          type: 'subtask',
+          title: `${s.title} — ${t.name}`,
+          startMin: 0,
+          endMin: 0,
+          color: s.color || '#10b981',
+          allDay: true,
+        });
+        return;
+      }
       const [h, m] = s.scheduledTime.split(':').map(Number);
       const start = h * 60 + m;
       const dur = s.estimatedMinutes || 30;
@@ -185,9 +221,75 @@ function collectItemsForDate(date: Date): PlanItem[] {
       id: `assessment-${a.id}`,
       type: 'assessment',
       title: `Assessment: ${a.name}`,
-      startMin: 9 * 60,
-      endMin: 9 * 60 + 30,
+      startMin: 0,
+      endMin: 0,
       color: '#ef4444',
+      allDay: true,
+    });
+  });
+
+  // Lists: the list itself when due today, plus any items scheduled today
+  (Array.isArray(lists) ? lists : []).forEach(l => {
+    if (l.deletedAt) return;
+    if (l.dueDateTime && l.dueDateTime.split('T')[0] === dateStr) {
+      items.push({
+        id: `list-${l.id}`,
+        type: 'list',
+        title: `List: ${l.title}`,
+        startMin: 0,
+        endMin: 0,
+        color: '#0ea5e9',
+        allDay: true,
+      });
+    }
+    (l.items || []).forEach(it => {
+      if (it.deletedAt || !it.dateTime) return;
+      if (it.dateTime.split('T')[0] !== dateStr) return;
+      const d = parseISO(it.dateTime);
+      const hasTime = it.dateTime.includes('T') && isValid(d) && (d.getHours() !== 0 || d.getMinutes() !== 0);
+      if (!hasTime) {
+        items.push({
+          id: `listitem-${it.id}`,
+          type: 'list',
+          title: `${it.title} — ${l.title}`,
+          startMin: 0,
+          endMin: 0,
+          color: '#0ea5e9',
+          allDay: true,
+        });
+        return;
+      }
+      const start = d.getHours() * 60 + d.getMinutes();
+      items.push({
+        id: `listitem-${it.id}`,
+        type: 'list',
+        title: `${it.title} — ${l.title}`,
+        startMin: start,
+        endMin: start + 30,
+        color: '#0ea5e9',
+      });
+    });
+  });
+
+  // Partial scheduling slots (task / subtask work sessions)
+  getPartialSlotsForDate(dateStr).forEach(slot => {
+    const parentTask = (Array.isArray(tasks) ? tasks : []).find(t => t.id === slot.itemId);
+    let label = parentTask?.name || slot.itemTitle || 'Scheduled session';
+    if (!parentTask) {
+      for (const t of (Array.isArray(tasks) ? tasks : [])) {
+        const s = t.subtasks?.find(x => x.id === slot.itemId);
+        if (s) { label = `${s.title} — ${t.name}`; break; }
+      }
+    }
+    const [h, m] = slot.time.split(':').map(Number);
+    const start = h * 60 + m;
+    items.push({
+      id: `partial-${slot.id}`,
+      type: 'partial',
+      title: label,
+      startMin: start,
+      endMin: start + (slot.duration || 30),
+      color: parentTask?.color || '#14b8a6',
     });
   });
 
@@ -246,6 +348,8 @@ const TYPE_LABEL: Record<PlanItem['type'], string> = {
   subtask: 'Subtask',
   timetable: 'Timetable',
   assessment: 'Assessment',
+  list: 'List',
+  partial: 'Session',
 };
 
 export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialogProps) {
