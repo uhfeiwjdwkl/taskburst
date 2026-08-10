@@ -157,7 +157,7 @@ const ProgressGridEditor = ({
                   const isFilled = filledIndices.includes(index);
                   const isSelected = selectedBox === index;
                   const displayText = subtask
-                    ? (subtask.abbreviation || subtask.title.charAt(0).toUpperCase())
+                    ? (subtask.abbreviation || subtask.title.slice(0, 3).toUpperCase())
                     : null;
 
                   return (
