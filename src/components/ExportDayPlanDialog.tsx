@@ -385,7 +385,9 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
     [allItems, excluded]
   );
 
-  const clusters = useMemo(() => packColumns(selectedItems), [selectedItems]);
+  const timedSelected = useMemo(() => selectedItems.filter(i => !i.allDay), [selectedItems]);
+  const allDaySelected = useMemo(() => selectedItems.filter(i => i.allDay), [selectedItems]);
+  const clusters = useMemo(() => packColumns(timedSelected), [timedSelected]);
 
   const toggle = (id: string) =>
     setExcluded(prev => {
@@ -408,7 +410,7 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
     setBusy(true);
     try {
       if (outputFormat === 'html') {
-        const html = renderStandaloneHtml(parsedDate, clusters, colour, format12);
+        const html = renderStandaloneHtml(parsedDate, clusters, allDaySelected, colour, format12);
         const blob = new Blob([html], { type: 'text/html' });
         downloadBlob(blob, `${filename}.html`);
       } else {
@@ -523,7 +525,9 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
                         <label htmlFor={`chk-${it.id}`} className="flex-1 cursor-pointer flex items-center gap-2 min-w-0">
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted flex-shrink-0">{TYPE_LABEL[it.type]}</span>
                           <span className="truncate">{it.title}</span>
-                          <span className="text-xs text-muted-foreground flex-shrink-0">{fmt(it.startMin, format12)}–{fmt(it.endMin, format12)}</span>
+                          <span className="text-xs text-muted-foreground flex-shrink-0">
+                            {it.allDay ? 'All day' : `${fmt(it.startMin, format12)}–${fmt(it.endMin, format12)}`}
+                          </span>
                         </label>
                       </li>
                     ))}
@@ -536,7 +540,7 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
           <div>
             <Label className="text-xs text-muted-foreground">Preview</Label>
             <div className="border rounded p-2 bg-white overflow-auto max-h-[60vh]">
-              <TimelinePreview ref={previewRef} date={parsedDate} clusters={clusters} colour={colour} format12={format12} />
+              <TimelinePreview ref={previewRef} date={parsedDate} clusters={clusters} allDay={allDaySelected} colour={colour} format12={format12} />
             </div>
           </div>
         </div>
@@ -557,6 +561,7 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
 interface TimelinePreviewProps {
   date: Date;
   clusters: (PlanItem & { col: number; cols: number })[][];
+  allDay: PlanItem[];
   colour: boolean;
   format12: boolean;
 }
@@ -564,7 +569,7 @@ interface TimelinePreviewProps {
 import { forwardRef } from 'react';
 
 const TimelinePreview = forwardRef<HTMLDivElement, TimelinePreviewProps>(function TimelinePreview(
-  { date, clusters, colour, format12 }, ref
+  { date, clusters, allDay, colour, format12 }, ref
 ) {
   const boxHeight = 88; // px per item (content-driven fixed for legibility)
   const gap = 8;
@@ -575,7 +580,29 @@ const TimelinePreview = forwardRef<HTMLDivElement, TimelinePreviewProps>(functio
         <div style={{ fontSize: 20, fontWeight: 700 }}>Day Plan</div>
         <div style={{ fontSize: 14 }}>{format(date, 'EEEE, d MMMM yyyy')}</div>
       </div>
-      {clusters.length === 0 ? (
+      {allDay.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, opacity: 0.7, marginBottom: 6 }}>All day</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {allDay.map(it => (
+              <div
+                key={it.id}
+                style={{
+                  border: `1.5px solid ${colour ? it.color : '#000'}`,
+                  background: colour ? `${it.color}18` : '#fff',
+                  borderRadius: 6,
+                  padding: '4px 8px',
+                  fontSize: 11,
+                }}
+              >
+                <strong style={{ fontWeight: 600 }}>{it.title}</strong>
+                <span style={{ opacity: 0.7 }}> · {TYPE_LABEL[it.type]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {clusters.length === 0 && allDay.length === 0 ? (
         <div style={{ fontSize: 14, color: '#666' }}>No items to display.</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -636,7 +663,7 @@ const TimelinePreview = forwardRef<HTMLDivElement, TimelinePreviewProps>(functio
   );
 });
 
-function renderStandaloneHtml(date: Date, clusters: (PlanItem & { col: number; cols: number })[][], colour: boolean, format12: boolean): string {
+function renderStandaloneHtml(date: Date, clusters: (PlanItem & { col: number; cols: number })[][], allDay: PlanItem[], colour: boolean, format12: boolean): string {
   const style = `
     body { font-family: system-ui, sans-serif; margin: 24px; color: #000; background: #fff; }
     h1 { font-size: 22px; margin: 0 0 4px; }
@@ -647,9 +674,20 @@ function renderStandaloneHtml(date: Date, clusters: (PlanItem & { col: number; c
     .type { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; }
     .title { font-weight: 600; font-size: 13px; word-break: break-word; }
     .time { font-size: 11px; opacity: 0.85; }
+    .allday { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .chip { border: 1.5px solid #000; border-radius: 6px; padding: 4px 8px; font-size: 11px; }
   `;
   let body = `<h1>Day Plan</h1><h2>${format(date, 'EEEE, d MMMM yyyy')}</h2>`;
-  if (clusters.length === 0) body += `<p>No items to display.</p>`;
+  if (allDay.length > 0) {
+    body += `<div class="type">All day</div><div class="allday">`;
+    allDay.forEach(it => {
+      const border = colour ? it.color : '#000';
+      const bg = colour ? `${it.color}18` : '#fff';
+      body += `<div class="chip" style="border-color:${border};background:${bg};"><strong>${escapeHtml(it.title)}</strong> · ${TYPE_LABEL[it.type]}</div>`;
+    });
+    body += `</div>`;
+  }
+  if (clusters.length === 0 && allDay.length === 0) body += `<p>No items to display.</p>`;
   clusters.forEach(cluster => {
     const cols = cluster[0]?.cols || 1;
     const perCol: number[] = Array.from({ length: cols }, () => 0);
