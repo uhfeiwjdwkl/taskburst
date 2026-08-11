@@ -174,6 +174,78 @@ export function getSyncInfo() {
   };
 }
 
+// -------------------- one-deep sync backup (undo / redo) --------------------
+
+type SyncBackup = {
+  at: string;
+  /** Values as they were before the last sync applied remote changes. */
+  before: Record<string, string | null>;
+  /** Values the last sync produced, so a restore can be re-applied. */
+  after: Record<string, string | null>;
+  /** True while the user is viewing the pre-sync state. */
+  undone?: boolean;
+};
+
+const SYNC_BACKUP_KEY = "kommenszlapf:sync-backup";
+
+function readSyncBackup(): SyncBackup | null {
+  try {
+    const raw = rawGet(SYNC_BACKUP_KEY);
+    return raw ? (JSON.parse(raw) as SyncBackup) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSyncBackup(b: SyncBackup) {
+  try {
+    rawSet(SYNC_BACKUP_KEY, JSON.stringify(b));
+  } catch {
+    /* ignore */
+  }
+}
+
+function applySnapshot(snap: Record<string, string | null>) {
+  for (const [k, v] of Object.entries(snap)) {
+    if (v === null) rawRemove(k);
+    else rawSet(k, v);
+  }
+  window.dispatchEvent(new Event("storage"));
+  window.dispatchEvent(new Event("appSettingsUpdated"));
+}
+
+export function getSyncBackupState() {
+  const b = readSyncBackup();
+  return { canUndo: !!b && !b.undone, canRedo: !!b && !!b.undone, at: b?.at };
+}
+
+/** Restore the state from just before the most recent sync. */
+export function undoLastSync(): boolean {
+  const b = readSyncBackup();
+  if (!b || b.undone) return false;
+  applySnapshot(b.before);
+  writeSyncBackup({ ...b, undone: true });
+  return true;
+}
+
+/** Return to the latest synced state after an undo. */
+export function redoLastSync(): boolean {
+  const b = readSyncBackup();
+  if (!b || !b.undone) return false;
+  applySnapshot(b.after);
+  writeSyncBackup({ ...b, undone: false });
+  return true;
+}
+
+function unusedSyncInfo() {
+  const uid = currentUserId;
+  return {
+    status: lastStatus,
+    pending: uid ? readQueue(uid).length : 0,
+    lastSyncAt: uid ? readMeta(uid).lastSyncAt : undefined,
+  };
+}
+
 // -------------------- interceptors --------------------
 
 function onLocalWrite(key: string, op: Op) {
