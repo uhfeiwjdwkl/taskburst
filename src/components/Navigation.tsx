@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Home, Calendar, FolderOpen, History as HistoryIcon, Table, Archive, Clock, List, Briefcase, Settings, Award, Menu, ChevronDown, RefreshCw } from "lucide-react";
+import { Home, Calendar, FolderOpen, History as HistoryIcon, Table, Archive, Clock, List, Briefcase, Settings, Award, Menu, ChevronDown, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
+import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   DropdownMenu,
@@ -15,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { SettingsDialog } from "./SettingsDialog";
 import { KommenszlapfAccountButton, KommenszlapfAccountMenuItem } from "./KommenszlapfAccountDialog";
 import { KommenszlapfAccountDialog } from "./KommenszlapfAccountDialog";
-import { forceSync } from '@/lib/kommenszlapfSync';
+import { forceSync, undoLastSync, redoLastSync, getSyncBackupState } from '@/lib/kommenszlapfSync';
 import { useKommenszlapfAuth } from "@/lib/kommenszlapfAuth";
 import { AppSettings, DEFAULT_SETTINGS, PageConfig } from "@/types/settings";
 import { nowInZone } from "@/lib/timezone";
@@ -355,6 +356,34 @@ export function Navigation() {
                 <Badge variant="outline" className="text-[10px] gap-1 text-muted-foreground" title="Sign in to sync">
                   <WifiOff className="h-3 w-3" /> Signed out
                 </Badge>
+              )}
+              {user && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    title="Undo the most recent sync changes"
+                    onClick={() => {
+                      if (!undoLastSync()) toast.info('No sync backup available to undo.');
+                      else toast.success('Reverted to the state before the last sync.');
+                    }}
+                  >
+                    <ArrowLeft className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    title="Return to the latest synced state"
+                    onClick={() => {
+                      if (!redoLastSync()) toast.info('Already on the latest synced state.');
+                      else toast.success('Restored the latest synced state.');
+                    }}
+                  >
+                    <ArrowRight className="h-3 w-3" />
+                  </Button>
+                </div>
               )}
             </div>
 

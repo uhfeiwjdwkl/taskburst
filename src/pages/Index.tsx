@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download, Briefcase, ChevronDown, ChevronRight, GripVertical, Search, Trash2, CheckCircle, ChevronLeft, Info, Eye } from 'lucide-react';
+import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download, Briefcase, ChevronDown, ChevronRight, GripVertical, Search, Trash2, CheckCircle, ChevronLeft, Info, Eye, Edit } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { readArray } from '@/lib/safeStore';
 import { toast } from 'sonner';
@@ -31,6 +31,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
 import { ListCard } from '@/components/ListCard';
 import { ListDetailsDialog } from '@/components/ListDetailsDialog';
+import { EditListDialog } from '@/components/EditListDialog';
+import { ListScheduleDialog } from '@/components/ListScheduleDialog';
 import { DayTimetableView } from '@/components/DayTimetableView';
 import { SubtaskFullDetailsDialog } from '@/components/SubtaskFullDetailsDialog';
 import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
@@ -57,6 +59,8 @@ const Index = () => {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [selectedList, setSelectedList] = useState<List | null>(null);
   const [listDetailsOpen, setListDetailsOpen] = useState(false);
+  const [listEditOpen, setListEditOpen] = useState(false);
+  const [scheduleList, setScheduleList] = useState<List | null>(null);
   const [selectedSubtask, setSelectedSubtask] = useState<{ subtask: Subtask; task: Task } | null>(null);
   const [subtaskDetailsOpen, setSubtaskDetailsOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -660,6 +664,14 @@ const Index = () => {
                     {current.items.filter(i => i.completed).length}/{current.items.length} done
                   </Badge>
                 </div>
+                <div className="flex gap-2 mb-3">
+                  <Button size="sm" variant="outline" onClick={() => { setSelectedList(current); setListEditOpen(true); }}>
+                    <Edit className="h-3 w-3 mr-1" /> Edit
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setScheduleList(current)}>
+                    <Calendar className="h-3 w-3 mr-1" /> Schedule
+                  </Button>
+                </div>
                 <div className="space-y-1 max-h-72 overflow-y-auto">
                   {current.items.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No items.</p>
@@ -790,6 +802,28 @@ const Index = () => {
         )}
 
         {/* Subtask Details Dialog */}
+        <EditListDialog
+          list={selectedList}
+          open={listEditOpen}
+          onClose={() => setListEditOpen(false)}
+          onSave={(updatedList) => {
+            const allLists = readArray('lists');
+            const safeAll = Array.isArray(allLists) ? allLists : [];
+            const updated = safeAll.map((l: List) => l.id === updatedList.id ? updatedList : l);
+            localStorage.setItem('lists', JSON.stringify(updated));
+            setSelectedList(updatedList);
+            setFavoriteLists(updated.filter((l: List) => l.favorite && !l.deletedAt && !l.archivedAt));
+            setListEditOpen(false);
+            toast.success('List updated!');
+          }}
+        />
+
+        <ListScheduleDialog
+          list={scheduleList}
+          open={!!scheduleList}
+          onClose={() => setScheduleList(null)}
+        />
+
         <SubtaskFullDetailsDialog
           subtask={selectedSubtask?.subtask || null}
           open={subtaskDetailsOpen && !!selectedSubtask}

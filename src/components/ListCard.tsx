@@ -1,6 +1,6 @@
 import { List } from '@/types/list';
 import { Card } from '@/components/ui/card';
-import { Star, CheckCircle2, Calendar } from 'lucide-react';
+import { Star, CheckCircle2, Calendar, Edit } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -9,9 +9,10 @@ interface ListCardProps {
   onClick: () => void;
   isDragging?: boolean;
   onSchedule?: (list: List) => void;
+  onEdit?: (list: List) => void;
 }
 
-export const ListCard = ({ list, onClick, isDragging, onSchedule }: ListCardProps) => {
+export const ListCard = ({ list, onClick, isDragging, onSchedule, onEdit }: ListCardProps) => {
   const completedCount = list.items.filter(item => item.completed).length;
   const totalCount = list.items.length;
   const completionPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
@@ -65,17 +66,30 @@ export const ListCard = ({ list, onClick, isDragging, onSchedule }: ListCardProp
               style={{ width: `${completionPercentage}%` }}
             />
           </div>
-          {onSchedule && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2 mt-1"
-              onClick={(e) => { e.stopPropagation(); onSchedule(list); }}
-            >
-              <Calendar className="h-3 w-3 mr-1" />
-              Schedule
-            </Button>
-          )}
+          <div className="flex gap-1 mt-1">
+            {onEdit && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2"
+                onClick={(e) => { e.stopPropagation(); onEdit(list); }}
+              >
+                <Edit className="h-3 w-3 mr-1" />
+                Edit
+              </Button>
+            )}
+            {onSchedule && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2"
+                onClick={(e) => { e.stopPropagation(); onSchedule(list); }}
+              >
+                <Calendar className="h-3 w-3 mr-1" />
+                Schedule
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </Card>

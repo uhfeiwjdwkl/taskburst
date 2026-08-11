@@ -1,5 +1,5 @@
 import { CalendarEvent } from '@/types/event';
-import { Timetable } from '@/types/timetable';
+import { Timetable, FlexibleEvent } from '@/types/timetable';
 import { Card } from '@/components/ui/card';
 import { Clock } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -34,6 +34,7 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
   const [cellDetailsOpen, setCellDetailsOpen] = useState(false);
   const [cellRowCol, setCellRowCol] = useState<{ row: number; col: number } | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [flexEvents, setFlexEvents] = useState<FlexibleEvent[]>([]);
   const settings = useAppSettings();
   const configStart = Math.max(0, Math.min(23, (settings as any).calendarStartHour ?? 6));
   const configEnd = Math.max(configStart + 1, Math.min(24, (settings as any).calendarEndHour ?? 23));
@@ -95,6 +96,24 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
   }, []);
 
   const selectedTimetable = timetables.find(t => t.id === (timetableId ?? selectedTimetableId));
+
+  // Flexible timetables store their blocks separately — load them so a
+  // flexible timetable renders content instead of an empty grid.
+  useEffect(() => {
+    const id = timetableId ?? selectedTimetableId;
+    if (!id) { setFlexEvents([]); return; }
+    const load = () => {
+      try {
+        const raw = localStorage.getItem('flexibleTimetableEvents');
+        const parsed = raw ? JSON.parse(raw) : [];
+        const all: FlexibleEvent[] = Array.isArray(parsed) ? parsed : [];
+        setFlexEvents(all.filter(e => e.timetableId === id));
+      } catch { setFlexEvents([]); }
+    };
+    load();
+    window.addEventListener('storage', load);
+    return () => window.removeEventListener('storage', load);
+  }, [timetableId, selectedTimetableId]);
   
   // Generate time slots based on visible range
   const hours = Array.from({ length: endHour - startHour + 1 }, (_, i) => i + startHour);
@@ -165,6 +184,18 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
   };
 
   const timetableCells = getTimetableCells();
+
+  // Flexible blocks for the selected day (with fortnight awareness).
+  const dayIndexMonFirst = (selectedDate.getDay() + 6) % 7;
+  let flexWeek: 1 | 2 = 1;
+  if (selectedTimetable?.type === 'fortnightly' && selectedTimetable.fortnightStartDate) {
+    const startDate = new Date(selectedTimetable.fortnightStartDate);
+    const daysDiff = Math.floor((selectedDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    flexWeek = (Math.floor(daysDiff / 7) % 2) === 0 ? 1 : 2;
+  }
+  const dayFlexEvents = flexEvents.filter(
+    e => e.dayIndex === dayIndexMonFirst && (!e.week || e.week === flexWeek)
+  );
 
   // Calculate overlapping events and their positions
   const getEventPositions = () => {
@@ -326,6 +357,32 @@ export function DayTimetableView({ events, selectedDate, onEventClick, onTimetab
 
         {/* Timetable cells (background, low opacity) */}
         <div className="absolute inset-0 pl-16">
+          {dayFlexEvents.map((event) => {
+            const [sh, sm] = event.startTime.split(':').map(Number);
+            const [eh, em] = event.endTime.split(':').map(Number);
+            const startMinutes = startHour * 60;
+            const endMinutes = endHour * 60;
+            const total = sh * 60 + sm;
+            if (total < startMinutes || total >= endMinutes) return null;
+            const top = ((total - startMinutes) / (endMinutes - startMinutes)) * 100;
+            const height = (((eh * 60 + em) - total) / (endMinutes - startMinutes)) * 100;
+            return (
+              <div
+                key={event.id}
+                className="absolute rounded-md p-2 border overflow-hidden"
+                style={{
+                  top: `${top}%`,
+                  height: `${Math.max(height, 3)}%`,
+                  left: '68px',
+                  right: '4px',
+                  backgroundColor: event.color || 'hsl(var(--muted))',
+                }}
+              >
+                <div className="text-xs font-medium truncate">{event.title}</div>
+                <div className="text-[10px] opacity-80">{event.startTime}–{event.endTime}</div>
+              </div>
+            );
+          })}
           {timetableCells.map((cell, idx) => {
             const [hours, minutes] = cell.timeSlot.startTime.split(':').map(Number);
             const totalMinutes = hours * 60 + minutes;

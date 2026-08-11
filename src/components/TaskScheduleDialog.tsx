@@ -166,6 +166,13 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
   };
 
   const selectedSubtask = subtasks.find(s => s.id === selectedSubtaskId);
+  // The day-calendar snapshot reads tasks from storage, which does not yet
+  // contain the in-progress edits for this task — merge them in so the
+  // subtasks being scheduled actually appear in the preview.
+  const mergedTasks: Task[] = (() => {
+    const others = allTasks.filter(t => t.id !== editedTask.id);
+    return [editedTask, ...others];
+  })();
   const usingSubtask = partialTarget === 'subtask' && !!selectedSubtask;
   const targetItemId = (usingSubtask ? selectedSubtaskId : task?.id) || '';
   const targetItemType: 'task' | 'subtask' = usingSubtask ? 'subtask' : 'task';
@@ -299,6 +306,7 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
             <div className="h-[350px]">
               <UniversalDayCalendar
                 date={selectedDate}
+                tasks={mergedTasks}
                 onDateChange={(d) => setSelectedDate(d)}
                 showCard={false}
                 onSubtaskClick={(subtask) => setSelectedSubtaskId(subtask.id)}

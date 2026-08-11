@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Star, Trash2, Home, Edit, Eye, ChevronDown, FileDown, Upload } from "lucide-react";
+import { Plus, Star, Trash2, Home, Edit, Eye, ChevronDown, FileDown, Upload, Check, X, Pencil } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CreateTimetableDialog } from "@/components/CreateTimetableDialog";
 import { ImportTimetableDialog } from "@/components/ImportTimetableDialog";
@@ -56,7 +56,9 @@ const Timetable = () => {
   const [expandedEditSections, setExpandedEditSections] = useState<Set<string>>(new Set());
   const [selectedCell, setSelectedCell] = useState<any>(null);
   const [cellDetailsOpen, setCellDetailsOpen] = useState(false);
-  const jsonInputRef = useState<HTMLInputElement | null>(null);
+  const jsonInputRef = useRef<HTMLInputElement | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
 
   useEffect(() => {
     const saved = localStorage.getItem('timetables');
@@ -218,6 +220,63 @@ const Timetable = () => {
     });
   };
 
+  /** Rename an existing timetable in place. */
+  const handleRename = (id: string) => {
+    const name = renameValue.trim();
+    if (!name) { setRenamingId(null); return; }
+    let all: TimetableType[] = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem('timetables') || '[]');
+      if (Array.isArray(parsed)) all = parsed as TimetableType[];
+    } catch { /* ignore */ }
+    const next = all.map(t => (t.id === id ? { ...t, name } : t));
+    localStorage.setItem('timetables', JSON.stringify(next));
+    saveTimetables(next.filter(t => !t.deletedAt));
+    if (selectedTimetable?.id === id) setSelectedTimetable({ ...selectedTimetable, name });
+    setRenamingId(null);
+    toast.success('Timetable renamed');
+  };
+
+  /** Import one (or a few) timetables from JSON without replacing existing ones. */
+  const handleImportSingleJSON = async (file: File) => {
+    try {
+      const parsed = JSON.parse(await file.text());
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      if (!items.every((i: any) => i && typeof i === 'object' && 'name' in i)) {
+        toast.error('Invalid timetable file.');
+        return;
+      }
+      let all: TimetableType[] = [];
+      try {
+        const existing = JSON.parse(localStorage.getItem('timetables') || '[]');
+        if (Array.isArray(existing)) all = existing as TimetableType[];
+      } catch { /* ignore */ }
+
+      const imported = items.map((item: any) => {
+        const newId = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        if (item.mode === 'flexible' && item.events) {
+          const { timetable: ttData, events } = importFlexibleFromJSON(item, newId);
+          if (events.length > 0) saveFlexibleEventsForTimetable(newId, events);
+          return { ...ttData, id: newId, createdAt: item.createdAt || new Date().toISOString() } as TimetableType;
+        }
+        return {
+          ...item,
+          id: newId,
+          favorite: item.favorite || false,
+          createdAt: item.createdAt || new Date().toISOString(),
+        } as TimetableType;
+      });
+
+      const next = [...all, ...imported];
+      localStorage.setItem('timetables', JSON.stringify(next));
+      saveTimetables(next.filter(t => !t.deletedAt));
+      setSelectedTimetable(imported[0]);
+      toast.success(`Imported ${imported.length} timetable(s)`);
+    } catch {
+      toast.error('Failed to import timetable. Check the file format.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto">
@@ -278,6 +337,25 @@ const Timetable = () => {
               <Plus className="h-4 w-4 mr-2" />
               New Timetable
             </Button>
+            <Button variant="outline" onClick={() => jsonInputRef.current?.click()}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import Timetable
+            </Button>
+            <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
+              <FileDown className="h-4 w-4 mr-2" />
+              From Excel
+            </Button>
+            <input
+              ref={jsonInputRef}
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleImportSingleJSON(f);
+                e.target.value = '';
+              }}
+            />
           </div>
         </div>
 
@@ -310,12 +388,46 @@ const Timetable = () => {
                   <CollapsibleTrigger asChild>
                     <div className="p-3 flex items-start justify-between gap-2 cursor-pointer hover:bg-accent/50">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{timetable.name}</p>
+                        {renamingId === timetable.id ? (
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <Input
+                              value={renameValue}
+                              autoFocus
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleRename(timetable.id);
+                                if (e.key === 'Escape') setRenamingId(null);
+                              }}
+                              className="h-8 max-w-[260px]"
+                            />
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRename(timetable.id)}>
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRenamingId(null)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="font-medium truncate">{timetable.name}</p>
+                        )}
                         <p className="text-xs text-muted-foreground">
                           {timetable.type === 'weekly' ? 'Weekly' : 'Fortnightly'}
                         </p>
                       </div>
                       <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          title="Rename"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRenamingId(timetable.id);
+                            setRenameValue(timetable.name);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
