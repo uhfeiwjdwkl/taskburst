@@ -7,6 +7,8 @@ import { ListCard } from '@/components/ListCard';
 import { ListDetailsDialog } from '@/components/ListDetailsDialog';
 import { ExportImportButton } from '@/components/ExportImportButton';
 import { ImportListButton } from '@/components/ImportListButton';
+import { EditListDialog } from '@/components/EditListDialog';
+import { ListScheduleDialog } from '@/components/ListScheduleDialog';
 import { toast } from 'sonner';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
@@ -15,6 +17,8 @@ const Lists = () => {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedList, setSelectedList] = useState<List | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [scheduleList, setScheduleList] = useState<List | null>(null);
 
   useEffect(() => {
     const savedLists = localStorage.getItem('lists');
@@ -168,7 +172,8 @@ const Lists = () => {
                           list={list}
                           onClick={() => handleShowDetails(list)}
                           isDragging={snapshot.isDragging}
-                        onSchedule={(l) => handleShowDetails(l)}
+                          onEdit={(l) => { setSelectedList(l); setEditDialogOpen(true); }}
+                          onSchedule={(l) => setScheduleList(l)}
                         />
                       </div>
                     )}
@@ -204,6 +209,19 @@ const Lists = () => {
           onDelete={handleDeleteList}
           onArchive={handleArchiveList}
           onDeleteItem={handleDeleteItem}
+        />
+
+        <EditListDialog
+          list={selectedList}
+          open={editDialogOpen}
+          onClose={() => setEditDialogOpen(false)}
+          onSave={(l) => { handleUpdateList(l); setEditDialogOpen(false); }}
+        />
+
+        <ListScheduleDialog
+          list={scheduleList}
+          open={!!scheduleList}
+          onClose={() => setScheduleList(null)}
         />
       </div>
     </div>
