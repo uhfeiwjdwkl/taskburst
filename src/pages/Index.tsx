@@ -31,6 +31,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
 import { ListCard } from '@/components/ListCard';
 import { ListDetailsDialog } from '@/components/ListDetailsDialog';
+import { EditListDialog } from '@/components/EditListDialog';
+import { ListScheduleDialog } from '@/components/ListScheduleDialog';
 import { DayTimetableView } from '@/components/DayTimetableView';
 import { SubtaskFullDetailsDialog } from '@/components/SubtaskFullDetailsDialog';
 import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
@@ -800,6 +802,28 @@ const Index = () => {
         )}
 
         {/* Subtask Details Dialog */}
+        <EditListDialog
+          list={selectedList}
+          open={listEditOpen}
+          onClose={() => setListEditOpen(false)}
+          onSave={(updatedList) => {
+            const allLists = readArray('lists');
+            const safeAll = Array.isArray(allLists) ? allLists : [];
+            const updated = safeAll.map((l: List) => l.id === updatedList.id ? updatedList : l);
+            localStorage.setItem('lists', JSON.stringify(updated));
+            setSelectedList(updatedList);
+            setFavoriteLists(updated.filter((l: List) => l.favorite && !l.deletedAt && !l.archivedAt));
+            setListEditOpen(false);
+            toast.success('List updated!');
+          }}
+        />
+
+        <ListScheduleDialog
+          list={scheduleList}
+          open={!!scheduleList}
+          onClose={() => setScheduleList(null)}
+        />
+
         <SubtaskFullDetailsDialog
           subtask={selectedSubtask?.subtask || null}
           open={subtaskDetailsOpen && !!selectedSubtask}
