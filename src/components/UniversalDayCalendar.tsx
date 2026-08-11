@@ -17,7 +17,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, CheckCircle2, Play, Maximize2, Minimize2, Download } from 'lucide-react';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { ExportDayPlanDialog } from './ExportDayPlanDialog';
-import { getPartialSlotsForDate } from '@/lib/partialSchedule';
+import { getPartialSlotsForDate, PartialSlot } from '@/lib/partialSchedule';
+import { PartialSlotDialog } from './PartialSlotDialog';
+import { List } from '@/types/list';
 
 const safeParse = (key: string): any[] => {
   try {
@@ -41,6 +43,7 @@ interface UniversalDayCalendarProps {
   onAssessmentClick?: (assessment: Assessment) => void;
   onTimetableEventClick?: (event: FlexibleEvent, timetable: Timetable) => void;
   onStartSubtask?: (subtask: Subtask, task: Task) => void;
+  onListClick?: (list: List) => void;
   showCard?: boolean;
   className?: string;
   selectedTimetableId?: string;
@@ -81,6 +84,7 @@ export const UniversalDayCalendar = ({
   onAssessmentClick,
   onTimetableEventClick,
   onStartSubtask,
+  onListClick,
   showCard = true,
   className,
   selectedTimetableId,
@@ -91,6 +95,9 @@ export const UniversalDayCalendar = ({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [slotsVersion, setSlotsVersion] = useState(0);
+  const [editingSlot, setEditingSlot] = useState<PartialSlot | null>(null);
+  const [lists, setLists] = useState<List[]>([]);
 
   const currentDate = controlledDate || internalDate;
 
@@ -139,6 +146,17 @@ export const UniversalDayCalendar = ({
       }
     } catch {}
   }, [externalTasks, externalEvents, externalAssessments]);
+
+  // Lists are needed to resolve titles for list / list-item work sessions.
+  useEffect(() => {
+    const load = () => {
+      setLists(safeParse('lists') as List[]);
+      setSlotsVersion((v) => v + 1);
+    };
+    load();
+    window.addEventListener('storage', load);
+    return () => window.removeEventListener('storage', load);
+  }, []);
 
   useEffect(() => {
     const updatePosition = () => {
@@ -305,7 +323,22 @@ export const UniversalDayCalendar = ({
           if (s) { subtaskMatch = { subtask: s, task: t }; break; }
         }
       }
-      const title = parentTask?.name || subtaskMatch?.subtask.title || slot.itemTitle || 'Scheduled session';
+      const parentList = slot.listId ? lists.find(l => l.id === slot.listId) : undefined;
+      const listItem = parentList && slot.itemType === 'listItem'
+        ? parentList.items.find(i => i.id === slot.itemId)
+        : undefined;
+      const title =
+        parentTask?.name ||
+        subtaskMatch?.subtask.title ||
+        listItem?.title ||
+        (slot.itemType === 'list' ? parentList?.title : undefined) ||
+        slot.itemTitle ||
+        'Scheduled session';
+      const parentTitle = subtaskMatch
+        ? subtaskMatch.task.name
+        : parentList
+          ? parentList.title
+          : 'Partial session';
       items.push({
         id: `partial-${slot.id}`,
         type: 'partial',
@@ -314,13 +347,13 @@ export const UniversalDayCalendar = ({
         duration: slot.duration,
         completed: slot.completed,
         color: parentTask?.color || (mirrorColor ? subtaskMatch?.subtask.color : undefined),
-        parentTitle: subtaskMatch ? subtaskMatch.task.name : 'Partial session',
-        data: { slot, task: parentTask, subtask: subtaskMatch?.subtask, parentTask: subtaskMatch?.task },
+        parentTitle,
+        data: { slot, task: parentTask, subtask: subtaskMatch?.subtask, parentTask: subtaskMatch?.task, list: parentList },
       });
     });
 
     return items;
-  }, [tasks, events, assessments, timetables, flexibleEvents, dateStr, currentDate, timetableDayIndex, selectedTimetableId, mirrorColor]);
+  }, [tasks, events, assessments, timetables, flexibleEvents, lists, slotsVersion, dateStr, currentDate, timetableDayIndex, selectedTimetableId, mirrorColor]);
 
   const allDayItems = todayItems.filter(item => !item.time);
   const timedItems = todayItems.filter(item => item.time).sort((a, b) =>
@@ -414,8 +447,8 @@ export const UniversalDayCalendar = ({
         // For rigid timetable, we can still fire timetable event click with a synthetic FlexibleEvent
         break;
       case 'partial':
-        if (item.data.subtask) onSubtaskClick?.(item.data.subtask, item.data.parentTask);
-        else if (item.data.task) onTaskClick?.(item.data.task);
+        // A partial slot is its own calendar entity — open its dedicated editor.
+        setEditingSlot(item.data.slot);
         break;
     }
   };
