@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Home, Calendar, FolderOpen, History as HistoryIcon, Table, Archive, Clock, List, Briefcase, Settings, Award, Menu, ChevronDown, RefreshCw } from "lucide-react";
+import { Home, Calendar, FolderOpen, History as HistoryIcon, Table, Archive, Clock, List, Briefcase, Settings, Award, Menu, ChevronDown, RefreshCw, ArrowLeft, ArrowRight } from "lucide-react";
+import { toast } from "sonner";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   DropdownMenu,
