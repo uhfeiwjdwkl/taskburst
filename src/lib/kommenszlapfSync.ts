@@ -296,6 +296,10 @@ function applyRemoteRow(uid: string, row: RemoteRow, pendingKeys: Set<string>): 
 
 async function pull(uid: string): Promise<boolean> {
   let changed = false;
+  // One-deep backup of the state that existed before this pull applied
+  // remote changes, so the user can undo the most recent sync.
+  const before: Record<string, string | null> = {};
+  const after: Record<string, string | null> = {};
   for (let i = 0; i < 20; i++) {
     const since = readMeta(uid).rev;
     const { data, error } = await (supabase as any).rpc("kommenszlapf_sync_pull", {
@@ -308,7 +312,12 @@ async function pull(uid: string): Promise<boolean> {
     const pendingKeys = new Set(readQueue(uid).map((q) => q.key));
     let maxRev = since;
     for (const row of rows) {
-      if (applyRemoteRow(uid, row, pendingKeys)) changed = true;
+      const prev = rawGet(row.key);
+      if (applyRemoteRow(uid, row, pendingKeys)) {
+        changed = true;
+        if (!(row.key in before)) before[row.key] = prev;
+        after[row.key] = rawGet(row.key);
+      }
       if (row.rev > maxRev) maxRev = row.rev;
     }
     const serverRev = Number(data?.server_rev ?? maxRev);
@@ -316,6 +325,7 @@ async function pull(uid: string): Promise<boolean> {
     writeMeta(uid, { rev: maxRev });
     if (!data?.has_more) break;
   }
+  if (changed) writeSyncBackup({ at: new Date().toISOString(), before, after });
   return changed;
 }
 
