@@ -490,6 +490,39 @@ export const UniversalDayCalendar = ({
 
   const isToday = isSameDay(currentDate, new Date());
 
+  const slotDialog = (
+    <PartialSlotDialog
+      slot={editingSlot}
+      open={!!editingSlot}
+      onClose={() => setEditingSlot(null)}
+      onChanged={() => setSlotsVersion(v => v + 1)}
+      parentLabel={
+        editingSlot?.itemType === 'list' || editingSlot?.itemType === 'listItem'
+          ? 'list'
+          : editingSlot?.itemType === 'subtask'
+            ? 'subtask'
+            : 'task'
+      }
+      onOpenParent={(slot) => {
+        setEditingSlot(null);
+        if (slot.itemType === 'task') {
+          const t = tasks.find(x => x.id === slot.itemId);
+          if (t) onTaskClick?.(t);
+          return;
+        }
+        if (slot.itemType === 'subtask') {
+          for (const t of tasks) {
+            const s = t.subtasks?.find(x => x.id === slot.itemId);
+            if (s) { onSubtaskClick?.(s, t); return; }
+          }
+          return;
+        }
+        const l = lists.find(x => x.id === slot.listId);
+        if (l) onListClick?.(l);
+      }}
+    />
+  );
+
   const content = (
     <div className="flex flex-col h-full">
       {/* Header with navigation */}
@@ -703,6 +736,7 @@ export const UniversalDayCalendar = ({
       <>
         <Card className={cn("p-4 h-full flex flex-col", className)}>{content}</Card>
         <ExportDayPlanDialog open={exportOpen} onClose={() => setExportOpen(false)} date={currentDate} />
+        {slotDialog}
       </>
     );
   }
@@ -710,5 +744,6 @@ export const UniversalDayCalendar = ({
   return <>
     <div className={cn("h-full flex flex-col", className)}>{content}</div>
     <ExportDayPlanDialog open={exportOpen} onClose={() => setExportOpen(false)} date={currentDate} />
+    {slotDialog}
   </>;
 };
