@@ -660,6 +660,14 @@ const Index = () => {
                     {current.items.filter(i => i.completed).length}/{current.items.length} done
                   </Badge>
                 </div>
+                <div className="flex gap-2 mb-3">
+                  <Button size="sm" variant="outline" onClick={() => { setSelectedList(current); setListEditOpen(true); }}>
+                    <Edit className="h-3 w-3 mr-1" /> Edit
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setScheduleList(current)}>
+                    <CalendarIcon className="h-3 w-3 mr-1" /> Schedule
+                  </Button>
+                </div>
                 <div className="space-y-1 max-h-72 overflow-y-auto">
                   {current.items.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No items.</p>
