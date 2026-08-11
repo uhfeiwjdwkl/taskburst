@@ -237,15 +237,6 @@ export function redoLastSync(): boolean {
   return true;
 }
 
-function unusedSyncInfo() {
-  const uid = currentUserId;
-  return {
-    status: lastStatus,
-    pending: uid ? readQueue(uid).length : 0,
-    lastSyncAt: uid ? readMeta(uid).lastSyncAt : undefined,
-  };
-}
-
 // -------------------- interceptors --------------------
 
 function onLocalWrite(key: string, op: Op) {
