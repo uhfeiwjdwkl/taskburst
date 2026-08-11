@@ -83,7 +83,11 @@ export const SubtaskDialog = ({
       setProgressGridIndex(shouldAutoLink ? availableGridIndices[0] : undefined);
       setColor(undefined);
     }
-  }, [subtask, open, availableGridIndices]);
+    // NOTE: deliberately keyed on the subtask identity and open state only.
+    // `availableGridIndices` is a fresh array on every parent render, and
+    // including it here reset the form (wiping the time field) mid-typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtask?.id, open]);
 
   const handleSave = () => {
     if (!title.trim()) return;
