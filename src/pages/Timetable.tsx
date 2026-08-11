@@ -388,12 +388,46 @@ const Timetable = () => {
                   <CollapsibleTrigger asChild>
                     <div className="p-3 flex items-start justify-between gap-2 cursor-pointer hover:bg-accent/50">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{timetable.name}</p>
+                        {renamingId === timetable.id ? (
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <Input
+                              value={renameValue}
+                              autoFocus
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleRename(timetable.id);
+                                if (e.key === 'Escape') setRenamingId(null);
+                              }}
+                              className="h-8 max-w-[260px]"
+                            />
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRename(timetable.id)}>
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setRenamingId(null)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="font-medium truncate">{timetable.name}</p>
+                        )}
                         <p className="text-xs text-muted-foreground">
                           {timetable.type === 'weekly' ? 'Weekly' : 'Fortnightly'}
                         </p>
                       </div>
                       <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          title="Rename"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRenamingId(timetable.id);
+                            setRenameValue(timetable.name);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
