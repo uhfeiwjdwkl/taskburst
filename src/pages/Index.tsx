@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download, Briefcase, ChevronDown, ChevronRight, GripVertical, Search, Trash2, CheckCircle, ChevronLeft, Info, Eye } from 'lucide-react';
+import { Plus, Archive, Calendar, FolderOpen, History as HistoryIcon, Table, Star, List as ListIcon, Download, Briefcase, ChevronDown, ChevronRight, GripVertical, Search, Trash2, CheckCircle, ChevronLeft, Info, Eye, Edit } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { readArray } from '@/lib/safeStore';
 import { toast } from 'sonner';
@@ -57,6 +57,8 @@ const Index = () => {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [selectedList, setSelectedList] = useState<List | null>(null);
   const [listDetailsOpen, setListDetailsOpen] = useState(false);
+  const [listEditOpen, setListEditOpen] = useState(false);
+  const [scheduleList, setScheduleList] = useState<List | null>(null);
   const [selectedSubtask, setSelectedSubtask] = useState<{ subtask: Subtask; task: Task } | null>(null);
   const [subtaskDetailsOpen, setSubtaskDetailsOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -665,7 +667,7 @@ const Index = () => {
                     <Edit className="h-3 w-3 mr-1" /> Edit
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setScheduleList(current)}>
-                    <CalendarIcon className="h-3 w-3 mr-1" /> Schedule
+                    <Calendar className="h-3 w-3 mr-1" /> Schedule
                   </Button>
                 </div>
                 <div className="space-y-1 max-h-72 overflow-y-auto">
