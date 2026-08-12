@@ -179,6 +179,15 @@ export type TimeFormat = '12h' | '24h';
 // Subtask text sizes
 export type SubtaskTextSize = 'xxs' | 'xs' | 'sm' | 'md';
 
+// Academic periods (semesters / years) used to group and filter results
+export interface Term {
+  id: string;
+  name: string;
+  type: 'semester' | 'year';
+  start: string; // yyyy-MM-dd
+  end: string;   // yyyy-MM-dd
+}
+
 export const SUBTASK_TEXT_SIZES: { value: SubtaskTextSize; label: string }[] = [
   { value: 'xxs', label: 'Extra Small' },
   { value: 'xs', label: 'Small' },
@@ -237,6 +246,9 @@ export interface AppSettings {
   // Calendar visible time range (hours 0-24)
   calendarStartHour: number;
   calendarEndHour: number;
+
+  // Semester / year ranges used for grouping and filtering results
+  terms: Term[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -269,6 +281,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   timerMode: 'countdown',
   calendarStartHour: 6,
   calendarEndHour: 22,
+  terms: [],
 };
 
 // Legacy color palettes for backwards compatibility
