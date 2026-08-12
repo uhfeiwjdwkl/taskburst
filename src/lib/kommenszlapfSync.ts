@@ -256,12 +256,17 @@ function installInterceptors() {
   originalGetItem = Storage.prototype.getItem;
 
   Storage.prototype.setItem = function (key: string, value: string) {
+    // No-op writes (pages re-saving identical state on mount / navigation)
+    // must never queue a change or trigger a sync cycle.
+    const unchanged =
+      this === window.localStorage && shouldSync(key) && rawGet(key) === value;
     originalSetItem!.call(this, key, value);
-    if (this === window.localStorage && shouldSync(key)) onLocalWrite(key, "upsert");
+    if (this === window.localStorage && shouldSync(key) && !unchanged) onLocalWrite(key, "upsert");
   };
   Storage.prototype.removeItem = function (key: string) {
+    const missing = this === window.localStorage && rawGet(key) === null;
     originalRemoveItem!.call(this, key);
-    if (this === window.localStorage && shouldSync(key)) onLocalWrite(key, "delete");
+    if (this === window.localStorage && shouldSync(key) && !missing) onLocalWrite(key, "delete");
   };
   Storage.prototype.clear = function () {
     const keys: string[] = [];
