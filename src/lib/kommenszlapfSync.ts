@@ -209,9 +209,17 @@ function applySnapshot(snap: Record<string, string | null>) {
   for (const [k, v] of Object.entries(snap)) {
     if (v === null) rawRemove(k);
     else rawSet(k, v);
+    // Make the restore authoritative: stamp it now and queue it so the cloud
+    // (and other devices) adopt the restored state instead of re-applying it.
+    const ts = new Date().toISOString();
+    stampKey(k, ts);
+    if (currentUserId) enqueue(currentUserId, k, v === null ? "delete" : "upsert", ts);
   }
   window.dispatchEvent(new Event("storage"));
   window.dispatchEvent(new Event("appSettingsUpdated"));
+  // Pages hold their own copies of this data in React state; a reload is the
+  // only reliable way to show the restored state everywhere at once.
+  setTimeout(() => window.location.reload(), 150);
 }
 
 export function getSyncBackupState() {
