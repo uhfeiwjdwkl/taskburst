@@ -41,6 +41,7 @@ type ResultItem = {
   shortName?: string;
   category: string;
   subcategory?: string;
+  date?: string;
   result: {
     totalScore: number | null;
     totalMaxScore: number;
@@ -185,6 +186,7 @@ export default function Results() {
           shortName: task.resultShortName,
           category: task.category || 'Uncategorized',
           subcategory: task.subcategory,
+          date: task.dueDate,
           result,
           originalTask: task
         });
@@ -211,6 +213,7 @@ export default function Results() {
           name: project.title,
           shortName: project.resultShortName,
           category: 'Projects',
+          date: (project as any).dueDateTime,
           result,
           originalProject: project
         });
@@ -226,6 +229,7 @@ export default function Results() {
           name: a.name,
           shortName: a.resultShortName,
           category: a.category || 'Uncategorized',
+          date: a.dueDate,
           result: {
             totalScore: a.result.totalScore,
             totalMaxScore: a.result.totalMaxScore,
@@ -239,10 +243,20 @@ export default function Results() {
     return items;
   };
 
-  const resultItems = getResultItems();
+  const resultItems = getResultItems()
+    .filter(item => matchesTerm(item.date, termFilter, terms))
+    .sort((a, b) => (a.shortName || a.name).localeCompare(b.shortName || b.name));
   const maxParts = Math.max(defaultPartCount, ...resultItems.map(item => item.result.parts.length));
 
   const getGroupedItems = () => {
+    const sortGroups = (grouped: Record<string, ResultItem[]>) =>
+      Object.keys(grouped)
+        .sort((a, b) => a.localeCompare(b))
+        .reduce((acc, key) => {
+          acc[key] = grouped[key];
+          return acc;
+        }, {} as Record<string, ResultItem[]>);
+
     if (groupBy === 'subcategory') {
       // Group by category then subcategory
       const grouped: Record<string, ResultItem[]> = {};
@@ -253,14 +267,38 @@ export default function Results() {
         if (!grouped[key]) grouped[key] = [];
         grouped[key].push(item);
       });
-      return grouped;
+      return sortGroups(grouped);
     } else if (groupBy === 'category') {
-      return resultItems.reduce((acc, item) => {
+      const grouped = resultItems.reduce((acc, item) => {
         const key = item.category;
         if (!acc[key]) acc[key] = [];
         acc[key].push(item);
         return acc;
       }, {} as Record<string, ResultItem[]>);
+      return sortGroups(grouped);
+    } else if (groupBy === 'term') {
+      const grouped: Record<string, ResultItem[]> = {};
+      resultItems.forEach(item => {
+        const key = termLabel(item.date, terms);
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(item);
+      });
+      return sortGroups(grouped);
+    } else if (groupBy === 'weightGroup') {
+      const grouped: Record<string, ResultItem[]> = {};
+      const assigned = new Set<string>();
+      weightGroups
+        .filter(g => !g.hidden)
+        .forEach(g => {
+          const members = resultItems.filter(item => g.items.some(i => i.itemId === item.id));
+          if (members.length > 0) {
+            grouped[g.name] = members;
+            members.forEach(m => assigned.add(m.id));
+          }
+        });
+      const rest = resultItems.filter(item => !assigned.has(item.id));
+      if (rest.length > 0) grouped['Ungrouped'] = rest;
+      return sortGroups(grouped);
     }
     return { 'All Results': resultItems };
   };
