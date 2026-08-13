@@ -927,6 +927,98 @@ export default function Results() {
         })
       )}
 
+      {/* Weighting Groups Section */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <button
+            type="button"
+            className="flex items-center gap-2 text-xl font-bold"
+            onClick={() => setWeightGroupsOpen(!weightGroupsOpen)}
+          >
+            {weightGroupsOpen ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+            <Scale className="h-5 w-5" /> Weighting Groups
+          </button>
+          <div className="flex items-center gap-2">
+            <Button variant={weightGroupView === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => setWeightGroupView('grid')}>Grid</Button>
+            <Button variant={weightGroupView === 'list' ? 'default' : 'outline'} size="sm" onClick={() => setWeightGroupView('list')}>List</Button>
+            <Button size="sm" className="bg-gradient-primary" onClick={() => { setActiveWeightGroupId(null); setWeightDialogOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> Manage
+            </Button>
+          </div>
+        </div>
+
+        {weightGroupsOpen && (() => {
+          const scorables = getScorableItems();
+          const visible = weightGroups.filter(g => !g.hidden).sort((a, b) => a.name.localeCompare(b.name));
+          const hidden = weightGroups.filter(g => g.hidden).sort((a, b) => a.name.localeCompare(b.name));
+
+          const renderCard = (g: WeightGroup) => {
+            const score = calculateGroupScore(g, scorables);
+            return (
+              <Card
+                key={g.id}
+                className="p-4 cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => { setActiveWeightGroupId(g.id); setWeightDialogOpen(true); }}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold truncate">{g.name}</h3>
+                  <Badge variant="outline" className="text-xs shrink-0">{g.items.length} items</Badge>
+                </div>
+                <div className="text-2xl font-bold text-center mt-2">{score.display}</div>
+                <div className="text-center text-xs text-muted-foreground">total weight {score.totalWeight}%</div>
+              </Card>
+            );
+          };
+
+          return (
+            <>
+              {visible.length === 0 ? (
+                <Card className="p-6 text-center text-muted-foreground">
+                  No weighting groups yet. Use the Weights button in a task or assessment to create one.
+                </Card>
+              ) : weightGroupView === 'grid' ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{visible.map(renderCard)}</div>
+              ) : (
+                <div className="space-y-2">
+                  {visible.map(g => {
+                    const score = calculateGroupScore(g, scorables);
+                    return (
+                      <Card
+                        key={g.id}
+                        className="p-3 flex items-center gap-3 cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => { setActiveWeightGroupId(g.id); setWeightDialogOpen(true); }}
+                      >
+                        <span className="flex-1 min-w-0 font-medium text-sm truncate">{g.name}</span>
+                        <Badge variant="outline" className="text-xs">{g.items.length} items</Badge>
+                        <span className="font-bold text-sm">{score.display}</span>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+
+              {hidden.length > 0 && (
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"
+                    onClick={() => setHiddenGroupsOpen(!hiddenGroupsOpen)}
+                  >
+                    {hiddenGroupsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    Hidden groups ({hidden.length})
+                  </button>
+                  {hiddenGroupsOpen && (
+                    <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 opacity-70">
+                      {hidden.map(renderCard)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          );
+        })()}
+      </div>
+
       {/* Assessments Section */}
       <div className="mt-8">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
@@ -959,7 +1051,9 @@ export default function Results() {
           </div>
         </div>
         {(() => {
-          const filtered = assessments.filter(a => showCompletedAssessments || !a.completed);
+          const filtered = assessments
+            .filter(a => (showCompletedAssessments || !a.completed) && matchesTerm(a.dueDate, termFilter, terms))
+            .sort((a, b) => (a.resultShortName || a.name).localeCompare(b.resultShortName || b.name));
           if (filtered.length === 0) return (
             <Card className="p-6 text-center text-muted-foreground">No assessments to display.</Card>
           );
