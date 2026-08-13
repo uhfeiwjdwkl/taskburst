@@ -22,6 +22,8 @@ import { sanitizeHtml } from '@/lib/sanitizeHtml';
 import { SubtaskDialog } from './SubtaskDialog';
 import { SubtaskFullDetailsDialog } from './SubtaskFullDetailsDialog';
 import { TaskLinkedAssessmentsSection } from './TaskLinkedAssessmentsSection';
+import { PartialSlot, getPartialSlotsForItem, loadPartialSlots, savePartialSlots } from '@/lib/partialSchedule';
+import { PartialSlotDialog } from './PartialSlotDialog';
 
 interface TaskDetailsViewDialogProps {
   task: Task | null;
@@ -64,6 +66,8 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
   const [subtaskDialogOpen, setSubtaskDialogOpen] = useState(false);
   const [activeSubtask, setActiveSubtask] = useState<Subtask | null>(null);
   const [detailsSubtask, setDetailsSubtask] = useState<Subtask | null>(null);
+  const [partialSlots, setPartialSlots] = useState<PartialSlot[]>([]);
+  const [editingSlot, setEditingSlot] = useState<PartialSlot | null>(null);
 
   // Initialize filled indices when task changes
   useEffect(() => {
@@ -72,6 +76,29 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
       setFilledIndices(stored || Array.from({ length: task.progressGridFilled }, (_, i) => i));
     }
   }, [task]);
+
+  // Scheduled (partial) sessions for this task and any of its subtasks.
+  const refreshSlots = () => {
+    if (!task) return;
+    const subtaskIds = new Set((task.subtasks || []).map((s) => s.id));
+    setPartialSlots(
+      loadPartialSlots().filter((s) => s.itemId === task.id || subtaskIds.has(s.itemId))
+    );
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    refreshSlots();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, task?.id]);
+
+  const toggleSlotComplete = (slot: PartialSlot) => {
+    const next = loadPartialSlots().map((s) =>
+      s.id === slot.id ? { ...s, completed: !s.completed } : s
+    );
+    savePartialSlots(next);
+    refreshSlots();
+  };
 
   if (!task) return null;
 
@@ -306,6 +333,48 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
           )}
 
           <TaskLinkedAssessmentsSection task={task} />
+
+          {/* Scheduled sessions (partial scheduling) */}
+          {partialSlots.length > 0 && (
+            <div>
+              <Label className="text-muted-foreground text-sm">
+                Scheduled sessions ({partialSlots.length})
+              </Label>
+              <div className="mt-2 space-y-2 max-h-[200px] overflow-y-auto">
+                {partialSlots.map((slot) => (
+                  <div
+                    key={slot.id}
+                    className={cn(
+                      'flex items-center gap-2 p-2 border rounded-lg text-sm',
+                      slot.completed ? 'bg-muted/50' : 'bg-background'
+                    )}
+                  >
+                    <Checkbox
+                      checked={!!slot.completed}
+                      onCheckedChange={() => toggleSlotComplete(slot)}
+                    />
+                    <button
+                      className="flex-1 min-w-0 text-left"
+                      onClick={() => setEditingSlot(slot)}
+                    >
+                      <div className={slot.completed ? 'line-through text-muted-foreground' : ''}>
+                        {slot.itemTitle || task.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(slot.date).toLocaleDateString('en-GB')} • {formatTimeTo12Hour(slot.time)} • {slot.duration}m
+                      </div>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <PartialSlotDialog
+            slot={editingSlot}
+            open={!!editingSlot}
+            onClose={() => { setEditingSlot(null); refreshSlots(); }}
+          />
 
           {/* Subtasks List */}
           {subtasks.length > 0 && (

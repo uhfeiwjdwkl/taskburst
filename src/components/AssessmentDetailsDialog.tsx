@@ -320,6 +320,14 @@ export const AssessmentDetailsDialog = ({
           )}
         </div>
       </DialogContent>
+
+      <WeightGroupDialog
+        open={weightsOpen}
+        onClose={() => setWeightsOpen(false)}
+        itemId={a.id}
+        itemType="assessment"
+        itemName={a.name}
+      />
     </Dialog>
   );
 };
