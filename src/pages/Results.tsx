@@ -667,7 +667,18 @@ export default function Results() {
               <Plus className="h-4 w-4" />
             </Button>
           </div>
-          <Select value={groupBy} onValueChange={(v) => setGroupBy(v as 'none' | 'category' | 'subcategory')}>
+          <Select value={termFilter} onValueChange={setTermFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="All time" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All time</SelectItem>
+              {terms.map(t => (
+                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={groupBy} onValueChange={(v) => setGroupBy(v as typeof groupBy)}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Group by" />
             </SelectTrigger>
@@ -675,6 +686,8 @@ export default function Results() {
               <SelectItem value="none">No grouping</SelectItem>
               <SelectItem value="category">By Category</SelectItem>
               <SelectItem value="subcategory">By Subcategory</SelectItem>
+              <SelectItem value="term">By Semester / Year</SelectItem>
+              <SelectItem value="weightGroup">By Weight Group</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -690,10 +703,16 @@ export default function Results() {
               <div className="text-xs opacity-80">Overall Average</div>
             </div>
             {globalAvg.categories.map((cat) => (
-              <div key={cat.name} className="text-center p-3 bg-muted rounded-lg">
+              <button
+                key={cat.name}
+                type="button"
+                title={`Jump to ${cat.name}`}
+                onClick={() => document.getElementById(slugify(cat.name))?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="text-center p-3 bg-muted rounded-lg hover:bg-accent transition-colors"
+              >
                 <div className="text-lg font-bold">{cat.percentage}</div>
                 <div className="text-xs text-muted-foreground">{cat.name}</div>
-              </div>
+              </button>
             ))}
           </div>
         </Card>
@@ -715,7 +734,7 @@ export default function Results() {
             ...items.map(it => it.result.parts.length)
           );
           return (
-            <Card key={groupName} className="mb-6 overflow-hidden">
+            <Card key={groupName} id={slugify(groupName)} className="mb-6 overflow-hidden scroll-mt-20">
               {groupBy !== 'none' && (
                 <div className="bg-muted px-4 py-2 font-semibold border-b flex items-center justify-between">
                   <span>{groupName}</span>
