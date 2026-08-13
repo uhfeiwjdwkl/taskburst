@@ -1222,6 +1222,21 @@ export default function Results() {
           if (task) { setViewingTask(task); setDetailsDialogOpen(true); setAssessmentDetailsOpen(false); }
         }}
       />
+
+      <WeightGroupDialog
+        open={weightDialogOpen}
+        onClose={() => { setWeightDialogOpen(false); setActiveWeightGroupId(null); setWeightGroups(getWeightGroups()); }}
+        groupId={activeWeightGroupId ?? undefined}
+        onOpenItem={(id, type) => {
+          if (type === 'task') {
+            const task = [...tasks, ...archivedTasks].find(t => t.id === id);
+            if (task) { setWeightDialogOpen(false); setViewingTask(task); setDetailsDialogOpen(true); }
+            return;
+          }
+          const assessment = assessments.find(a => a.id === id);
+          if (assessment) { setWeightDialogOpen(false); setSelectedAssessment(assessment); setAssessmentDetailsOpen(true); }
+        }}
+      />
     </div>
   );
 }
