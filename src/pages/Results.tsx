@@ -29,6 +29,10 @@ import { AssessmentDetailsDialog } from '@/components/AssessmentDetailsDialog';
 import { Settings2, Plus, Minus, Eye, EyeOff, Edit2, Check, X, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { getTerms, matchesTerm, termLabel } from '@/lib/terms';
+import { WeightGroupDialog } from '@/components/WeightGroupDialog';
+import { calculateGroupScore, getScorableItems, getWeightGroups, WeightGroup } from '@/lib/weightGroups';
+import { ChevronDown, ChevronRight, Scale } from 'lucide-react';
 
 type ResultItem = {
   id: string;
@@ -50,6 +54,9 @@ type ResultItem = {
 // Column names storage key
 const COLUMN_NAMES_KEY = 'resultsColumnNames';
 const GROUP_BY_KEY = 'resultsGroupBy';
+const TERM_FILTER_KEY = 'resultsTermFilter';
+
+const slugify = (value: string) => `group-${value.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
 
 export default function Results() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -59,11 +66,19 @@ export default function Results() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [assessmentViewMode, setAssessmentViewMode] = useState<'grid' | 'list'>('grid');
   const [showCompletedAssessments, setShowCompletedAssessments] = useState(true);
-  const [groupBy, setGroupBy] = useState<'none' | 'category' | 'subcategory'>(() => {
+  const [groupBy, setGroupBy] = useState<'none' | 'category' | 'subcategory' | 'term' | 'weightGroup'>(() => {
     const saved = localStorage.getItem(GROUP_BY_KEY);
-    if (saved === 'category' || saved === 'subcategory' || saved === 'none') return saved;
+    if (saved === 'category' || saved === 'subcategory' || saved === 'none' || saved === 'term' || saved === 'weightGroup') return saved;
     return 'none';
   });
+  const [terms, setTerms] = useState(() => getTerms());
+  const [termFilter, setTermFilter] = useState<string>(() => localStorage.getItem(TERM_FILTER_KEY) || 'all');
+  const [weightGroups, setWeightGroups] = useState<WeightGroup[]>([]);
+  const [weightGroupsOpen, setWeightGroupsOpen] = useState(true);
+  const [hiddenGroupsOpen, setHiddenGroupsOpen] = useState(false);
+  const [weightGroupView, setWeightGroupView] = useState<'grid' | 'list'>('grid');
+  const [activeWeightGroupId, setActiveWeightGroupId] = useState<string | null>(null);
+  const [weightDialogOpen, setWeightDialogOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<{
     itemId: string;
     itemType: 'task' | 'project';
@@ -104,6 +119,26 @@ export default function Results() {
   useEffect(() => {
     localStorage.setItem(GROUP_BY_KEY, groupBy);
   }, [groupBy]);
+
+  useEffect(() => {
+    localStorage.setItem(TERM_FILTER_KEY, termFilter);
+  }, [termFilter]);
+
+  useEffect(() => {
+    const refresh = () => {
+      setWeightGroups(getWeightGroups());
+      setTerms(getTerms());
+    };
+    refresh();
+    window.addEventListener('weightGroupsUpdated', refresh);
+    window.addEventListener('appSettingsUpdated', refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener('weightGroupsUpdated', refresh);
+      window.removeEventListener('appSettingsUpdated', refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, []);
 
   const loadData = () => {
     const safeParse = (key: string): any[] => {
