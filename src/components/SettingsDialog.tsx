@@ -467,6 +467,92 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">Applies to homepage and calendar day view. Use the "Expand" button on those pages to temporarily view the full 24 hours.</p>
               </div>
+
+              {/* Semesters / years */}
+              <div className="border-t pt-4">
+                <Label>Semesters & years</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Define date ranges to group and filter tasks, assessments and results by period.
+                </p>
+                <div className="mt-2 space-y-2">
+                  {((settings as any).terms || []).map((term: any, index: number) => (
+                    <div key={term.id} className="flex flex-wrap items-center gap-2 border rounded-md p-2">
+                      <Input
+                        value={term.name}
+                        placeholder="Name"
+                        className="h-8 flex-1 min-w-[120px]"
+                        onChange={(e) => {
+                          const terms = [...((settings as any).terms || [])];
+                          terms[index] = { ...term, name: e.target.value };
+                          setSettings({ ...settings, terms } as any);
+                        }}
+                      />
+                      <Select
+                        value={term.type}
+                        onValueChange={(v) => {
+                          const terms = [...((settings as any).terms || [])];
+                          terms[index] = { ...term, type: v };
+                          setSettings({ ...settings, terms } as any);
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="semester">Semester</SelectItem>
+                          <SelectItem value="year">Year</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="date"
+                        value={term.start || ''}
+                        className="h-8 w-36"
+                        onChange={(e) => {
+                          const terms = [...((settings as any).terms || [])];
+                          terms[index] = { ...term, start: e.target.value };
+                          setSettings({ ...settings, terms } as any);
+                        }}
+                      />
+                      <Input
+                        type="date"
+                        value={term.end || ''}
+                        className="h-8 w-36"
+                        onChange={(e) => {
+                          const terms = [...((settings as any).terms || [])];
+                          terms[index] = { ...term, end: e.target.value };
+                          setSettings({ ...settings, terms } as any);
+                        }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-destructive"
+                        onClick={() => {
+                          const terms = ((settings as any).terms || []).filter((_: any, i: number) => i !== index);
+                          setSettings({ ...settings, terms } as any);
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const terms = [...((settings as any).terms || [])];
+                      terms.push({
+                        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                        name: `Semester ${terms.length + 1}`,
+                        type: 'semester',
+                        start: '',
+                        end: '',
+                      });
+                      setSettings({ ...settings, terms } as any);
+                    }}
+                  >
+                    Add period
+                  </Button>
+                </div>
+              </div>
             </div>
 
             {/* Progress Grid Section */}

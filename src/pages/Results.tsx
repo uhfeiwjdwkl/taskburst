@@ -29,6 +29,10 @@ import { AssessmentDetailsDialog } from '@/components/AssessmentDetailsDialog';
 import { Settings2, Plus, Minus, Eye, EyeOff, Edit2, Check, X, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { getTerms, matchesTerm, termLabel } from '@/lib/terms';
+import { WeightGroupDialog } from '@/components/WeightGroupDialog';
+import { calculateGroupScore, getScorableItems, getWeightGroups, WeightGroup } from '@/lib/weightGroups';
+import { ChevronDown, ChevronRight, Scale } from 'lucide-react';
 
 type ResultItem = {
   id: string;
@@ -37,6 +41,7 @@ type ResultItem = {
   shortName?: string;
   category: string;
   subcategory?: string;
+  date?: string;
   result: {
     totalScore: number | null;
     totalMaxScore: number;
@@ -50,6 +55,9 @@ type ResultItem = {
 // Column names storage key
 const COLUMN_NAMES_KEY = 'resultsColumnNames';
 const GROUP_BY_KEY = 'resultsGroupBy';
+const TERM_FILTER_KEY = 'resultsTermFilter';
+
+const slugify = (value: string) => `group-${value.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
 
 export default function Results() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -59,11 +67,19 @@ export default function Results() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [assessmentViewMode, setAssessmentViewMode] = useState<'grid' | 'list'>('grid');
   const [showCompletedAssessments, setShowCompletedAssessments] = useState(true);
-  const [groupBy, setGroupBy] = useState<'none' | 'category' | 'subcategory'>(() => {
+  const [groupBy, setGroupBy] = useState<'none' | 'category' | 'subcategory' | 'term' | 'weightGroup'>(() => {
     const saved = localStorage.getItem(GROUP_BY_KEY);
-    if (saved === 'category' || saved === 'subcategory' || saved === 'none') return saved;
+    if (saved === 'category' || saved === 'subcategory' || saved === 'none' || saved === 'term' || saved === 'weightGroup') return saved;
     return 'none';
   });
+  const [terms, setTerms] = useState(() => getTerms());
+  const [termFilter, setTermFilter] = useState<string>(() => localStorage.getItem(TERM_FILTER_KEY) || 'all');
+  const [weightGroups, setWeightGroups] = useState<WeightGroup[]>([]);
+  const [weightGroupsOpen, setWeightGroupsOpen] = useState(true);
+  const [hiddenGroupsOpen, setHiddenGroupsOpen] = useState(false);
+  const [weightGroupView, setWeightGroupView] = useState<'grid' | 'list'>('grid');
+  const [activeWeightGroupId, setActiveWeightGroupId] = useState<string | null>(null);
+  const [weightDialogOpen, setWeightDialogOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<{
     itemId: string;
     itemType: 'task' | 'project';
@@ -104,6 +120,26 @@ export default function Results() {
   useEffect(() => {
     localStorage.setItem(GROUP_BY_KEY, groupBy);
   }, [groupBy]);
+
+  useEffect(() => {
+    localStorage.setItem(TERM_FILTER_KEY, termFilter);
+  }, [termFilter]);
+
+  useEffect(() => {
+    const refresh = () => {
+      setWeightGroups(getWeightGroups());
+      setTerms(getTerms());
+    };
+    refresh();
+    window.addEventListener('weightGroupsUpdated', refresh);
+    window.addEventListener('appSettingsUpdated', refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener('weightGroupsUpdated', refresh);
+      window.removeEventListener('appSettingsUpdated', refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, []);
 
   const loadData = () => {
     const safeParse = (key: string): any[] => {
@@ -150,6 +186,7 @@ export default function Results() {
           shortName: task.resultShortName,
           category: task.category || 'Uncategorized',
           subcategory: task.subcategory,
+          date: task.dueDate,
           result,
           originalTask: task
         });
@@ -176,6 +213,7 @@ export default function Results() {
           name: project.title,
           shortName: project.resultShortName,
           category: 'Projects',
+          date: (project as any).dueDateTime,
           result,
           originalProject: project
         });
@@ -191,6 +229,7 @@ export default function Results() {
           name: a.name,
           shortName: a.resultShortName,
           category: a.category || 'Uncategorized',
+          date: a.dueDate,
           result: {
             totalScore: a.result.totalScore,
             totalMaxScore: a.result.totalMaxScore,
@@ -204,10 +243,20 @@ export default function Results() {
     return items;
   };
 
-  const resultItems = getResultItems();
+  const resultItems = getResultItems()
+    .filter(item => matchesTerm(item.date, termFilter, terms))
+    .sort((a, b) => (a.shortName || a.name).localeCompare(b.shortName || b.name));
   const maxParts = Math.max(defaultPartCount, ...resultItems.map(item => item.result.parts.length));
 
   const getGroupedItems = () => {
+    const sortGroups = (grouped: Record<string, ResultItem[]>) =>
+      Object.keys(grouped)
+        .sort((a, b) => a.localeCompare(b))
+        .reduce((acc, key) => {
+          acc[key] = grouped[key];
+          return acc;
+        }, {} as Record<string, ResultItem[]>);
+
     if (groupBy === 'subcategory') {
       // Group by category then subcategory
       const grouped: Record<string, ResultItem[]> = {};
@@ -218,14 +267,38 @@ export default function Results() {
         if (!grouped[key]) grouped[key] = [];
         grouped[key].push(item);
       });
-      return grouped;
+      return sortGroups(grouped);
     } else if (groupBy === 'category') {
-      return resultItems.reduce((acc, item) => {
+      const grouped = resultItems.reduce((acc, item) => {
         const key = item.category;
         if (!acc[key]) acc[key] = [];
         acc[key].push(item);
         return acc;
       }, {} as Record<string, ResultItem[]>);
+      return sortGroups(grouped);
+    } else if (groupBy === 'term') {
+      const grouped: Record<string, ResultItem[]> = {};
+      resultItems.forEach(item => {
+        const key = termLabel(item.date, terms);
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(item);
+      });
+      return sortGroups(grouped);
+    } else if (groupBy === 'weightGroup') {
+      const grouped: Record<string, ResultItem[]> = {};
+      const assigned = new Set<string>();
+      weightGroups
+        .filter(g => !g.hidden)
+        .forEach(g => {
+          const members = resultItems.filter(item => g.items.some(i => i.itemId === item.id));
+          if (members.length > 0) {
+            grouped[g.name] = members;
+            members.forEach(m => assigned.add(m.id));
+          }
+        });
+      const rest = resultItems.filter(item => !assigned.has(item.id));
+      if (rest.length > 0) grouped['Ungrouped'] = rest;
+      return sortGroups(grouped);
     }
     return { 'All Results': resultItems };
   };
@@ -594,7 +667,18 @@ export default function Results() {
               <Plus className="h-4 w-4" />
             </Button>
           </div>
-          <Select value={groupBy} onValueChange={(v) => setGroupBy(v as 'none' | 'category' | 'subcategory')}>
+          <Select value={termFilter} onValueChange={setTermFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="All time" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All time</SelectItem>
+              {terms.map(t => (
+                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={groupBy} onValueChange={(v) => setGroupBy(v as typeof groupBy)}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="Group by" />
             </SelectTrigger>
@@ -602,6 +686,8 @@ export default function Results() {
               <SelectItem value="none">No grouping</SelectItem>
               <SelectItem value="category">By Category</SelectItem>
               <SelectItem value="subcategory">By Subcategory</SelectItem>
+              <SelectItem value="term">By Semester / Year</SelectItem>
+              <SelectItem value="weightGroup">By Weight Group</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -617,10 +703,16 @@ export default function Results() {
               <div className="text-xs opacity-80">Overall Average</div>
             </div>
             {globalAvg.categories.map((cat) => (
-              <div key={cat.name} className="text-center p-3 bg-muted rounded-lg">
+              <button
+                key={cat.name}
+                type="button"
+                title={`Jump to ${cat.name}`}
+                onClick={() => document.getElementById(slugify(cat.name))?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                className="text-center p-3 bg-muted rounded-lg hover:bg-accent transition-colors"
+              >
                 <div className="text-lg font-bold">{cat.percentage}</div>
                 <div className="text-xs text-muted-foreground">{cat.name}</div>
-              </div>
+              </button>
             ))}
           </div>
         </Card>
@@ -642,7 +734,7 @@ export default function Results() {
             ...items.map(it => it.result.parts.length)
           );
           return (
-            <Card key={groupName} className="mb-6 overflow-hidden">
+            <Card key={groupName} id={slugify(groupName)} className="mb-6 overflow-hidden scroll-mt-20">
               {groupBy !== 'none' && (
                 <div className="bg-muted px-4 py-2 font-semibold border-b flex items-center justify-between">
                   <span>{groupName}</span>
@@ -835,6 +927,98 @@ export default function Results() {
         })
       )}
 
+      {/* Weighting Groups Section */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <button
+            type="button"
+            className="flex items-center gap-2 text-xl font-bold"
+            onClick={() => setWeightGroupsOpen(!weightGroupsOpen)}
+          >
+            {weightGroupsOpen ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+            <Scale className="h-5 w-5" /> Weighting Groups
+          </button>
+          <div className="flex items-center gap-2">
+            <Button variant={weightGroupView === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => setWeightGroupView('grid')}>Grid</Button>
+            <Button variant={weightGroupView === 'list' ? 'default' : 'outline'} size="sm" onClick={() => setWeightGroupView('list')}>List</Button>
+            <Button size="sm" className="bg-gradient-primary" onClick={() => { setActiveWeightGroupId(null); setWeightDialogOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> Manage
+            </Button>
+          </div>
+        </div>
+
+        {weightGroupsOpen && (() => {
+          const scorables = getScorableItems();
+          const visible = weightGroups.filter(g => !g.hidden).sort((a, b) => a.name.localeCompare(b.name));
+          const hidden = weightGroups.filter(g => g.hidden).sort((a, b) => a.name.localeCompare(b.name));
+
+          const renderCard = (g: WeightGroup) => {
+            const score = calculateGroupScore(g, scorables);
+            return (
+              <Card
+                key={g.id}
+                className="p-4 cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => { setActiveWeightGroupId(g.id); setWeightDialogOpen(true); }}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold truncate">{g.name}</h3>
+                  <Badge variant="outline" className="text-xs shrink-0">{g.items.length} items</Badge>
+                </div>
+                <div className="text-2xl font-bold text-center mt-2">{score.display}</div>
+                <div className="text-center text-xs text-muted-foreground">total weight {score.totalWeight}%</div>
+              </Card>
+            );
+          };
+
+          return (
+            <>
+              {visible.length === 0 ? (
+                <Card className="p-6 text-center text-muted-foreground">
+                  No weighting groups yet. Use the Weights button in a task or assessment to create one.
+                </Card>
+              ) : weightGroupView === 'grid' ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{visible.map(renderCard)}</div>
+              ) : (
+                <div className="space-y-2">
+                  {visible.map(g => {
+                    const score = calculateGroupScore(g, scorables);
+                    return (
+                      <Card
+                        key={g.id}
+                        className="p-3 flex items-center gap-3 cursor-pointer hover:shadow-md transition-shadow"
+                        onClick={() => { setActiveWeightGroupId(g.id); setWeightDialogOpen(true); }}
+                      >
+                        <span className="flex-1 min-w-0 font-medium text-sm truncate">{g.name}</span>
+                        <Badge variant="outline" className="text-xs">{g.items.length} items</Badge>
+                        <span className="font-bold text-sm">{score.display}</span>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+
+              {hidden.length > 0 && (
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"
+                    onClick={() => setHiddenGroupsOpen(!hiddenGroupsOpen)}
+                  >
+                    {hiddenGroupsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    Hidden groups ({hidden.length})
+                  </button>
+                  {hiddenGroupsOpen && (
+                    <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 opacity-70">
+                      {hidden.map(renderCard)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          );
+        })()}
+      </div>
+
       {/* Assessments Section */}
       <div className="mt-8">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
@@ -867,7 +1051,9 @@ export default function Results() {
           </div>
         </div>
         {(() => {
-          const filtered = assessments.filter(a => showCompletedAssessments || !a.completed);
+          const filtered = assessments
+            .filter(a => (showCompletedAssessments || !a.completed) && matchesTerm(a.dueDate, termFilter, terms))
+            .sort((a, b) => (a.resultShortName || a.name).localeCompare(b.resultShortName || b.name));
           if (filtered.length === 0) return (
             <Card className="p-6 text-center text-muted-foreground">No assessments to display.</Card>
           );
@@ -1034,6 +1220,21 @@ export default function Results() {
         onViewLinkedTask={(taskId) => {
           const task = [...tasks, ...archivedTasks].find(t => t.id === taskId);
           if (task) { setViewingTask(task); setDetailsDialogOpen(true); setAssessmentDetailsOpen(false); }
+        }}
+      />
+
+      <WeightGroupDialog
+        open={weightDialogOpen}
+        onClose={() => { setWeightDialogOpen(false); setActiveWeightGroupId(null); setWeightGroups(getWeightGroups()); }}
+        groupId={activeWeightGroupId ?? undefined}
+        onOpenItem={(id, type) => {
+          if (type === 'task') {
+            const task = [...tasks, ...archivedTasks].find(t => t.id === id);
+            if (task) { setWeightDialogOpen(false); setViewingTask(task); setDetailsDialogOpen(true); }
+            return;
+          }
+          const assessment = assessments.find(a => a.id === id);
+          if (assessment) { setWeightDialogOpen(false); setSelectedAssessment(assessment); setAssessmentDetailsOpen(true); }
         }}
       />
     </div>

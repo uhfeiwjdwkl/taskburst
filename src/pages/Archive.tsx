@@ -12,6 +12,16 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ExportImportButton } from '@/components/ExportImportButton';
 import { formatDateTimeToDDMMYYYY } from '@/lib/dateFormat';
+import TaskDetailsViewDialog from '@/components/TaskDetailsViewDialog';
+import TaskDetailsDialog from '@/components/TaskDetailsDialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { getTerms, matchesTerm } from '@/lib/terms';
 
 const Archive = () => {
   const navigate = useNavigate();
@@ -19,6 +29,21 @@ const Archive = () => {
   const [archivedLists, setArchivedLists] = useState<List[]>([]);
   const [archivedProjects, setArchivedProjects] = useState<Project[]>([]);
   const [search, setSearch] = useState('');
+  const [terms] = useState(() => getTerms());
+  const [termFilter, setTermFilter] = useState<string>(() => localStorage.getItem('termFilter') || 'all');
+  const [viewingTask, setViewingTask] = useState<Task | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+
+  const persistArchived = (next: Task[]) => {
+    setArchivedTasks(next);
+    localStorage.setItem('archivedTasks', JSON.stringify(next));
+  };
+
+  const handleUpdateArchivedTask = (updated: Task) => {
+    persistArchived(archivedTasks.map((t) => (t.id === updated.id ? updated : t)));
+    setViewingTask(updated);
+  };
 
   useEffect(() => {
     try {
@@ -138,7 +163,9 @@ const Archive = () => {
 
   const q = search.trim().toLowerCase();
   const matchStr = (...s: (string | undefined)[]) => !q || s.some((v) => (v || '').toLowerCase().includes(q));
-  const filteredTasks = archivedTasks.filter(t => matchStr(t.name, t.description, t.category, t.subcategory));
+  const filteredTasks = archivedTasks.filter(
+    t => matchStr(t.name, t.description, t.category, t.subcategory) && matchesTerm(t.dueDate, termFilter, terms)
+  );
   const filteredLists = archivedLists.filter(l => matchStr(l.title, l.description));
   const filteredProjects = archivedProjects.filter(p => matchStr(p.title, p.description));
 
@@ -176,14 +203,30 @@ const Archive = () => {
           />
         </header>
 
-        <div className="relative mb-4">
-          <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search archived tasks, lists, projects…"
-            className="pl-9"
-          />
+        <div className="flex flex-col sm:flex-row gap-2 mb-4">
+          <div className="relative flex-1">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search archived tasks, lists, projects…"
+              className="pl-9"
+            />
+          </div>
+          <Select
+            value={termFilter}
+            onValueChange={(v) => { setTermFilter(v); localStorage.setItem('termFilter', v); }}
+          >
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue placeholder="All time" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All time</SelectItem>
+              {terms.map((t) => (
+                <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <Tabs defaultValue="tasks" className="w-full">
@@ -233,6 +276,20 @@ const Archive = () => {
                   </div>
 
                   <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { setViewingTask(task); setDetailsOpen(true); }}
+                    >
+                      Details
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { setViewingTask(task); setEditOpen(true); }}
+                    >
+                      Edit
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
@@ -369,6 +426,21 @@ const Archive = () => {
             )}
           </TabsContent>
         </Tabs>
+
+        <TaskDetailsViewDialog
+          task={viewingTask}
+          open={detailsOpen}
+          onClose={() => setDetailsOpen(false)}
+          onUpdateTask={handleUpdateArchivedTask}
+          onEdit={() => { setDetailsOpen(false); setEditOpen(true); }}
+        />
+
+        <TaskDetailsDialog
+          task={viewingTask}
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          onSave={(updated) => { handleUpdateArchivedTask(updated); toast.success('Task updated'); }}
+        />
       </div>
     </div>
   );
