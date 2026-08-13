@@ -34,6 +34,24 @@ import { syncLinkedAssessmentsForTask } from '@/lib/assessmentUtils';
 import { toast } from 'sonner';
 import { ColorPickerGrid } from '@/components/ColorPickerGrid';
 import { useAppSettings } from '@/hooks/useAppSettings';
+import { WeightGroupDialog } from '@/components/WeightGroupDialog';
+import { Scale } from 'lucide-react';
+
+/**
+ * Turn a description into candidate lines. Rich-text descriptions store HTML,
+ * so <li> entries (bulleted *and* numbered) become lines in document order —
+ * the actual numbering is irrelevant.
+ */
+const descriptionToLines = (description: string): string[] => {
+  const text = description || '';
+  if (!/<[a-z][\s\S]*>/i.test(text)) return text.split('\n');
+  const doc = new DOMParser().parseFromString(text, 'text/html');
+  const items = Array.from(doc.querySelectorAll('li'));
+  if (items.length > 0) return items.map((li) => `- ${(li.textContent || '').trim()}`);
+  const blocks = Array.from(doc.querySelectorAll('p, div, br'));
+  if (blocks.length > 0) return blocks.map((b) => (b.textContent || '').trim());
+  return (doc.body.textContent || '').split('\n');
+};
 
 interface TaskDetailsDialogProps {
   task: Task | null;
@@ -57,6 +75,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
   const [newCategory, setNewCategory] = useState('');
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [weightsOpen, setWeightsOpen] = useState(false);
   const originalTaskRef = useRef<Task | null>(null);
 
   useEffect(() => {
@@ -257,6 +276,16 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
           <div className="flex items-center gap-1">
             {headerExtra}
             <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setWeightsOpen(true)}
+              className="h-8 px-2"
+              title="Weighting groups"
+            >
+              <Scale className="h-4 w-4" />
+              <span className="ml-1 text-xs">Weights</span>
+            </Button>
+            <Button
               variant={editedTask.flagged ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setEditedTask({ ...editedTask, flagged: !editedTask.flagged })}
@@ -351,7 +380,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
                   const appSettings = JSON.parse(localStorage.getItem('appSettings') || '{}');
                   const autoLink = appSettings.autoLinkSubtasksToGrid || false;
 
-                  const lines = editedTask.description.split('\n');
+                  const lines = descriptionToLines(editedTask.description || '');
                   const bulletRegex = /^[\s]*[-•*]\s*(.+)$/;
                   const numberedRegex = /^[\s]*\d+[.)]\s*(.+)$/;
                   
@@ -805,6 +834,14 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
           setEditedTask(updatedTask);
           setScheduleDialogOpen(false);
         }}
+      />
+
+      <WeightGroupDialog
+        open={weightsOpen}
+        onClose={() => setWeightsOpen(false)}
+        itemId={editedTask.id}
+        itemType="task"
+        itemName={editedTask.name}
       />
     </Dialog>
   );
