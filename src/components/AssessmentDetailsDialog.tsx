@@ -20,8 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { X, Calendar, Edit, ExternalLink, Trash2, Plus, Flag } from 'lucide-react';
+import { X, Calendar, Edit, ExternalLink, Trash2, Plus, Flag, Scale } from 'lucide-react';
 import { ConfirmDelete } from './ConfirmDeleteButton';
+import { WeightGroupDialog } from './WeightGroupDialog';
 
 interface AssessmentDetailsDialogProps {
   assessment: Assessment | null;
@@ -43,6 +44,7 @@ export const AssessmentDetailsDialog = ({
   const [editing, setEditing] = useState(false);
   const [editedAssessment, setEditedAssessment] = useState<Assessment | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
+  const [weightsOpen, setWeightsOpen] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('taskCategories');
@@ -133,6 +135,16 @@ export const AssessmentDetailsDialog = ({
             <DialogDescription className={a.result.flagged ? 'text-primary' : ''}>{a.assessmentType} • {a.category || 'Uncategorized'}</DialogDescription>
           </div>
           <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setWeightsOpen(true)}
+              className="h-8 px-2"
+              title="Weighting groups"
+            >
+              <Scale className="h-4 w-4" />
+              <span className="ml-1 text-xs">Weights</span>
+            </Button>
             {editing && (
               <Button
                 variant={a.result.flagged ? 'default' : 'ghost'}
