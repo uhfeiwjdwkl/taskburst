@@ -265,9 +265,10 @@ function installInterceptors() {
 
   Storage.prototype.setItem = function (key: string, value: string) {
     // No-op writes (pages re-saving identical state on mount / navigation)
-    // must never queue a change or trigger a sync cycle.
+    // must never queue a change or trigger a sync cycle. Compare semantically so
+    // re-serialised-but-equal JSON (key order, whitespace) is also ignored.
     const unchanged =
-      this === window.localStorage && shouldSync(key) && rawGet(key) === value;
+      this === window.localStorage && shouldSync(key) && sameValue(rawGet(key), value);
     originalSetItem!.call(this, key, value);
     if (this === window.localStorage && shouldSync(key) && !unchanged) onLocalWrite(key, "upsert");
   };
