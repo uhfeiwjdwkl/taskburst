@@ -673,6 +673,7 @@ export default function Results() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All time</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
               {terms.map(t => (
                 <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
               ))}

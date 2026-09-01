@@ -3,7 +3,7 @@ import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Clock, Info, Play, CheckCircle2, Edit, Trash2, ChevronDown, ChevronRight, EyeOff, Calendar } from 'lucide-react';
+import { Clock, Info, Play, CheckCircle2, Edit, Trash2, ChevronDown, ChevronRight, EyeOff, Calendar, Flag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UniversalProgressGrid } from './UniversalProgressGrid';
@@ -64,6 +64,9 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
+            {(task as any).flagged && (
+              <Flag className="h-4 w-4 shrink-0 text-red-500 fill-red-500" aria-label="Flagged" />
+            )}
             <h3 className="font-semibold text-lg truncate">{task.name}</h3>
             <Badge className={importanceColors[task.importance]}>
               {getPriorityLabel(task.importance)}

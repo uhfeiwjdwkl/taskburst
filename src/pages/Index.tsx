@@ -19,6 +19,7 @@ import { exportAllData } from '@/lib/exportImport';
 import { ImportAllButton } from '@/components/ImportAllButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -73,6 +74,9 @@ const Index = () => {
   const [assessmentDetailsOpen, setAssessmentDetailsOpen] = useState(false);
   const [tasksLoaded, setTasksLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [taskSortBy, setTaskSortBy] = useState<'manual' | 'subject' | 'priority' | 'due'>(
+    () => (localStorage.getItem('homeTaskSortBy') as any) || 'manual'
+  );
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
 
@@ -307,8 +311,25 @@ const Index = () => {
     return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
   });
 
-  const hiddenTasks = sortedTasks.filter(t => t.hidden);
-  const visibleSortedTasks = sortedTasks.filter(t => !t.hidden);
+  const orderedTasks = useMemo(() => {
+    if (taskSortBy === 'manual') return sortedTasks;
+    const arr = [...sortedTasks];
+    if (taskSortBy === 'subject') {
+      arr.sort((a, b) =>
+        (a.category || '\uffff').localeCompare(b.category || '\uffff') ||
+        (a.subcategory || '').localeCompare(b.subcategory || '') ||
+        a.name.localeCompare(b.name)
+      );
+    } else if (taskSortBy === 'priority') {
+      arr.sort((a, b) => b.importance - a.importance || a.name.localeCompare(b.name));
+    } else {
+      arr.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    }
+    return arr;
+  }, [sortedTasks, taskSortBy]);
+
+  const hiddenTasks = orderedTasks.filter(t => t.hidden);
+  const visibleSortedTasks = orderedTasks.filter(t => !t.hidden);
 
   const filteredTasks = useMemo(() => {
     if (!searchQuery.trim()) return visibleSortedTasks;
@@ -506,14 +527,33 @@ const Index = () => {
                 {selectionMode ? 'Cancel' : 'Select'}
               </Button>
             </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search tasks..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search tasks..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select
+                value={taskSortBy}
+                onValueChange={(v: 'manual' | 'subject' | 'priority' | 'due') => {
+                  setTaskSortBy(v);
+                  localStorage.setItem('homeTaskSortBy', v);
+                }}
+              >
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manual">Manual order</SelectItem>
+                  <SelectItem value="subject">Subject</SelectItem>
+                  <SelectItem value="priority">Priority</SelectItem>
+                  <SelectItem value="due">Due date</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             {selectionMode && selectedTaskIds.size > 0 && (
               <div className="flex items-center gap-2">

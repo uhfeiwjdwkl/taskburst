@@ -285,7 +285,9 @@ export function Navigation() {
               {activeTaskName && (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Badge variant="secondary" className="cursor-pointer max-w-[140px] truncate">▶ {activeTaskName}</Badge>
+                    <button type="button" className="cursor-pointer">
+                      <Badge variant="secondary" className="max-w-[140px] truncate">▶ {activeTaskName}</Badge>
+                    </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-60">
                     <div className="text-xs font-semibold mb-1">Active session</div>
@@ -295,7 +297,9 @@ export function Navigation() {
               )}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Badge variant="outline" className="cursor-pointer">{todayItems.length} today</Badge>
+                  <button type="button" className="cursor-pointer">
+                    <Badge variant="outline">{todayItems.length} today</Badge>
+                  </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-64">
                   <div className="text-xs font-semibold mb-2">Remaining today</div>

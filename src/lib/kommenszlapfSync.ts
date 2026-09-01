@@ -247,6 +247,30 @@ export function redoLastSync(): boolean {
 
 // -------------------- interceptors --------------------
 
+/** Canonical JSON so key order / whitespace differences don't count as changes. */
+function canonical(v: any): any {
+  if (Array.isArray(v)) return v.map(canonical);
+  if (v && typeof v === "object")
+    return Object.keys(v)
+      .sort()
+      .reduce((acc: any, k) => {
+        acc[k] = canonical(v[k]);
+        return acc;
+      }, {});
+  return v;
+}
+
+function sameValue(prev: string | null, next: string): boolean {
+  if (prev === next) return true;
+  if (prev === null) return false;
+  try {
+    return JSON.stringify(canonical(JSON.parse(prev))) === JSON.stringify(canonical(JSON.parse(next)));
+  } catch {
+    return false;
+  }
+}
+
+
 function onLocalWrite(key: string, op: Op) {
   if (!currentUserId) return;
   const ts = new Date().toISOString();
@@ -265,9 +289,10 @@ function installInterceptors() {
 
   Storage.prototype.setItem = function (key: string, value: string) {
     // No-op writes (pages re-saving identical state on mount / navigation)
-    // must never queue a change or trigger a sync cycle.
+    // must never queue a change or trigger a sync cycle. Compare semantically so
+    // re-serialised-but-equal JSON (key order, whitespace) is also ignored.
     const unchanged =
-      this === window.localStorage && shouldSync(key) && rawGet(key) === value;
+      this === window.localStorage && shouldSync(key) && sameValue(rawGet(key), value);
     originalSetItem!.call(this, key, value);
     if (this === window.localStorage && shouldSync(key) && !unchanged) onLocalWrite(key, "upsert");
   };
