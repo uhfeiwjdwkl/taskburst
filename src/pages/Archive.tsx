@@ -31,6 +31,9 @@ const Archive = () => {
   const [search, setSearch] = useState('');
   const [terms] = useState(() => getTerms());
   const [termFilter, setTermFilter] = useState<string>(() => localStorage.getItem('termFilter') || 'all');
+  const [archiveSortBy, setArchiveSortBy] = useState<'recent' | 'subject' | 'name'>(
+    () => (localStorage.getItem('archiveSortBy') as any) || 'recent'
+  );
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -163,9 +166,19 @@ const Archive = () => {
 
   const q = search.trim().toLowerCase();
   const matchStr = (...s: (string | undefined)[]) => !q || s.some((v) => (v || '').toLowerCase().includes(q));
-  const filteredTasks = archivedTasks.filter(
-    t => matchStr(t.name, t.description, t.category, t.subcategory) && matchesTerm(t.dueDate, termFilter, terms)
-  );
+  const filteredTasks = archivedTasks
+    .filter(t => matchStr(t.name, t.description, t.category, t.subcategory) && matchesTerm(t.dueDate, termFilter, terms))
+    .sort((a, b) => {
+      if (archiveSortBy === 'subject') {
+        return (
+          (a.category || '\uffff').localeCompare(b.category || '\uffff') ||
+          (a.subcategory || '').localeCompare(b.subcategory || '') ||
+          a.name.localeCompare(b.name)
+        );
+      }
+      if (archiveSortBy === 'name') return a.name.localeCompare(b.name);
+      return 0;
+    });
   const filteredLists = archivedLists.filter(l => matchStr(l.title, l.description));
   const filteredProjects = archivedProjects.filter(p => matchStr(p.title, p.description));
 
@@ -222,9 +235,23 @@ const Archive = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All time</SelectItem>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
               {terms.map((t) => (
                 <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={archiveSortBy}
+            onValueChange={(v: 'recent' | 'subject' | 'name') => { setArchiveSortBy(v); localStorage.setItem('archiveSortBy', v); }}
+          >
+            <SelectTrigger className="w-full sm:w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recent">Most recent</SelectItem>
+              <SelectItem value="subject">Subject</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
             </SelectContent>
           </Select>
         </div>
