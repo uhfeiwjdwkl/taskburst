@@ -756,7 +756,7 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                     </SelectTrigger>
                     <SelectContent>
                       {(() => {
-                        const timetables = JSON.parse(localStorage.getItem('timetables') || '[]')
+                        const timetables = readArray<any>('timetables')
                           .filter((t: any) => !t.deletedAt);
                         return timetables.length === 0 ? (
                           <SelectItem value="none" disabled>No timetables available</SelectItem>
