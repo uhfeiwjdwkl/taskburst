@@ -42,6 +42,7 @@ import { wipeAllCloudData } from '@/lib/kommenszlapfSync';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { Database } from 'lucide-react';
+import { readArray } from '@/lib/safeStore';
 
 interface SettingsDialogProps {
   open: boolean;
