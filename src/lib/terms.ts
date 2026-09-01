@@ -40,11 +40,12 @@ export const termLabel = (date?: string, terms = getTerms()): string =>
   termForDate(date, terms)?.name || 'Unassigned period';
 
 /**
- * Filter helper: `all` matches everything, otherwise the date must land in
- * the selected term.
+ * Filter helper: `all` matches everything, `unassigned` matches items that fall
+ * outside every configured term, otherwise the date must land in the selected term.
  */
 export const matchesTerm = (date: string | undefined, termId: string, terms = getTerms()): boolean => {
   if (!termId || termId === 'all') return true;
+  if (termId === 'unassigned') return !termForDate(date, terms);
   const term = terms.find((t) => t.id === termId);
   if (!term) return true;
   const d = dayOf(date);
