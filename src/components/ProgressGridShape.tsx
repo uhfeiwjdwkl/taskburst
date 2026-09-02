@@ -37,7 +37,7 @@ export const ProgressGridIcon = ({
     // Completed: colored background with white text
     // Incomplete: white/light background with colored text/border
     const borderColor = subtaskColor || color;
-    const bgColor = filled ? (subtaskColor || color) : 'white';
+    const bgColor = filled ? (subtaskColor || color) : 'hsl(var(--muted))';
     const textColor = filled ? 'white' : (subtaskColor || color);
     
     return (
@@ -67,7 +67,7 @@ export const ProgressGridIcon = ({
   const imgSrc = `/icons/${encodeURIComponent(icon)}.svg`;
   
   // Empty boxes are white, filled boxes show the color
-  const bgColor = filled ? color : 'white';
+  const bgColor = filled ? color : 'hsl(var(--muted))';
   const borderColor = filled ? color : '#e2e8f0'; // Light gray border for empty
 
   return (
