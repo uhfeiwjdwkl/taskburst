@@ -183,7 +183,7 @@ export const UniversalProgressGrid = ({
                   size={boxSize}
                   isSubtask={!!subtask}
                   subtaskColor={subtask?.color}
-                  textSize={size === 'sm' ? 'xxs' : size === 'md' ? 'xs' : 'sm'}
+                  textSize={settings.subtaskTextSize || (size === 'sm' ? 'xxs' : size === 'md' ? 'xs' : 'sm')}
                   onClick={() => handleGridClick(index)}
                   className={cn(
                     interactive && 'cursor-pointer',
