@@ -18,9 +18,10 @@ interface EventDetailsViewDialogProps {
   open: boolean;
   onClose: () => void;
   onEdit?: () => void;
+  onDuplicate?: () => void;
 }
 
-const EventDetailsViewDialog = ({ event, open, onClose, onEdit }: EventDetailsViewDialogProps) => {
+const EventDetailsViewDialog = ({ event, open, onClose, onEdit, onDuplicate }: EventDetailsViewDialogProps) => {
   if (!event) return null;
 
   const isMultiDay = !!event.endDate;
@@ -239,6 +240,11 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit }: EventDetailsVi
 
           <div className="pt-4 flex gap-2 justify-end">
             <ExportEventButton event={event} />
+            {onDuplicate && (
+              <Button variant="outline" onClick={onDuplicate}>
+                Duplicate
+              </Button>
+            )}
             {onEdit && (
               <Button variant="outline" onClick={onEdit}>
                 <Edit className="h-4 w-4 mr-2" />
