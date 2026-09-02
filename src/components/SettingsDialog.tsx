@@ -612,6 +612,56 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                 </div>
               </div>
 
+              {/* Symbol palette */}
+              <div>
+                <Label>Quick symbol palette</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Symbols offered as quick abbreviations for progress boxes and subtasks
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(settings.symbolPalette || []).map((sym, i) => (
+                    <div key={`${sym}-${i}`} className="flex items-center gap-1 border rounded-md px-2 py-1">
+                      <span className="text-base leading-none">{sym}</span>
+                      <button
+                        type="button"
+                        aria-label={`Remove ${sym}`}
+                        className="text-muted-foreground hover:text-destructive"
+                        onClick={() =>
+                          setSettings({
+                            ...settings,
+                            symbolPalette: (settings.symbolPalette || []).filter((_, idx) => idx !== i),
+                          })
+                        }
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="Add symbol or emoji"
+                    maxLength={4}
+                    value={newSymbol}
+                    onChange={(e) => setNewSymbol(e.target.value)}
+                    className="w-48"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const sym = newSymbol.trim();
+                      if (!sym) return;
+                      setSettings({ ...settings, symbolPalette: [...(settings.symbolPalette || []), sym] });
+                      setNewSymbol('');
+                    }}
+                  >
+                    Add
+                  </Button>
+                </div>
+              </div>
+
               {/* Per-task settings toggle */}
               <div className="flex items-center justify-between">
                 <div>

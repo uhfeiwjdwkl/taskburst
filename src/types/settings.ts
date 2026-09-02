@@ -195,6 +195,9 @@ export const SUBTASK_TEXT_SIZES: { value: SubtaskTextSize; label: string }[] = [
   { value: 'md', label: 'Large' },
 ];
 
+// Default quick-pick symbols for progress box abbreviations
+export const DEFAULT_SYMBOL_PALETTE = ['✔', '✖', '★', '●', '◆', '▲', '!', '?', '🔥', '💡', '📖', '✏️'];
+
 export interface AppSettings {
   darkMode: boolean;
   soundEnabled: boolean;
@@ -249,6 +252,9 @@ export interface AppSettings {
 
   // Semester / year ranges used for grouping and filtering results
   terms: Term[];
+
+  // Quick-pick palette of symbols / emojis for progress box abbreviations
+  symbolPalette: string[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -282,6 +288,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   calendarStartHour: 6,
   calendarEndHour: 22,
   terms: [],
+  symbolPalette: DEFAULT_SYMBOL_PALETTE,
 };
 
 // Legacy color palettes for backwards compatibility
