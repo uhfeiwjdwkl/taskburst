@@ -3,7 +3,7 @@ import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Clock, Info, Play, CheckCircle2, Edit, Trash2, ChevronDown, ChevronRight, EyeOff, Calendar, Flag } from 'lucide-react';
+import { Clock, Info, Play, CheckCircle2, Edit, Trash2, ChevronDown, ChevronRight, EyeOff, Calendar, Flag, Copy } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UniversalProgressGrid } from './UniversalProgressGrid';
@@ -23,9 +23,10 @@ interface TaskCardProps {
   onUpdateTask: (task: Task) => void;
   onStartSubtask?: (subtask: Subtask, task: Task) => void;
   onHide?: (taskId: string) => void;
+  onDuplicate?: (task: Task) => void;
 }
 
-const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDelete, onUpdateTask, onStartSubtask, onHide }: TaskCardProps) => {
+const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDelete, onUpdateTask, onStartSubtask, onHide, onDuplicate }: TaskCardProps) => {
   const [subtasksOpen, setSubtasksOpen] = useState(false);
   const [detailsSubtask, setDetailsSubtask] = useState<Subtask | null>(null);
   const [editSubtask, setEditSubtask] = useState<Subtask | null>(null);
@@ -267,6 +268,16 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
               <Calendar className="h-4 w-4 mr-1" />
               Schedule
             </Button>
+            {onDuplicate && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onDuplicate(task)}
+              >
+                <Copy className="h-4 w-4 mr-1" />
+                Duplicate
+              </Button>
+            )}
             {onHide && (
               <Button
                 size="sm"
