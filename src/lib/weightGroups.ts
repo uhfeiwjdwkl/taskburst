@@ -6,7 +6,7 @@ export type WeightGroupItemType = 'task' | 'assessment';
 export interface WeightGroupItem {
   itemId: string;
   itemType: WeightGroupItemType;
-  /** Percentage weight of this item inside the group. */
+  /** Relative weight of this item inside the group (not a percentage). */
   weight: number;
 }
 
