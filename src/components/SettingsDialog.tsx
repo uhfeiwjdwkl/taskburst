@@ -54,6 +54,7 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
   const { user } = useKommenszlapfAuth();
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [newPin, setNewPin] = useState('');
+  const [newSymbol, setNewSymbol] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [wipeOpen, setWipeOpen] = useState(false);
   const [wipePin1, setWipePin1] = useState('');
