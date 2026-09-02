@@ -383,6 +383,27 @@ const Index = () => {
     setTasks(tasks.map(t => t.id === taskId ? { ...t, hidden: true } : t));
     toast.success('Task hidden');
   };
+  const handleDuplicateTask = (task: Task) => {
+    const copy: Task = {
+      ...task,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: `${task.name} (copy)`,
+      createdAt: new Date().toISOString(),
+      order: 0,
+      spentMinutes: 0,
+      completed: false,
+      completedAt: undefined,
+      archivedAt: undefined,
+      subtasks: (task.subtasks || []).map((sub) => ({
+        ...sub,
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        completed: false,
+      })),
+    } as Task;
+    setTasks([copy, ...tasks.map((t) => ({ ...t, order: (t.order ?? 0) + 1 }))]);
+    toast.success('Task duplicated');
+  };
+
   const handleUnhideTask = (taskId: string) => {
     setTasks(tasks.map(t => t.id === taskId ? { ...t, hidden: false } : t));
     toast.success('Task shown');
@@ -618,6 +639,7 @@ const Index = () => {
                                   toast.success(`Starting focus session for: ${subtask.title}`);
                                 }}
                                 onHide={handleHideTask}
+                                onDuplicate={handleDuplicateTask}
                               />
                             </div>
                           </div>

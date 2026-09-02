@@ -166,6 +166,29 @@ const Archive = () => {
 
   const q = search.trim().toLowerCase();
   const matchStr = (...s: (string | undefined)[]) => !q || s.some((v) => (v || '').toLowerCase().includes(q));
+  /** Copy an archived task back into the active list; the original stays archived. */
+  const handleDuplicateToActive = (task: Task) => {
+    const active = readArray<Task>('tasks');
+    const copy: Task = {
+      ...task,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: `${task.name} (copy)`,
+      createdAt: new Date().toISOString(),
+      order: 0,
+      spentMinutes: 0,
+      completed: false,
+      completedAt: undefined,
+      archivedAt: undefined,
+      subtasks: (task.subtasks || []).map((sub) => ({
+        ...sub,
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        completed: false,
+      })),
+    } as Task;
+    localStorage.setItem('tasks', JSON.stringify([copy, ...active.map((t) => ({ ...t, order: (t.order ?? 0) + 1 }))]));
+    toast.success('Duplicated to active tasks');
+  };
+
   const filteredTasks = archivedTasks
     .filter(t => matchStr(t.name, t.description, t.category, t.subcategory) && matchesTerm(t.dueDate, termFilter, terms))
     .sort((a, b) => {
@@ -316,6 +339,14 @@ const Archive = () => {
                       onClick={() => { setViewingTask(task); setEditOpen(true); }}
                     >
                       Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDuplicateToActive(task)}
+                    >
+                      <Copy className="h-4 w-4 mr-1" />
+                      Duplicate
                     </Button>
                     <Button
                       size="sm"
