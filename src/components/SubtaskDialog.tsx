@@ -153,6 +153,20 @@ export const SubtaskDialog = ({
                 maxLength={3}
                 className="mt-1"
               />
+              {(settings.symbolPalette || []).length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {(settings.symbolPalette || []).map((sym, i) => (
+                    <button
+                      key={`${sym}-${i}`}
+                      type="button"
+                      onClick={() => setAbbreviation(sym.slice(0, 3))}
+                      className="h-7 min-w-7 px-1 rounded border text-sm hover:bg-accent"
+                    >
+                      {sym}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <Label>Color</Label>
