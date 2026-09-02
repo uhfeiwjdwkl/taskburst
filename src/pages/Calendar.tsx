@@ -186,6 +186,22 @@ const CalendarPage = () => {
     setEditEventDialogOpen(true);
   };
 
+  const handleDuplicateEvent = () => {
+    if (!selectedEvent) return;
+    const copy: CalendarEvent = {
+      ...selectedEvent,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      title: `${selectedEvent.title} (copy)`,
+      createdAt: new Date().toISOString(),
+      deletedAt: undefined,
+    };
+    const updatedEvents = [...events, copy];
+    setEvents(updatedEvents);
+    localStorage.setItem('calendarEvents', JSON.stringify(updatedEvents));
+    setEventDetailsDialogOpen(false);
+    toast.success('Event duplicated');
+  };
+
   const handleUpdateEvent = (updatedEvent: CalendarEvent) => {
     const updatedEvents = events.map(e => e.id === updatedEvent.id ? updatedEvent : e);
     setEvents(updatedEvents);
@@ -686,7 +702,7 @@ const CalendarPage = () => {
         <TaskDetailsViewDialog task={selectedTask} open={detailsDialogOpen} onClose={() => setDetailsDialogOpen(false)} onUpdateTask={handleUpdateTask} onEdit={handleEdit} />
         
         <EventDetailsViewDialog event={selectedEvent} open={eventDetailsDialogOpen}
-          onClose={() => { setEventDetailsDialogOpen(false); setSelectedEvent(null); }} onEdit={handleEditEvent} />
+          onClose={() => { setEventDetailsDialogOpen(false); setSelectedEvent(null); }} onEdit={handleEditEvent} onDuplicate={handleDuplicateEvent} />
 
         <EditEventDialog event={selectedEvent} open={editEventDialogOpen}
           onClose={() => setEditEventDialogOpen(false)} onSave={handleUpdateEvent} />

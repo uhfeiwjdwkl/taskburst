@@ -32,7 +32,7 @@ import { toast } from 'sonner';
 import { getTerms, matchesTerm, termLabel } from '@/lib/terms';
 import { WeightGroupDialog } from '@/components/WeightGroupDialog';
 import { calculateGroupScore, getScorableItems, getWeightGroups, WeightGroup } from '@/lib/weightGroups';
-import { ChevronDown, ChevronRight, Scale } from 'lucide-react';
+import { ChevronDown, ChevronRight, Scale, Flag } from 'lucide-react';
 
 type ResultItem = {
   id: string;
@@ -1080,13 +1080,16 @@ export default function Results() {
                     return '';
                   };
                   return (
-                    <Card key={a.id} className={`p-3 cursor-pointer hover:shadow-md transition-shadow flex items-center gap-3 ${a.completed ? 'opacity-60' : ''}`} onClick={() => {
+                    <Card key={a.id} className={`relative p-3 cursor-pointer hover:shadow-md transition-shadow flex items-center gap-3 ${a.completed ? 'opacity-60' : ''}`} onClick={() => {
                       if (a.linkedTaskId) {
                         const task = [...tasks, ...archivedTasks].find(t => t.id === a.linkedTaskId);
                         if (task) { setViewingTask(task); setDetailsDialogOpen(true); return; }
                       }
                       setSelectedAssessment(a); setAssessmentDetailsOpen(true);
                     }}>
+                      {a.result?.flagged && (
+                        <Flag className="absolute top-1 right-1 h-3 w-3 fill-red-500 text-red-500" />
+                      )}
                       <div className="flex-1 min-w-0">
                         <span className="font-medium text-sm">{a.name}</span>
                         <span className="text-xs text-muted-foreground ml-2">{a.assessmentType}</span>
@@ -1130,13 +1133,16 @@ export default function Results() {
                   return '';
                 };
                 return (
-                  <Card key={a.id} className={`p-4 cursor-pointer hover:shadow-lg transition-shadow ${a.completed ? 'opacity-60' : ''}`} onClick={() => {
+                  <Card key={a.id} className={`relative p-4 cursor-pointer hover:shadow-lg transition-shadow ${a.completed ? 'opacity-60' : ''}`} onClick={() => {
                     if (a.linkedTaskId) {
                       const task = [...tasks, ...archivedTasks].find(t => t.id === a.linkedTaskId);
                       if (task) { setViewingTask(task); setDetailsDialogOpen(true); return; }
                     }
                     setSelectedAssessment(a); setAssessmentDetailsOpen(true);
                   }}>
+                    {a.result?.flagged && (
+                      <Flag className="absolute top-1.5 right-1.5 h-3.5 w-3.5 fill-red-500 text-red-500" />
+                    )}
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold truncate">{a.name}</h3>

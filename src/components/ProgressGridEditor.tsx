@@ -11,7 +11,8 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { X } from 'lucide-react';
+import { X, GripHorizontal } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { ProgressGridBox } from './ProgressGridShape';
 import { SubtaskProgressPopup } from './SubtaskProgressPopup';
 import { SubtaskDialog } from './SubtaskDialog';
@@ -46,6 +47,7 @@ const ProgressGridEditor = ({
   const [editingSubtask, setEditingSubtask] = useState<Subtask | null>(null);
   const [detailsSubtask, setDetailsSubtask] = useState<Subtask | null>(null);
   const [localSubtasks, setLocalSubtasks] = useState<Subtask[]>([]);
+  const [reorderMode, setReorderMode] = useState(false);
   const settings = useAppSettings();
 
   useEffect(() => {
@@ -117,6 +119,31 @@ const ProgressGridEditor = ({
     setDetailsSubtask(updatedSubtask);
   };
 
+  /** Drag a progress box to a new position, carrying its state and subtask link. */
+  const handleBoxDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    const from = result.source.index;
+    const to = result.destination.index;
+    if (from === to) return;
+
+    const order = Array.from({ length: task.progressGridSize }, (_, i) => i);
+    const [moved] = order.splice(from, 1);
+    order.splice(to, 0, moved);
+
+    // order[newIndex] = oldIndex
+    const oldToNew = new Map<number, number>();
+    order.forEach((oldIndex, newIndex) => oldToNew.set(oldIndex, newIndex));
+
+    setFilledIndices(prev => prev.map(i => oldToNew.get(i) ?? i).sort((a, b) => a - b));
+    setLocalSubtasks(prev =>
+      prev.map(sub =>
+        sub.linkedToProgressGrid && sub.progressGridIndex !== undefined
+          ? { ...sub, progressGridIndex: oldToNew.get(sub.progressGridIndex) ?? sub.progressGridIndex }
+          : sub
+      )
+    );
+  };
+
   const handleSave = () => {
     storeFilledIndices(task.id, filledIndices);
     onSave(filledIndices.length, filledIndices, localSubtasks);
@@ -150,7 +177,66 @@ const ProgressGridEditor = ({
               <h3 className="font-semibold text-lg mb-2">{task.name}</h3>
             </div>
 
+            <div className="flex justify-center mb-3">
+              <Button
+                variant={reorderMode ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => { setReorderMode(!reorderMode); setSelectedBox(null); }}
+                className="gap-1"
+              >
+                <GripHorizontal className="h-4 w-4" />
+                {reorderMode ? 'Done reordering' : 'Reorder boxes'}
+              </Button>
+            </div>
+
             <div className="flex flex-col items-center gap-3">
+              {reorderMode ? (
+                <DragDropContext onDragEnd={handleBoxDragEnd}>
+                  <Droppable droppableId="progress-boxes" direction="horizontal">
+                    {(dropProvided) => (
+                      <div
+                        ref={dropProvided.innerRef}
+                        {...dropProvided.droppableProps}
+                        className="flex flex-wrap gap-1 justify-center max-w-xs"
+                      >
+                        {Array.from({ length: task.progressGridSize }).map((_, index) => {
+                          const subtask = getSubtaskForIndex(index);
+                          const isFilled = filledIndices.includes(index);
+                          const displayText = subtask
+                            ? (subtask.abbreviation || subtask.title.slice(0, 3).toUpperCase())
+                            : null;
+                          return (
+                            <Draggable key={index} draggableId={`box-${index}`} index={index}>
+                              {(dragProvided, snapshot) => (
+                                <div
+                                  ref={dragProvided.innerRef}
+                                  {...dragProvided.draggableProps}
+                                  {...dragProvided.dragHandleProps}
+                                  className={cn('relative', snapshot.isDragging && 'opacity-80')}
+                                >
+                                  <ProgressGridBox
+                                    icon={settings.progressGridIcon}
+                                    filled={isFilled}
+                                    color={settings.progressGridColor}
+                                    size={32}
+                                    isSubtask={!!subtask}
+                                    subtaskColor={subtask?.color}
+                                    textSize={settings.subtaskTextSize || 'sm'}
+                                    className="cursor-grab"
+                                  >
+                                    {subtask ? displayText : undefined}
+                                  </ProgressGridBox>
+                                </div>
+                              )}
+                            </Draggable>
+                          );
+                        })}
+                        {dropProvided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
+              ) : (
               <div className="flex flex-wrap gap-1 justify-center max-w-xs">
                 {Array.from({ length: task.progressGridSize }).map((_, index) => {
                   const subtask = getSubtaskForIndex(index);
@@ -169,7 +255,7 @@ const ProgressGridEditor = ({
                         size={32}
                         isSubtask={!!subtask}
                         subtaskColor={subtask?.color}
-                        textSize="sm"
+                        textSize={settings.subtaskTextSize || 'sm'}
                         onClick={() => handleGridClick(index)}
                         className={cn(
                           isSelected && 'ring-2 ring-ring',
@@ -198,6 +284,7 @@ const ProgressGridEditor = ({
                   );
                 })}
               </div>
+              )}
               <div className="text-lg font-semibold bg-gradient-primary bg-clip-text text-transparent">
                 {progressPercentage}% ({filledCount}/{task.progressGridSize})
               </div>

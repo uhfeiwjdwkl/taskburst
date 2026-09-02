@@ -72,7 +72,7 @@ export const WeightGroupDialog = ({
   };
 
   const handleCreate = () => {
-    const seed = itemId ? [{ itemId, itemType, weight: 100 }] : [];
+    const seed = itemId ? [{ itemId, itemType, weight: 1 }] : [];
     const group = createWeightGroup(newName || itemName ? `${newName || itemName} group` : 'New group', seed);
     setNewName('');
     reload();
@@ -85,7 +85,7 @@ export const WeightGroupDialog = ({
       toast.info('Already in this group');
       return;
     }
-    persist({ ...active, items: [...active.items, { itemId: id, itemType: type, weight: 0 }] });
+    persist({ ...active, items: [...active.items, { itemId: id, itemType: type, weight: 1 }] });
   };
 
   const renderGroupList = () => (
@@ -131,7 +131,7 @@ export const WeightGroupDialog = ({
                   if (contains) {
                     persist({ ...g, items: g.items.filter((i) => i.itemId !== itemId) });
                   } else {
-                    persist({ ...g, items: [...g.items, { itemId, itemType, weight: 0 }] });
+                    persist({ ...g, items: [...g.items, { itemId, itemType, weight: 1 }] });
                   }
                 }}
               >
@@ -183,7 +183,7 @@ export const WeightGroupDialog = ({
         <Card className="p-4 text-center">
           <div className="text-3xl font-bold">{score.display}</div>
           <div className="text-xs text-muted-foreground">
-            Weighted score • total weight {score.totalWeight}%
+            Weighted score • total weight {score.totalWeight}
           </div>
         </Card>
 
@@ -219,7 +219,7 @@ export const WeightGroupDialog = ({
                   }}
                   className="w-20 h-8 text-sm"
                 />
-                <span className="text-xs text-muted-foreground">%</span>
+                <span className="text-xs text-muted-foreground">wt</span>
                 <Button
                   size="icon"
                   variant="ghost"
