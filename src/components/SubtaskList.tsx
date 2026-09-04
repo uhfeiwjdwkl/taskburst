@@ -182,7 +182,7 @@ export const SubtaskList = ({
               {...dragProvided.draggableProps}
               className={`flex items-start gap-3 p-3 border rounded-lg ${
                 subtask.completed ? 'bg-muted/50' : 'bg-background'
-              } ${snapshot.isDragging ? 'shadow-lg opacity-90' : ''}`
+              } ${snapshot.isDragging ? 'shadow-lg opacity-90' : ''}`}
             >
               <button type="button" {...dragProvided.dragHandleProps} className="mt-1 text-muted-foreground hover:text-foreground" aria-label={`Reorder ${subtask.title}`}>
                 <GripVertical className="h-4 w-4" />
