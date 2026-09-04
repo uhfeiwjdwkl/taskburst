@@ -827,6 +827,18 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
             </div>
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Timer Settings</h3>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="muteApp">Mute whole app</Label>
+                  <p className="text-xs text-muted-foreground">Disable all TaskBurst sounds</p>
+                </div>
+                <Switch
+                  id="muteApp"
+                  checked={settings.muteApp}
+                  onCheckedChange={(checked) => setSettings({ ...settings, muteApp: checked })}
+                />
+              </div>
               
               <div className="flex items-center justify-between">
                 <Label htmlFor="soundEnabled">Play Sound on Timer End</Label>
@@ -835,6 +847,21 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   checked={settings.soundEnabled}
                   onCheckedChange={(checked) => setSettings({ ...settings, soundEnabled: checked })}
                 />
+              </div>
+
+              <div>
+                <Label>Calendar week starts on</Label>
+                <Select
+                  value={String(settings.weekStartsOn)}
+                  onValueChange={(value) => setSettings({ ...settings, weekStartsOn: Number(value) as 0 | 1 | 6 })}
+                >
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Monday</SelectItem>
+                    <SelectItem value="0">Sunday</SelectItem>
+                    <SelectItem value="6">Saturday</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>

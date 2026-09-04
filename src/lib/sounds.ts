@@ -2,6 +2,15 @@
 
 let audioContext: AudioContext | null = null;
 
+const soundAllowed = () => {
+  try {
+    const settings = JSON.parse(localStorage.getItem('appSettings') || '{}');
+    return settings.muteApp !== true && settings.soundEnabled !== false;
+  } catch {
+    return true;
+  }
+};
+
 const getAudioContext = () => {
   if (!audioContext) {
     audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -11,6 +20,7 @@ const getAudioContext = () => {
 
 // Play a notification sound when timer ends
 export const playTimerEndSound = () => {
+  if (!soundAllowed()) return;
   const context = getAudioContext();
   const oscillator = context.createOscillator();
   const gainNode = context.createGain();
@@ -30,6 +40,7 @@ export const playTimerEndSound = () => {
 
 // Play a success sound when task is completed
 export const playTaskCompleteSound = () => {
+  if (!soundAllowed()) return;
   const context = getAudioContext();
   
   // Play a pleasant ascending tone sequence

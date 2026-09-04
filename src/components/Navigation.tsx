@@ -308,9 +308,16 @@ export function Navigation() {
                   ) : (
                     <ul className="space-y-1 max-h-64 overflow-y-auto">
                       {todayItems.map(it => (
-                        <li key={it.id} className="text-sm truncate">
-                       <span className="text-xs text-muted-foreground mr-1">{it.kind === 'task' ? '📋' : it.kind === 'subtask' ? '📝' : '📅'}</span>
-                          {it.name}
+                        <li key={it.id}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto w-full justify-start px-2 py-1 text-left"
+                            onClick={() => navigate(it.kind === 'event' ? '/calendar' : '/')}
+                          >
+                            <span className="text-xs text-muted-foreground mr-1">{it.kind === 'task' ? '📋' : it.kind === 'subtask' ? '📝' : '📅'}</span>
+                            <span className="truncate">{it.name}</span>
+                          </Button>
                         </li>
                       ))}
                     </ul>

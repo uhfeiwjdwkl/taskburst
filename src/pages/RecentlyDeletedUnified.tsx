@@ -124,7 +124,7 @@ const RecentlyDeletedUnified = () => {
       .sort((a, b) => new Date(b.deletedAt!).getTime() - new Date(a.deletedAt!).getTime());
     setDeletedProjects(deletedP);
 
-    const events = safeParse('events') as CalendarEvent[];
+    const events = safeParse('deletedEvents') as CalendarEvent[];
     setDeletedEvents(
       events
         .filter(e => e.deletedAt && getDaysRemaining(e.deletedAt) > 0)
@@ -264,10 +264,9 @@ const RecentlyDeletedUnified = () => {
       localStorage.setItem('deletedListItems', JSON.stringify(updated));
       setDeletedListItems(updated);
     } else if (itemToDelete.type === 'event') {
-      const allEvents = JSON.parse(localStorage.getItem('events') || '[]') as CalendarEvent[];
-      const updated = allEvents.filter(e => e.id !== itemToDelete.id);
-      localStorage.setItem('events', JSON.stringify(updated));
-      setDeletedEvents(updated.filter(e => e.deletedAt) as CalendarEvent[]);
+      const updated = deletedEvents.filter(e => e.id !== itemToDelete.id);
+      localStorage.setItem('deletedEvents', JSON.stringify(updated));
+      setDeletedEvents(updated);
     } else if (itemToDelete.type === 'project') {
       const allProjects = JSON.parse(localStorage.getItem('projects') || '[]') as Project[];
       const updated = allProjects.filter(p => p.id !== itemToDelete.id);
@@ -330,15 +329,12 @@ const RecentlyDeletedUnified = () => {
   };
 
   const handleRestoreEvent = (eventId: string) => {
-    const allEvents = JSON.parse(localStorage.getItem('events') || '[]') as CalendarEvent[];
-    const updated = allEvents.map(e => {
-      if (e.id === eventId) {
-        const { deletedAt, ...clean } = e;
-        return clean as CalendarEvent;
-      }
-      return e;
-    });
-    localStorage.setItem('events', JSON.stringify(updated));
+    const event = deletedEvents.find(e => e.id === eventId);
+    if (!event) return;
+    const { deletedAt, ...clean } = event;
+    const active = safeParse('calendarEvents') as CalendarEvent[];
+    localStorage.setItem('calendarEvents', JSON.stringify([...active.filter(e => e.id !== eventId), clean]));
+    localStorage.setItem('deletedEvents', JSON.stringify(deletedEvents.filter(e => e.id !== eventId)));
     loadAllDeleted();
     toast.success('Event restored');
   };
