@@ -47,6 +47,8 @@ interface UniversalDayCalendarProps {
   showCard?: boolean;
   className?: string;
   selectedTimetableId?: string;
+  moveMode?: boolean;
+  onMoveItems?: (items: { id: string; type: TimelineItem['type']; data: any; originalMinutes: number }[], targetMinutes: number, date: string) => void;
 }
 
 interface TimelineItem {
@@ -88,6 +90,8 @@ export const UniversalDayCalendar = ({
   showCard = true,
   className,
   selectedTimetableId,
+  moveMode = false,
+  onMoveItems,
 }: UniversalDayCalendarProps) => {
   const settings = useAppSettings();
   const mirrorColor = Boolean((settings as any).mirrorColorToProgressBox);
@@ -98,6 +102,7 @@ export const UniversalDayCalendar = ({
   const [slotsVersion, setSlotsVersion] = useState(0);
   const [editingSlot, setEditingSlot] = useState<PartialSlot | null>(null);
   const [lists, setLists] = useState<List[]>([]);
+  const [moveSelection, setMoveSelection] = useState<Set<string>>(new Set());
 
   const currentDate = controlledDate || internalDate;
 
@@ -427,6 +432,14 @@ export const UniversalDayCalendar = ({
   };
 
   const handleItemClick = (item: TimelineItem) => {
+    if (moveMode && item.type !== 'timetable' && item.type !== 'rigid-timetable') {
+      setMoveSelection(previous => {
+        const next = new Set(previous);
+        if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+        return next;
+      });
+      return;
+    }
     switch (item.type) {
       case 'task':
         onTaskClick?.(item.data);
@@ -451,6 +464,18 @@ export const UniversalDayCalendar = ({
         setEditingSlot(item.data.slot);
         break;
     }
+  };
+
+  useEffect(() => { if (!moveMode) setMoveSelection(new Set()); }, [moveMode]);
+
+  const movablePayload = (dragged: TimelineItem) => {
+    const selected = moveSelection.has(dragged.id) ? timedItems.filter(item => moveSelection.has(item.id)) : [dragged];
+    return selected
+      .filter(item => item.type !== 'timetable' && item.type !== 'rigid-timetable' && item.time)
+      .map(item => {
+        const [hour, minute] = (item.time || '00:00').split(':').map(Number);
+        return { id: item.id, type: item.type, data: item.data, originalMinutes: hour * 60 + minute };
+      });
   };
 
   const getItemEmoji = (type: string) => {
@@ -639,7 +664,25 @@ export const UniversalDayCalendar = ({
 
       {/* Timeline Grid */}
       <ScrollArea className="flex-1 min-h-0">
-        <div className="relative" style={{ height: '680px' }}>
+        <div
+          className="relative"
+          style={{ height: '680px' }}
+          onDragOver={(event) => { if (moveMode) event.preventDefault(); }}
+          onDrop={(event) => {
+            if (!moveMode || !onMoveItems) return;
+            event.preventDefault();
+            const raw = event.dataTransfer.getData('application/taskburst-move');
+            if (!raw) return;
+            try {
+              const payload = JSON.parse(raw);
+              const rect = event.currentTarget.getBoundingClientRect();
+              const ratio = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+              const minutes = Math.round((startHour * 60 + ratio * totalHours * 60) / 30) * 30;
+              onMoveItems(payload, Math.max(0, Math.min(1430, minutes)), dateStr);
+              setMoveSelection(new Set());
+            } catch { /* ignore malformed drag payload */ }
+          }}
+        >
           {/* Hour lines */}
           {hours.map((hour, index) => (
             <div
@@ -689,7 +732,11 @@ export const UniversalDayCalendar = ({
                     borderColor: item.color || undefined,
                   }}
                   onClick={() => handleItemClick(item)}
+                   draggable={moveMode && item.type !== 'timetable' && item.type !== 'rigid-timetable'}
+                   onDragStart={(event) => event.dataTransfer.setData('application/taskburst-move', JSON.stringify(movablePayload(item)))}
+                   aria-selected={moveSelection.has(item.id)}
                 >
+                   {moveSelection.has(item.id) && <div className="absolute inset-0 z-10 ring-2 ring-ring pointer-events-none" />}
                   <div className="flex items-center gap-1">
                     {item.completed && <CheckCircle2 className="h-3 w-3 text-green-600 flex-shrink-0" />}
                     <span className={cn("text-xs font-medium truncate", item.completed && "line-through")}>

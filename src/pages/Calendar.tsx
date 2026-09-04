@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Plus, Calendar as CalendarIcon, Clock, MapPin, Trash2, ChevronDown, ChevronRight, Search, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar as CalendarIcon, Clock, MapPin, Trash2, ChevronDown, ChevronRight, Search, CheckCircle, Move } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Timetable } from '@/types/timetable';
@@ -34,6 +34,8 @@ import { format, isSameDay, parseISO, isAfter, startOfDay } from 'date-fns';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 import { eventOccursOnDate, getEventDatesForRange } from '@/lib/eventUtils';
 import { toast } from 'sonner';
+import { PlannerRangeDialog } from '@/components/PlannerRangeDialog';
+import { loadPartialSlots, savePartialSlots } from '@/lib/partialSchedule';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -99,6 +101,8 @@ const CalendarPage = () => {
   const [eventSearchQuery, setEventSearchQuery] = useState('');
   const [selectedEventIds, setSelectedEventIds] = useState<Set<string>>(new Set());
   const [eventSelectionMode, setEventSelectionMode] = useState(false);
+  const [plannerOpen, setPlannerOpen] = useState(false);
+  const [moveMode, setMoveMode] = useState(false);
   
   useEffect(() => {
     setTasks(safeParse('tasks') as Task[]);
@@ -329,6 +333,29 @@ const CalendarPage = () => {
     setEventSelectionMode(false);
   };
 
+  const handleMoveItems = (moved: { id: string; type: string; data: any; originalMinutes: number }[], targetMinutes: number, date: string) => {
+    if (moved.length === 0) return;
+    const anchor = Math.min(...moved.map(item => item.originalMinutes));
+    const toTime = (minutes: number) => `${String(Math.floor(minutes / 60) % 24).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+    let nextTasks = [...tasks];
+    let nextEvents = [...events];
+    let slots = loadPartialSlots();
+    moved.forEach(item => {
+      const nextMinutes = Math.max(0, Math.min(1430, targetMinutes + item.originalMinutes - anchor));
+      const nextTime = toTime(nextMinutes);
+      if (item.type === 'event') nextEvents = nextEvents.map(event => event.id === item.data.id ? { ...event, date, time: nextTime } : event);
+      if (item.type === 'subtask') nextTasks = nextTasks.map(task => task.id === item.data.task.id ? { ...task, subtasks: (task.subtasks || []).map(subtask => subtask.id === item.data.subtask.id ? { ...subtask, dueDate: date, scheduledTime: nextTime } : subtask) } : task);
+      if (item.type === 'task') nextTasks = nextTasks.map(task => task.id === item.data.id ? { ...task, dueDate: `${date}T${nextTime}:00` } : task);
+      if (item.type === 'partial') slots = slots.map(slot => slot.id === item.data.slot.id ? { ...slot, date, time: nextTime } : slot);
+    });
+    setTasks(nextTasks);
+    setEvents(nextEvents);
+    localStorage.setItem('tasks', JSON.stringify(nextTasks));
+    localStorage.setItem('calendarEvents', JSON.stringify(nextEvents));
+    savePartialSlots(slots);
+    toast.success(`${moved.length} item${moved.length === 1 ? '' : 's'} moved`);
+  };
+
   // Build combined sorted list for the day panel
   type ListItem = 
     | { type: 'task'; item: Task; time: string | null; title: string }
@@ -386,7 +413,7 @@ const CalendarPage = () => {
           />
         </header>
 
-        <div className="mb-4 flex items-center gap-2">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted-foreground">Timetable:</span>
           <Select value={selectedTimetableId} onValueChange={setSelectedTimetableId}>
             <SelectTrigger className="w-[240px]">
@@ -400,6 +427,11 @@ const CalendarPage = () => {
               ))}
             </SelectContent>
           </Select>
+          <Button variant="outline" onClick={() => setPlannerOpen(true)}>Planner <ChevronDown className="ml-2 h-4 w-4" /></Button>
+          <Button variant={moveMode ? 'default' : 'outline'} onClick={() => setMoveMode(value => !value)}>
+            <Move className="mr-2 h-4 w-4" />{moveMode ? 'Exit move mode' : 'Move mode'}
+          </Button>
+          {moveMode && <span className="text-xs text-muted-foreground">Select timed items, then drag one to a 30-minute position.</span>}
         </div>
 
         <div className="space-y-6">
@@ -685,6 +717,8 @@ const CalendarPage = () => {
                   setSelectedTimetableEvent(event);
                   setTimetableEventDetailsOpen(true);
                 }}
+                moveMode={moveMode}
+                onMoveItems={handleMoveItems}
               />
             </div>
           )}
@@ -694,6 +728,7 @@ const CalendarPage = () => {
           prefilledDate={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined} />
 
         <ExportDayPlanDialog open={exportDayOpen} onClose={() => setExportDayOpen(false)} date={selectedDate} />
+        <PlannerRangeDialog open={plannerOpen} onClose={() => setPlannerOpen(false)} />
 
         <AddTaskDialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} onAdd={handleAddTask}
           prefilledDate={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined} />

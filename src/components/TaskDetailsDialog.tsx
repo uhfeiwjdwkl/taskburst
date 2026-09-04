@@ -76,6 +76,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [weightsOpen, setWeightsOpen] = useState(false);
+  const [selectedProgressBox, setSelectedProgressBox] = useState(0);
   const originalTaskRef = useRef<Task | null>(null);
 
   useEffect(() => {
@@ -577,6 +578,40 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
           {/* Name Progress Boxes to Auto-Create Subtasks */}
           {editedTask.progressGridSize > 0 && (
             <div className="border rounded-lg p-3 space-y-2">
+              {(settings.symbolPalette || []).length > 0 && (
+                <div className="space-y-1 pb-2 border-b">
+                  <Label className="text-xs text-muted-foreground">Quick abbreviation for box {selectedProgressBox + 1}</Label>
+                  <div className="flex flex-wrap gap-1">
+                    {(settings.symbolPalette || []).map((symbol, index) => (
+                      <Button
+                        key={`${symbol}-${index}`}
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-8 min-w-8 border-current bg-transparent px-1 text-base hover:bg-accent"
+                        aria-label={`Set box ${selectedProgressBox + 1} abbreviation to ${symbol}`}
+                        onClick={() => {
+                          const linked = (editedTask.subtasks || []).find(
+                            subtask => subtask.linkedToProgressGrid && subtask.progressGridIndex === selectedProgressBox
+                          );
+                          if (!linked) {
+                            toast.info('Name this progress box before setting its abbreviation.');
+                            return;
+                          }
+                          setEditedTask({
+                            ...editedTask,
+                            subtasks: (editedTask.subtasks || []).map(subtask =>
+                              subtask.id === linked.id ? { ...subtask, abbreviation: symbol.slice(0, 3) } : subtask
+                            ),
+                          });
+                        }}
+                      >
+                        {symbol}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <Label className="text-sm font-medium">Name Progress Boxes (auto-creates linked subtasks)</Label>
               <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto">
                 {Array.from({ length: editedTask.progressGridSize }, (_, i) => {
@@ -584,14 +619,18 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
                     s => s.linkedToProgressGrid && s.progressGridIndex === i
                   );
                   return (
-                    <div key={i} className="flex items-center gap-1">
+                    <div
+                      key={i}
+                      className={`flex items-center gap-1 rounded p-1 ${selectedProgressBox === i ? 'ring-2 ring-ring' : ''}`}
+                      onClick={() => setSelectedProgressBox(i)}
+                    >
                       <span className="text-xs text-muted-foreground w-6 text-right">{i + 1}.</span>
                       {/* Color ring around abbreviation */}
                       <div 
                         className="relative w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold cursor-pointer border-2 shrink-0"
                         style={{ 
                           borderColor: linkedSubtask?.color || 'hsl(var(--border))',
-                          backgroundColor: linkedSubtask?.color ? `${linkedSubtask.color}20` : undefined,
+                           backgroundColor: 'transparent',
                         }}
                         onClick={() => {
                           if (!linkedSubtask) return;

@@ -201,6 +201,7 @@ export const DEFAULT_SYMBOL_PALETTE = ['✔', '✖', '★', '●', '◆', '▲',
 export interface AppSettings {
   darkMode: boolean;
   soundEnabled: boolean;
+  muteApp: boolean;
   focusDuration: number;
   breakDuration: number;
   longBreakDuration: number;
@@ -249,6 +250,7 @@ export interface AppSettings {
   // Calendar visible time range (hours 0-24)
   calendarStartHour: number;
   calendarEndHour: number;
+  weekStartsOn: 0 | 1 | 6;
 
   // Semester / year ranges used for grouping and filtering results
   terms: Term[];
@@ -260,6 +262,7 @@ export interface AppSettings {
 export const DEFAULT_SETTINGS: AppSettings = {
   darkMode: false,
   soundEnabled: true,
+  muteApp: false,
   focusDuration: 25,
   breakDuration: 5,
   longBreakDuration: 15,
@@ -287,6 +290,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   timerMode: 'countdown',
   calendarStartHour: 6,
   calendarEndHour: 22,
+  weekStartsOn: 1,
   terms: [],
   symbolPalette: DEFAULT_SYMBOL_PALETTE,
 };

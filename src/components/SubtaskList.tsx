@@ -3,7 +3,8 @@ import { Subtask } from '@/types/subtask';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Clock, Calendar, Grid3X3 } from 'lucide-react';
+import { Plus, Edit, Trash2, Clock, Calendar, Grid3X3, GripVertical } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { SubtaskDialog } from './SubtaskDialog';
 import { ConfirmDelete } from './ConfirmDeleteButton';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
@@ -142,6 +143,14 @@ export const SubtaskList = ({
     5: 'bg-red-500',
   };
 
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination || result.source.index === result.destination.index) return;
+    const reordered = [...subtasks];
+    const [moved] = reordered.splice(result.source.index, 1);
+    reordered.splice(result.destination.index, 0, moved);
+    onSubtasksChange(reordered);
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -162,14 +171,22 @@ export const SubtaskList = ({
           No subtasks yet. Add subtasks to break down this task.
         </p>
       ) : (
-        <div className="space-y-2 max-h-[300px] overflow-y-auto">
-          {subtasks.map((subtask) => (
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId={`subtasks-${taskId}`}>
+            {(dropProvided) => <div ref={dropProvided.innerRef} {...dropProvided.droppableProps} className="space-y-2 max-h-[300px] overflow-y-auto">
+          {subtasks.map((subtask, index) => (
+            <Draggable key={subtask.id} draggableId={subtask.id} index={index}>
+              {(dragProvided, snapshot) => (
             <div
-              key={subtask.id}
+              ref={dragProvided.innerRef}
+              {...dragProvided.draggableProps}
               className={`flex items-start gap-3 p-3 border rounded-lg ${
                 subtask.completed ? 'bg-muted/50' : 'bg-background'
-              }`}
+              } ${snapshot.isDragging ? 'shadow-lg opacity-90' : ''}`}
             >
+              <button type="button" {...dragProvided.dragHandleProps} className="mt-1 text-muted-foreground hover:text-foreground" aria-label={`Reorder ${subtask.title}`}>
+                <GripVertical className="h-4 w-4" />
+              </button>
               <Checkbox
                 checked={subtask.completed}
                 onCheckedChange={(checked) => {
@@ -252,8 +269,13 @@ export const SubtaskList = ({
                 />
               </div>
             </div>
+              )}
+            </Draggable>
           ))}
-        </div>
+          {dropProvided.placeholder}
+            </div>}
+          </Droppable>
+        </DragDropContext>
       )}
 
       <SubtaskDialog

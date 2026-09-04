@@ -145,14 +145,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
-      if (!isOpen && title.trim() && date) {
-        // Auto-save on close
-        handleSubmit({ preventDefault: () => {} } as React.FormEvent);
-      } else if (!isOpen) {
-        onClose();
-      }
-    }}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <DialogContent 
         className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto"
         onPointerDownOutside={(e) => e.preventDefault()}
