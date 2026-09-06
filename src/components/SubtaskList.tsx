@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Clock, Calendar, Grid3X3, GripVertical } from 'lucide-react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { SubtaskDialog } from './SubtaskDialog';
 import { ConfirmDelete } from './ConfirmDeleteButton';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
@@ -29,6 +28,7 @@ export const SubtaskList = ({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedSubtask, setSelectedSubtask] = useState<Subtask | null>(null);
   const [isNew, setIsNew] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Get available grid indices (not already linked to a subtask)
   const linkedIndices = subtasks
@@ -143,11 +143,12 @@ export const SubtaskList = ({
     5: 'bg-red-500',
   };
 
-  const handleDragEnd = (result: DropResult) => {
-    if (!result.destination || result.source.index === result.destination.index) return;
+  const reorderSubtasks = (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0 || from >= subtasks.length || to >= subtasks.length) return;
     const reordered = [...subtasks];
-    const [moved] = reordered.splice(result.source.index, 1);
-    reordered.splice(result.destination.index, 0, moved);
+    const [moved] = reordered.splice(from, 1);
+    if (!moved) return;
+    reordered.splice(to, 0, moved);
     onSubtasksChange(reordered);
   };
 
@@ -171,22 +172,34 @@ export const SubtaskList = ({
           No subtasks yet. Add subtasks to break down this task.
         </p>
       ) : (
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId={`subtasks-${taskId}`}>
-            {(dropProvided) => <div ref={dropProvided.innerRef} {...dropProvided.droppableProps} className="space-y-2 max-h-[300px] overflow-y-auto">
+        <div className="space-y-2 max-h-[300px] overflow-y-auto">
           {subtasks.map((subtask, index) => (
-            <Draggable key={subtask.id} draggableId={subtask.id} index={index}>
-              {(dragProvided, snapshot) => (
             <div
-              ref={dragProvided.innerRef}
-              {...dragProvided.draggableProps}
+              key={subtask.id}
+              draggable
+              onDragStart={(event) => {
+                setDraggedIndex(index);
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', String(index));
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                const from = draggedIndex ?? Number(event.dataTransfer.getData('text/plain'));
+                reorderSubtasks(from, index);
+                setDraggedIndex(null);
+              }}
+              onDragEnd={() => setDraggedIndex(null)}
               className={`flex items-start gap-3 p-3 border rounded-lg ${
                 subtask.completed ? 'bg-muted/50' : 'bg-background'
-              } ${snapshot.isDragging ? 'shadow-lg opacity-90' : ''}`}
+              } ${draggedIndex === index ? 'shadow-lg opacity-60' : ''}`}
             >
-              <button type="button" {...dragProvided.dragHandleProps} className="mt-1 text-muted-foreground hover:text-foreground" aria-label={`Reorder ${subtask.title}`}>
+              <Button type="button" variant="ghost" size="icon" className="mt-0 h-7 w-7 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground" aria-label={`Reorder ${subtask.title}`}>
                 <GripVertical className="h-4 w-4" />
-              </button>
+              </Button>
               <Checkbox
                 checked={subtask.completed}
                 onCheckedChange={(checked) => {
@@ -269,13 +282,8 @@ export const SubtaskList = ({
                 />
               </div>
             </div>
-              )}
-            </Draggable>
           ))}
-          {dropProvided.placeholder}
-            </div>}
-          </Droppable>
-        </DragDropContext>
+        </div>
       )}
 
       <SubtaskDialog

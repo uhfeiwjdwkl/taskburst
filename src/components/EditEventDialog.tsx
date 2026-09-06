@@ -40,6 +40,8 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
   const [recurringDays, setRecurringDays] = useState('7');
   const [recurringEndDate, setRecurringEndDate] = useState('');
   const [color, setColor] = useState<string>('');
+  const [travelTimeStart, setTravelTimeStart] = useState('');
+  const [travelTimeEnd, setTravelTimeEnd] = useState('');
   const originalEventRef = useRef<CalendarEvent | null>(null);
   const settings = useAppSettings();
   const persistCustomColors = (next: string[]) => {
@@ -65,6 +67,8 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       setRecurringDays(event.recurring?.intervalDays?.toString() || '7');
       setRecurringEndDate(event.recurring?.endDate || '');
       setColor(event.color || '');
+      setTravelTimeStart(event.travelTimeStart?.toString() || '');
+      setTravelTimeEnd(event.travelTimeEnd?.toString() || '');
       originalEventRef.current = { ...event };
     }
   }, [event]);
@@ -134,6 +138,8 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       duration: !isMultiDay && time ? calculatedDuration : undefined,
       location: location.trim() || undefined,
       color: color || undefined,
+      travelTimeStart: travelTimeStart ? Math.max(0, parseInt(travelTimeStart) || 0) : undefined,
+      travelTimeEnd: travelTimeEnd ? Math.max(0, parseInt(travelTimeEnd) || 0) : undefined,
       recurring: isRecurring ? {
         enabled: true,
         intervalDays: parseInt(recurringDays) || 7,
@@ -294,6 +300,17 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="Event location (optional)"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="travelTimeStart">Travel before (minutes)</Label>
+                <Input id="travelTimeStart" type="number" min="0" value={travelTimeStart} onChange={(e) => setTravelTimeStart(e.target.value)} placeholder="0" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="travelTimeEnd">Travel after (minutes)</Label>
+                <Input id="travelTimeEnd" type="number" min="0" value={travelTimeEnd} onChange={(e) => setTravelTimeEnd(e.target.value)} placeholder="0" />
+              </div>
             </div>
 
             <div className="space-y-2">

@@ -40,6 +40,8 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
   const [recurringDays, setRecurringDays] = useState('7');
   const [recurringEndDate, setRecurringEndDate] = useState('');
   const [color, setColor] = useState<string>('');
+  const [travelTimeStart, setTravelTimeStart] = useState('');
+  const [travelTimeEnd, setTravelTimeEnd] = useState('');
   const settings = useAppSettings();
   const persistCustomColors = (next: string[]) => {
     const saved = JSON.parse(localStorage.getItem('appSettings') || '{}');
@@ -88,6 +90,8 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
       duration: !isMultiDay && time ? calculatedDuration : undefined,
       location: location.trim() || undefined,
       color: color || undefined,
+      travelTimeStart: travelTimeStart ? Math.max(0, parseInt(travelTimeStart) || 0) : undefined,
+      travelTimeEnd: travelTimeEnd ? Math.max(0, parseInt(travelTimeEnd) || 0) : undefined,
       recurring: isRecurring ? {
         enabled: true,
         intervalDays: parseInt(recurringDays) || 7,
@@ -110,12 +114,18 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
     setRecurringDays('7');
     setRecurringEndDate('');
     setColor('');
+    setTravelTimeStart('');
+    setTravelTimeEnd('');
     onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>Add Calendar Event</span>
@@ -270,6 +280,17 @@ export function AddEventDialog({ open, onClose, onAdd, prefilledDate }: AddEvent
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="Event location (optional)"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="travelTimeStart">Travel before (minutes)</Label>
+                <Input id="travelTimeStart" type="number" min="0" value={travelTimeStart} onChange={(e) => setTravelTimeStart(e.target.value)} placeholder="0" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="travelTimeEnd">Travel after (minutes)</Label>
+                <Input id="travelTimeEnd" type="number" min="0" value={travelTimeEnd} onChange={(e) => setTravelTimeEnd(e.target.value)} placeholder="0" />
+              </div>
             </div>
 
             <div className="space-y-2">
