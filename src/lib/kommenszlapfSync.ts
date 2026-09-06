@@ -27,6 +27,10 @@ const SKIP_EXACT = new Set([
   "taskburst-heartbeat",
   "taskburst-instance",
   "taskburst-instance-id",
+  // Per-device UI state. The running timer writes this once per second and it
+  // must never create cloud changes or trigger a sync cycle.
+  "timerState",
+  "activeTaskId",
 ]);
 const BATCH = 100;
 const PULL_LIMIT = 500;

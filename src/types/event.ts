@@ -9,6 +9,8 @@ export interface CalendarEvent {
   duration?: number; // in minutes (only for single-day events)
   location?: string;
   color?: string; // Optional custom colour for calendar/timetable display and cards
+  travelTimeStart?: number; // Optional travel time before the event, in minutes
+  travelTimeEnd?: number; // Optional travel time after the event, in minutes
   recurring?: {
     enabled: boolean;
     intervalDays: number; // Repeat every X days

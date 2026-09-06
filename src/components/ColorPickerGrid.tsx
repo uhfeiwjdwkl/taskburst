@@ -67,6 +67,7 @@ export const ColorPickerGrid = ({
         {allColors.map((color) => (
           <div key={color} className="relative group">
             <button
+              type="button"
               onClick={() => onChange(color)}
               className={`w-8 h-8 rounded-md border-2 transition-all hover:scale-110 ${
                 value === color ? 'border-foreground ring-2 ring-primary/50' : 'border-transparent'
@@ -87,6 +88,7 @@ export const ColorPickerGrid = ({
               }}>
                 <PopoverTrigger asChild>
                   <button
+                    type="button"
                     className="absolute -top-1 -left-1 w-4 h-4 bg-background border border-border rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
                     title="Edit color"
                   >
@@ -125,6 +127,7 @@ export const ColorPickerGrid = ({
             {/* Delete (x) action for custom colors */}
             {isCustomColor(color) && onDeleteCustomColor && (
               <button
+                type="button"
                 onClick={(e) => { e.stopPropagation(); handleDeleteCustom(color); }}
                 className="absolute -top-1 -right-1 w-4 h-4 bg-background border border-border rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity hover:bg-destructive hover:text-destructive-foreground"
                 title="Remove color"
@@ -139,6 +142,7 @@ export const ColorPickerGrid = ({
           <Popover open={isAddingCustom} onOpenChange={setIsAddingCustom}>
             <PopoverTrigger asChild>
               <button
+                type="button"
                 className="w-8 h-8 rounded-md border-2 border-dashed border-muted-foreground flex items-center justify-center hover:border-foreground transition-colors"
                 title="Add custom color"
               >

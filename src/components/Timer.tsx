@@ -622,12 +622,13 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
             task={activeTask}
             open={showStartEditor}
             onClose={() => setShowStartEditor(false)}
-            onSave={(filled, filledIndices) => {
+            onSave={(filled, filledIndices, updatedSubtasks) => {
               // Update task's progressGridFilled when starting
               if (onUpdateTask && activeTask) {
-                onUpdateTask({ ...activeTask, progressGridFilled: filled });
+                onUpdateTask({ ...activeTask, progressGridFilled: filled, subtasks: updatedSubtasks ?? activeTask.subtasks });
               }
               handleStartEditorSave(filled);
+              setShowStartEditor(false);
             }}
             title="Session Starting"
             description="Mark your current progress before starting the focus session."
@@ -645,10 +646,10 @@ const Timer = ({ onTick, activeTaskId, activeTask, onTaskComplete, onRunningChan
               }
               setShowEndEditor(false);
             }}
-            onSave={(filled, filledIndices) => {
+            onSave={(filled, filledIndices, updatedSubtasks) => {
               // Update task's progressGridFilled when ending session - synced with task
               if (onUpdateTask && activeTask) {
-                onUpdateTask({ ...activeTask, progressGridFilled: filled });
+                onUpdateTask({ ...activeTask, progressGridFilled: filled, subtasks: updatedSubtasks ?? activeTask.subtasks });
               }
               if (seconds === 0) {
                 handlePhaseComplete(filled);
