@@ -6,7 +6,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { ListItem } from '@/types/list';
 import { Trash2, Archive } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { ConfirmDelete } from './ConfirmDeleteButton';
 
@@ -60,7 +59,7 @@ export const ListItemDetailsDialog = ({ item, open, onClose, onUpdate, onDelete 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Item Details</DialogTitle>
@@ -114,7 +113,7 @@ export const ListItemDetailsDialog = ({ item, open, onClose, onUpdate, onDelete 
             <div className="flex gap-2">
               <Button
                 variant={item.completed ? 'outline' : 'default'}
-                size="sm"
+                 size="lg"
                 onClick={handleComplete}
               >
                 <Archive className="h-4 w-4 mr-2" />

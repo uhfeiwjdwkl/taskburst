@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { List } from '@/types/list';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -19,6 +19,7 @@ const Lists = () => {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [scheduleList, setScheduleList] = useState<List | null>(null);
+  const loadedRef = useRef(false);
 
   useEffect(() => {
     const savedLists = localStorage.getItem('lists');
@@ -28,9 +29,11 @@ const Lists = () => {
         setLists(loadedLists.filter((l: List) => !l.deletedAt && !l.archivedAt).sort((a: List, b: List) => a.order - b.order));
       }
     }
+    loadedRef.current = true;
   }, []);
 
   useEffect(() => {
+    if (!loadedRef.current) return;
     const parsed = JSON.parse(localStorage.getItem('lists') || '[]');
     const allLists = Array.isArray(parsed) ? parsed : [];
     const otherLists = allLists.filter((l: List) => l.deletedAt || l.archivedAt);

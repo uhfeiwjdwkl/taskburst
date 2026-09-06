@@ -43,6 +43,10 @@ import { FlexibleEventDetailsDialog } from '@/components/FlexibleEventDetailsDia
 import { AssessmentDetailsDialog } from '@/components/AssessmentDetailsDialog';
 import type { Assessment } from '@/types/assessment';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { ListItem } from '@/types/list';
+import { ListItemDetailsDialog } from '@/components/ListItemDetailsDialog';
+import { ListItemFullDetailsDialog } from '@/components/ListItemFullDetailsDialog';
+import { deleteStoredListItem, updateStoredListItem } from '@/lib/listItemStore';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -73,6 +77,8 @@ const Index = () => {
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
   const [assessmentDetailsOpen, setAssessmentDetailsOpen] = useState(false);
   const [tasksLoaded, setTasksLoaded] = useState(false);
+  const [calendarListItem, setCalendarListItem] = useState<{ item: ListItem; list: List } | null>(null);
+  const [calendarListItemEdit, setCalendarListItemEdit] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [taskSortBy, setTaskSortBy] = useState<'manual' | 'subject' | 'priority' | 'due'>(
     () => (localStorage.getItem('homeTaskSortBy') as any) || 'manual'
@@ -146,10 +152,10 @@ const Index = () => {
 
   // Save tasks to localStorage only after initial load
   useEffect(() => {
-    if (tasksLoaded) {
+    if (tasksLoaded && !timerRunning) {
       localStorage.setItem('tasks', JSON.stringify(tasks));
     }
-  }, [tasks, tasksLoaded]);
+  }, [tasks, tasksLoaded, timerRunning]);
 
   // Broadcast active task so nav pills can read it
   useEffect(() => {
@@ -159,14 +165,6 @@ const Index = () => {
   }, [activeTaskId]);
 
   // Note: Task selection is now manual via Study button - no auto-selection
-
-  // Update task progress every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTasks(prev => [...prev]);
-    }, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleAddTask = (newTask: Omit<Task, 'id' | 'createdAt'>) => {
     const task: Task = {
@@ -493,6 +491,7 @@ const Index = () => {
                 setActiveTaskId(task.id);
                 toast.success(`Starting focus session for: ${subtask.title}`);
               }}
+              onListItemClick={(item, list) => setCalendarListItem({ item, list })}
             />
           </div>
         </section>
@@ -525,6 +524,7 @@ const Index = () => {
                 setActiveTaskId(task.id);
                 toast.success(`Starting focus session for: ${subtask.title}`);
               }}
+              onListItemClick={(item, list) => setCalendarListItem({ item, list })}
             />
         </section>
 
@@ -1022,6 +1022,44 @@ const Index = () => {
             const next = (Array.isArray(all) ? all : []).map(a => a.id === updated.id ? updated : a);
             localStorage.setItem('assessments', JSON.stringify(next));
             setSelectedAssessment(updated);
+          }}
+        />
+        <ListItemFullDetailsDialog
+          item={calendarListItem?.item || null}
+          list={calendarListItem?.list || null}
+          open={!!calendarListItem && !calendarListItemEdit}
+          onClose={() => setCalendarListItem(null)}
+          onEdit={() => setCalendarListItemEdit(true)}
+          onComplete={() => {
+            if (!calendarListItem) return;
+            const updatedItem = { ...calendarListItem.item, completed: !calendarListItem.item.completed };
+            const next = updateStoredListItem(calendarListItem.list.id, updatedItem);
+            setFavoriteLists(next.filter(list => list.favorite && !list.deletedAt && !list.archivedAt));
+            setCalendarListItem({ ...calendarListItem, item: updatedItem });
+          }}
+          onDelete={() => {
+            if (!calendarListItem) return;
+            const next = deleteStoredListItem(calendarListItem.list.id, calendarListItem.item.id);
+            setFavoriteLists(next.filter(list => list.favorite && !list.deletedAt && !list.archivedAt));
+            setCalendarListItem(null);
+          }}
+        />
+        <ListItemDetailsDialog
+          item={calendarListItem?.item || null}
+          open={calendarListItemEdit}
+          onClose={() => setCalendarListItemEdit(false)}
+          onUpdate={(updatedItem) => {
+            if (!calendarListItem) return;
+            const next = updateStoredListItem(calendarListItem.list.id, updatedItem);
+            setFavoriteLists(next.filter(list => list.favorite && !list.deletedAt && !list.archivedAt));
+            setCalendarListItem({ ...calendarListItem, item: updatedItem });
+          }}
+          onDelete={(itemId) => {
+            if (!calendarListItem) return;
+            const next = deleteStoredListItem(calendarListItem.list.id, itemId);
+            setFavoriteLists(next.filter(list => list.favorite && !list.deletedAt && !list.archivedAt));
+            setCalendarListItemEdit(false);
+            setCalendarListItem(null);
           }}
         />
       </div>
