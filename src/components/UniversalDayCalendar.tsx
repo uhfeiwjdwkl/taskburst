@@ -19,7 +19,7 @@ import { useAppSettings } from '@/hooks/useAppSettings';
 import { ExportDayPlanDialog } from './ExportDayPlanDialog';
 import { getPartialSlotsForDate, PartialSlot } from '@/lib/partialSchedule';
 import { PartialSlotDialog } from './PartialSlotDialog';
-import { List } from '@/types/list';
+import { List, ListItem } from '@/types/list';
 
 const safeParse = (key: string): any[] => {
   try {
@@ -44,6 +44,7 @@ interface UniversalDayCalendarProps {
   onTimetableEventClick?: (event: FlexibleEvent, timetable: Timetable) => void;
   onStartSubtask?: (subtask: Subtask, task: Task) => void;
   onListClick?: (list: List) => void;
+  onListItemClick?: (item: ListItem, list: List) => void;
   showCard?: boolean;
   className?: string;
   selectedTimetableId?: string;
@@ -87,6 +88,7 @@ export const UniversalDayCalendar = ({
   onTimetableEventClick,
   onStartSubtask,
   onListClick,
+  onListItemClick,
   showCard = true,
   className,
   selectedTimetableId,
@@ -353,7 +355,7 @@ export const UniversalDayCalendar = ({
         completed: slot.completed,
         color: parentTask?.color || (mirrorColor ? subtaskMatch?.subtask.color : undefined),
         parentTitle,
-        data: { slot, task: parentTask, subtask: subtaskMatch?.subtask, parentTask: subtaskMatch?.task, list: parentList },
+        data: { slot, task: parentTask, subtask: subtaskMatch?.subtask, parentTask: subtaskMatch?.task, list: parentList, listItem },
       });
     });
 
@@ -460,6 +462,10 @@ export const UniversalDayCalendar = ({
         // For rigid timetable, we can still fire timetable event click with a synthetic FlexibleEvent
         break;
       case 'partial':
+        if (item.data.listItem && item.data.list && onListItemClick) {
+          onListItemClick(item.data.listItem, item.data.list);
+          break;
+        }
         // A partial slot is its own calendar entity — open its dedicated editor.
         setEditingSlot(item.data.slot);
         break;
