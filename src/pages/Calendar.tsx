@@ -58,8 +58,10 @@ const safeParse = (key: string): any[] => {
 
 const CalendarPage = () => {
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [tasks, setTasks] = useState<Task[]>(() => safeParse('tasks') as Task[]);
+  const [events, setEvents] = useState<CalendarEvent[]>(() => safeParse('calendarEvents') as CalendarEvent[]);
+  const tasksMountedRef = useRef(false);
+  const eventsMountedRef = useRef(false);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [timetables, setTimetables] = useState<Timetable[]>([]);
   const [selectedTimetableId, setSelectedTimetableIdState] = useState<string>(() => {
@@ -105,17 +107,18 @@ const CalendarPage = () => {
   const [moveMode, setMoveMode] = useState(false);
   
   useEffect(() => {
-    setTasks(safeParse('tasks') as Task[]);
-    setEvents(safeParse('calendarEvents') as CalendarEvent[]);
     setAssessments(safeParse('assessments').filter((a: Assessment) => !a.deletedAt) as Assessment[]);
     setTimetables((safeParse('timetables') as Timetable[]).filter(t => !t.deletedAt));
   }, []);
 
+  // Skip the mount run: re-saving loaded data must never touch storage (or sync).
   useEffect(() => {
+    if (!tasksMountedRef.current) { tasksMountedRef.current = true; return; }
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }, [tasks]);
 
   useEffect(() => {
+    if (!eventsMountedRef.current) { eventsMountedRef.current = true; return; }
     localStorage.setItem('calendarEvents', JSON.stringify(events));
   }, [events]);
 

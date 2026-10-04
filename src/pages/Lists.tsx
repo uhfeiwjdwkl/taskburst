@@ -13,7 +13,12 @@ import { toast } from 'sonner';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 const Lists = () => {
-  const [lists, setLists] = useState<List[]>([]);
+  const [lists, setLists] = useState<List[]>(() => {
+    try {
+      const p = JSON.parse(localStorage.getItem('lists') || '[]');
+      return Array.isArray(p) ? p.filter((l: List) => !l.deletedAt && !l.archivedAt).sort((a: List, b: List) => a.order - b.order) : [];
+    } catch { return []; }
+  });
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedList, setSelectedList] = useState<List | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);

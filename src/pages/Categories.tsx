@@ -38,7 +38,11 @@ interface Subcategory {
 
 const Categories = () => {
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    try { const p = JSON.parse(localStorage.getItem('tasks') || '[]'); return Array.isArray(p) ? p : []; } catch { return []; }
+  });
+  const tasksMountedRef = useRef(false);
+  const subsMountedRef = useRef(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -60,10 +64,6 @@ const Categories = () => {
   const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{ type: 'category' | 'subcategory'; name: string } | null>(null);
 
   useEffect(() => {
-    const savedTasks = localStorage.getItem('tasks');
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
-    }
     
     const savedSubcategories = localStorage.getItem('subcategories');
     if (savedSubcategories) {
@@ -78,10 +78,13 @@ const Categories = () => {
   }, []);
 
   useEffect(() => {
+    if (!tasksMountedRef.current) { tasksMountedRef.current = true; return; }
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }, [tasks]);
 
   useEffect(() => {
+    // First two runs are mount + initial load; only persist real edits.
+    if (!subsMountedRef.current) { subsMountedRef.current = true; return; }
     localStorage.setItem('subcategories', JSON.stringify(subcategories));
   }, [subcategories]);
 
