@@ -54,7 +54,7 @@ interface UniversalDayCalendarProps {
 
 interface TimelineItem {
   id: string;
-  type: 'task' | 'subtask' | 'event' | 'timetable' | 'assessment' | 'rigid-timetable' | 'partial';
+  type: 'task' | 'subtask' | 'event' | 'timetable' | 'assessment' | 'rigid-timetable' | 'partial' | 'listItem';
   title: string;
   time?: string;
   endTime?: string;
@@ -104,6 +104,7 @@ export const UniversalDayCalendar = ({
   const [slotsVersion, setSlotsVersion] = useState(0);
   const [editingSlot, setEditingSlot] = useState<PartialSlot | null>(null);
   const [lists, setLists] = useState<List[]>([]);
+  const [internalListItem, setInternalListItem] = useState<{ item: ListItem; list: List } | null>(null);
   const [moveSelection, setMoveSelection] = useState<Set<string>>(new Set());
 
   const currentDate = controlledDate || internalDate;
@@ -162,7 +163,8 @@ export const UniversalDayCalendar = ({
     };
     load();
     window.addEventListener('storage', load);
-    return () => window.removeEventListener('storage', load);
+    window.addEventListener('listsUpdated', load);
+    return () => { window.removeEventListener('storage', load); window.removeEventListener('listsUpdated', load); };
   }, []);
 
   useEffect(() => {
@@ -213,6 +215,28 @@ export const UniversalDayCalendar = ({
             data: { subtask, task },
           });
         }
+      });
+    });
+
+    // List items with their own date/time
+    lists.forEach(list => {
+      if (list.deletedAt || list.archivedAt) return;
+      (list.items || []).forEach(li => {
+        if (!li.dateTime || li.deletedAt) return;
+        let d: Date;
+        try { d = parseISO(li.dateTime); } catch { return; }
+        if (isNaN(d.getTime()) || format(d, 'yyyy-MM-dd') !== dateStr) return;
+        const hasTime = li.dateTime.includes('T');
+        items.push({
+          id: `listitem-${list.id}-${li.id}`,
+          type: 'listItem',
+          title: li.title,
+          time: hasTime ? format(d, 'HH:mm') : undefined,
+          duration: hasTime ? 30 : undefined,
+          completed: li.completed,
+          parentTitle: list.title,
+          data: { item: li, list },
+        });
       });
     });
 
@@ -461,11 +485,11 @@ export const UniversalDayCalendar = ({
       case 'rigid-timetable':
         // For rigid timetable, we can still fire timetable event click with a synthetic FlexibleEvent
         break;
+      case 'listItem':
+        if (onListItemClick) onListItemClick(item.data.item, item.data.list);
+        else setInternalListItem({ item: item.data.item, list: item.data.list });
+        break;
       case 'partial':
-        if (item.data.listItem && item.data.list && onListItemClick) {
-          onListItemClick(item.data.listItem, item.data.list);
-          break;
-        }
         // A partial slot is its own calendar entity — open its dedicated editor.
         setEditingSlot(item.data.slot);
         break;
@@ -491,6 +515,7 @@ export const UniversalDayCalendar = ({
       case 'assessment': return '📊 ';
       case 'rigid-timetable': return '🕐 ';
       case 'partial': return '⏱ ';
+      case 'listItem': return '☑ ';
       default: return '';
     }
   };
@@ -502,6 +527,7 @@ export const UniversalDayCalendar = ({
       case 'rigid-timetable': return 'bg-indigo-500/20 border-indigo-500';
       case 'assessment': return 'bg-amber-500/20 border-amber-500';
       case 'partial': return 'bg-teal-500/20 border-teal-500';
+      case 'listItem': return 'bg-emerald-500/20 border-emerald-500';
       default: return item.completed ? 'bg-green-500/20 border-green-500' : 'bg-primary/20 border-primary';
     }
   };
@@ -721,9 +747,25 @@ export const UniversalDayCalendar = ({
               const widthPct = 100 / layout.cols;
               const leftPct = layout.col * widthPct;
 
+              const travelBefore = item.type === 'event' ? Number(item.data?.travelTimeStart) || 0 : 0;
+              const travelAfter = item.type === 'event' ? Number(item.data?.travelTimeEnd) || 0 : 0;
+              const travelStyle = (t: number, h: number) => ({
+                top: `${t}%`, height: `${h}%`, left: `${leftPct}%`, width: `calc(${widthPct}% - 2px)`,
+                backgroundColor: item.color ? `${item.color}20` : undefined, borderColor: item.color || undefined,
+              });
               return (
+                <Fragment key={item.id}>
+                {travelBefore > 0 && (
+                  <div className="absolute border-l-2 border-dashed rounded-r px-2 opacity-40 bg-blue-500/10 border-blue-500 pointer-events-none overflow-hidden" style={travelStyle(top - getHeightForDuration(travelBefore), getHeightForDuration(travelBefore))}>
+                    <span className="text-[10px]">🚗 {travelBefore}m travel</span>
+                  </div>
+                )}
+                {travelAfter > 0 && (
+                  <div className="absolute border-l-2 border-dashed rounded-r px-2 opacity-40 bg-blue-500/10 border-blue-500 pointer-events-none overflow-hidden" style={travelStyle(top + Math.max(height, 3), getHeightForDuration(travelAfter))}>
+                    <span className="text-[10px]">🚗 {travelAfter}m travel</span>
+                  </div>
+                )}
                 <div
-                  key={item.id}
                   className={cn(
                     "absolute border-l-2 rounded-r px-2 py-0.5 cursor-pointer overflow-hidden transition-colors hover:opacity-80",
                     getItemBgClass(item),
@@ -776,6 +818,7 @@ export const UniversalDayCalendar = ({
                     </div>
                   )}
                 </div>
+                </Fragment>
               );
             })}
           </div>
