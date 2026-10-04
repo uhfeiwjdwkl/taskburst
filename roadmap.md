@@ -1,0 +1,12 @@
+# Roadmap
+- [ ] Extensive Guide update
+- [ ] List items on day calendar (click → details, complete/delete sync)
+- [ ] Stop sync on Categories / Lists / Calendar page clicks
+- [ ] Improve list item syncing
+- [ ] Tasks deletion-safety parity with archived tasks
+- [ ] Travel time shown in event details, calendars, "now" card
+- [ ] Manual reorder sets sort box to "Manual order"
+- [ ] Time-remaining pill after due date, colour bands configurable in settings
+- [ ] Save button at top of settings popup beside X
+- [ ] Subtask reorder reorders progress boxes
+- [ ] Better popups for partial/list-item sessions
