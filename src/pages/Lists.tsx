@@ -13,27 +13,38 @@ import { toast } from 'sonner';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
 const Lists = () => {
-  const [lists, setLists] = useState<List[]>([]);
+  const [lists, setLists] = useState<List[]>(() => {
+    try {
+      const p = JSON.parse(localStorage.getItem('lists') || '[]');
+      return Array.isArray(p) ? p.filter((l: List) => !l.deletedAt && !l.archivedAt).sort((a: List, b: List) => a.order - b.order) : [];
+    } catch { return []; }
+  });
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedList, setSelectedList] = useState<List | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [scheduleList, setScheduleList] = useState<List | null>(null);
   const loadedRef = useRef(false);
+  const skipNextWriteRef = useRef(false);
 
+  // Pick up changes made elsewhere (calendar list-item completion, cloud sync).
   useEffect(() => {
-    const savedLists = localStorage.getItem('lists');
-    if (savedLists) {
-      const loadedLists = JSON.parse(savedLists);
-      if (Array.isArray(loadedLists)) {
-        setLists(loadedLists.filter((l: List) => !l.deletedAt && !l.archivedAt).sort((a: List, b: List) => a.order - b.order));
-      }
-    }
-    loadedRef.current = true;
+    const reload = () => {
+      try {
+        const p = JSON.parse(localStorage.getItem('lists') || '[]');
+        if (!Array.isArray(p)) return;
+        skipNextWriteRef.current = true;
+        setLists(p.filter((l: List) => !l.deletedAt && !l.archivedAt).sort((x: List, y: List) => x.order - y.order));
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('listsUpdated', reload);
+    window.addEventListener('storage', reload);
+    return () => { window.removeEventListener('listsUpdated', reload); window.removeEventListener('storage', reload); };
   }, []);
 
   useEffect(() => {
-    if (!loadedRef.current) return;
+    if (!loadedRef.current) { loadedRef.current = true; return; }
+    if (skipNextWriteRef.current) { skipNextWriteRef.current = false; return; }
     const parsed = JSON.parse(localStorage.getItem('lists') || '[]');
     const allLists = Array.isArray(parsed) ? parsed : [];
     const otherLists = allLists.filter((l: List) => l.deletedAt || l.archivedAt);
