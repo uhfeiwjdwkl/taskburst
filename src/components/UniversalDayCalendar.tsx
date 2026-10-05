@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, Fragment } from 'react';
 import { Task } from '@/types/task';
+import { ListItemFullDetailsDialog } from '@/components/ListItemFullDetailsDialog';
+import { updateStoredListItem, deleteStoredListItem } from '@/lib/listItemStore';
 import { Subtask } from '@/types/subtask';
 import { CalendarEvent } from '@/types/event';
 import { Assessment } from '@/types/assessment';
@@ -547,6 +549,27 @@ export const UniversalDayCalendar = ({
 
   const isToday = isSameDay(currentDate, new Date());
 
+  const internalListItemDialog = (
+    <ListItemFullDetailsDialog
+      item={internalListItem?.item || null}
+      list={internalListItem?.list || null}
+      open={!!internalListItem}
+      onClose={() => setInternalListItem(null)}
+      onEdit={() => { if (internalListItem) { const l = internalListItem.list; setInternalListItem(null); onListClick?.(l); } }}
+      onComplete={() => {
+        if (!internalListItem) return;
+        const updated = { ...internalListItem.item, completed: !internalListItem.item.completed };
+        setLists(updateStoredListItem(internalListItem.list.id, updated));
+        setInternalListItem({ ...internalListItem, item: updated });
+      }}
+      onDelete={() => {
+        if (!internalListItem) return;
+        setLists(deleteStoredListItem(internalListItem.list.id, internalListItem.item.id));
+        setInternalListItem(null);
+      }}
+    />
+  );
+
   const slotDialog = (
     <PartialSlotDialog
       slot={editingSlot}
@@ -833,6 +856,8 @@ export const UniversalDayCalendar = ({
         <Card className={cn("p-4 h-full flex flex-col", className)}>{content}</Card>
         <ExportDayPlanDialog open={exportOpen} onClose={() => setExportOpen(false)} date={currentDate} />
         {slotDialog}
+    {internalListItemDialog}
+        {internalListItemDialog}
       </>
     );
   }
