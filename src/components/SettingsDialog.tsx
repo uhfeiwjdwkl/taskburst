@@ -936,6 +936,21 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Default task time */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Default task time (minutes)</Label>
+                  <p className="text-xs text-muted-foreground">Estimated time given to new tasks</p>
+                </div>
+                <Input
+                  type="number"
+                  min={0}
+                  className="w-24"
+                  value={settings.defaultTaskMinutes ?? 0}
+                  onChange={(e) => setSettings({ ...settings, defaultTaskMinutes: Math.max(0, parseInt(e.target.value) || 0) })}
+                />
+              </div>
             </div>
 
             {/* Page Visibility & Order */}
