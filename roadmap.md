@@ -10,3 +10,6 @@
 - [ ] Save button at top of settings popup beside X
 - [ ] Subtask reorder reorders progress boxes
 - [ ] Better popups for partial/list-item sessions
+- [ ] Fix Supabase auth lock contention
+- [ ] Travel time: dotted, faded, no emoji, in time views
+- [ ] Default task time 0m (setting); stopwatch bar only after first timer use, show spent mins
