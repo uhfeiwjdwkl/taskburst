@@ -1,3 +1,4 @@
+import { DueBandSettings, DEFAULT_DUE_BANDS } from '@/lib/dueBands';
 export interface PageConfig {
   id: string;
   name: string;
@@ -248,6 +249,8 @@ export interface AppSettings {
   timerMode: 'countdown' | 'stopwatch';
   // Default estimated minutes for newly created tasks
   defaultTaskMinutes: number;
+  // Time-remaining pill colour bands
+  dueBands: DueBandSettings;
 
   // Calendar visible time range (hours 0-24)
   calendarStartHour: number;
@@ -291,6 +294,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoLinkSubtasksToGrid: false,
   timerMode: 'countdown',
   defaultTaskMinutes: 0,
+  dueBands: DEFAULT_DUE_BANDS,
   calendarStartHour: 6,
   calendarEndHour: 22,
   weekStartsOn: 1,

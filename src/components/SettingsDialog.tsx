@@ -1,3 +1,4 @@
+import { DEFAULT_DUE_BANDS } from '@/lib/dueBands';
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -614,6 +615,40 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                     <span className="text-xs text-muted-foreground">Filled</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Time-remaining pill colours */}
+              <div>
+                <Label>Due-date pill colours</Label>
+                <p className="text-xs text-muted-foreground mb-2">Each band applies up to and including its day limit</p>
+                {(() => {
+                  const cfg = settings.dueBands || DEFAULT_DUE_BANDS;
+                  const setCfg = (next: typeof cfg) => setSettings({ ...settings, dueBands: next });
+                  return (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <input type="color" value={cfg.overdueColor} onChange={(e) => setCfg({ ...cfg, overdueColor: e.target.value })} className="h-7 w-10 rounded border" />
+                        <span>Overdue</span>
+                      </div>
+                      {cfg.bands.map((band, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          <input type="color" value={band.color} onChange={(e) => setCfg({ ...cfg, bands: cfg.bands.map((b, j) => j === i ? { ...b, color: e.target.value } : b) })} className="h-7 w-10 rounded border" />
+                          {band.maxDays === null ? (
+                            <span className="w-20 text-muted-foreground">and above</span>
+                          ) : (
+                            <Input type="number" min={0} className="h-7 w-20" value={band.maxDays} onChange={(e) => setCfg({ ...cfg, bands: cfg.bands.map((b, j) => j === i ? { ...b, maxDays: Math.max(0, parseInt(e.target.value) || 0) } : b) })} />
+                          )}
+                          <span className="text-muted-foreground">{band.maxDays === null ? 'days' : 'days or fewer'}</span>
+                        </div>
+                      ))}
+                      <div className="flex items-center gap-2 text-sm">
+                        <input type="color" value={cfg.noDueColor} onChange={(e) => setCfg({ ...cfg, noDueColor: e.target.value })} className="h-7 w-10 rounded border" />
+                        <span>No due date</span>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setCfg(DEFAULT_DUE_BANDS)}>Reset colours</Button>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Symbol palette */}

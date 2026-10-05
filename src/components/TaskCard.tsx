@@ -1,3 +1,4 @@
+import { getDuePill, DEFAULT_DUE_BANDS } from '@/lib/dueBands';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { useState } from 'react';
 import { Task } from '@/types/task';
@@ -34,7 +35,8 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const subtasks = task.subtasks || [];
-  const isStopwatch = useAppSettings().timerMode === 'stopwatch';
+  const appSettings = useAppSettings();
+  const isStopwatch = appSettings.timerMode === 'stopwatch';
   const remainingMinutes = Math.max(task.estimatedMinutes - task.spentMinutes, 0);
   const remainingSeconds = Math.round(remainingMinutes * 60);
   const remainingMins = Math.floor(remainingSeconds / 60);
@@ -87,15 +89,25 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
                 )}
               </div>
             )}
+            {task.estimatedMinutes > 0 && (
             <div className="flex items-center gap-1">
               <Clock className="h-4 w-4" />
               <span>{remainingMins}m {remainingSecs}s left</span>
             </div>
+            )}
             {task.dueDate && (
               <div>
                 Due: {new Date(task.dueDate).toLocaleDateString('en-GB')}
               </div>
             )}
+            {(() => {
+              const pill = getDuePill(task.dueDate, appSettings.dueBands || DEFAULT_DUE_BANDS);
+              return (
+                <span className="rounded-full px-2 py-0.5 text-xs font-medium text-white" style={{ backgroundColor: pill.color }}>
+                  {pill.text}
+                </span>
+              );
+            })()}
           </div>
 
           {/* Universal Progress Grid - only show if grid size > 0 */}
