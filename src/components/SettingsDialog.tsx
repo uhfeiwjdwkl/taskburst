@@ -261,9 +261,12 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
             <DialogTitle>Settings</DialogTitle>
             <DialogDescription>Configure your TaskBurst preferences</DialogDescription>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={handleSave}>Save</Button>
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0" aria-label="Close">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto pr-4" style={{ maxHeight: 'calc(85vh - 120px)' }}>
