@@ -756,13 +756,13 @@ export const UniversalDayCalendar = ({
               return (
                 <Fragment key={item.id}>
                 {travelBefore > 0 && (
-                  <div className="absolute border-l-2 border-dashed rounded-r px-2 opacity-40 bg-blue-500/10 border-blue-500 pointer-events-none overflow-hidden" style={travelStyle(top - getHeightForDuration(travelBefore), getHeightForDuration(travelBefore))}>
-                    <span className="text-[10px]">🚗 {travelBefore}m travel</span>
+                  <div className="absolute border-l-2 border-dotted rounded-r px-2 opacity-40 bg-blue-500/10 border-blue-500 pointer-events-none overflow-hidden" style={travelStyle(top - getHeightForDuration(travelBefore), getHeightForDuration(travelBefore))}>
+                    <span className="text-[10px]">{travelBefore}m travel</span>
                   </div>
                 )}
                 {travelAfter > 0 && (
-                  <div className="absolute border-l-2 border-dashed rounded-r px-2 opacity-40 bg-blue-500/10 border-blue-500 pointer-events-none overflow-hidden" style={travelStyle(top + Math.max(height, 3), getHeightForDuration(travelAfter))}>
-                    <span className="text-[10px]">🚗 {travelAfter}m travel</span>
+                  <div className="absolute border-l-2 border-dotted rounded-r px-2 opacity-40 bg-blue-500/10 border-blue-500 pointer-events-none overflow-hidden" style={travelStyle(top + Math.max(height, 3), getHeightForDuration(travelAfter))}>
+                    <span className="text-[10px]">{travelAfter}m travel</span>
                   </div>
                 )}
                 <div
