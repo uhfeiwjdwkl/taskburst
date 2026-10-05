@@ -12,6 +12,8 @@ interface CurrentEvent {
   timetableId?: string;
   rowIndex?: number;
   colIndex?: number;
+  travel?: 'before' | 'after';
+  travelMinutes?: number;
 }
 
 export const CurrentEventDisplay = () => {
@@ -38,15 +40,23 @@ export const CurrentEventDisplay = () => {
           const [hours, minutes] = event.time.split(':').map(Number);
           const eventStart = hours * 60 + minutes;
           const eventEnd = eventStart + event.duration;
+          const before = Number(event.travelTimeStart) || 0;
+          const after = Number(event.travelTimeEnd) || 0;
 
-          return currentTime >= eventStart && currentTime < eventEnd;
+          return currentTime >= eventStart - before && currentTime < eventEnd + after;
         });
 
         if (activeEvent) {
+          const [h, m] = activeEvent.time!.split(':').map(Number);
+          const start = h * 60 + m;
+          const end = start + (activeEvent.duration || 0);
+          const travel = currentTime < start ? 'before' : currentTime >= end ? 'after' : undefined;
           setCurrentEvent({
             type: 'calendar',
             title: activeEvent.title,
             id: activeEvent.id,
+            travel,
+            travelMinutes: travel === 'before' ? activeEvent.travelTimeStart : travel === 'after' ? activeEvent.travelTimeEnd : undefined,
           });
           return;
         }
@@ -137,6 +147,11 @@ export const CurrentEventDisplay = () => {
             Current {currentEvent.type === 'calendar' ? 'Event' : 'Timetable Block'}
           </div>
           <div className="font-semibold text-foreground">{currentEvent.title}</div>
+          {currentEvent.travel && (
+            <div className="text-xs text-muted-foreground">
+              Travel {currentEvent.travel === 'before' ? 'to' : 'from'} event ({currentEvent.travelMinutes}m)
+            </div>
+          )}
         </div>
       </div>
     </Card>

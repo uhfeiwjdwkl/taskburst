@@ -225,6 +225,17 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit, onDuplicate }: E
             </div>
           )}
 
+          {((event.travelTimeStart || 0) > 0 || (event.travelTimeEnd || 0) > 0) && (
+            <div>
+              <Label className="text-muted-foreground text-sm">Travel time</Label>
+              <p className="mt-1 text-sm">
+                {(event.travelTimeStart || 0) > 0 && <span>{event.travelTimeStart}m before</span>}
+                {(event.travelTimeStart || 0) > 0 && (event.travelTimeEnd || 0) > 0 && ' • '}
+                {(event.travelTimeEnd || 0) > 0 && <span>{event.travelTimeEnd}m after</span>}
+              </p>
+            </div>
+          )}
+
           {event.recurring?.enabled && (
             <div>
               <Label className="text-muted-foreground text-sm flex items-center gap-1">
