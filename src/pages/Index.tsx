@@ -292,6 +292,8 @@ const Index = () => {
 
     // Re-index every task so orders are always unique and contiguous.
     setTasks(nextSorted.map((task, index) => ({ ...task, order: index })));
+    // A manual drag means the list is now in manual order.
+    if (taskSortBy !== 'manual') { setTaskSortBy('manual'); localStorage.setItem('homeTaskSortBy', 'manual'); }
   };
 
   // Sort tasks by manual order first, then by importance and due date

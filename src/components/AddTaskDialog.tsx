@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Task } from '@/types/task';
+import { useAppSettings } from '@/hooks/useAppSettings';
 import TaskDetailsDialog from '@/components/TaskDetailsDialog';
 import { ImportTaskButton } from '@/components/ImportTaskButton';
 
@@ -12,6 +13,7 @@ interface AddTaskDialogProps {
 
 const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogProps) => {
   // Build a fresh blank task each time the dialog opens so all fields reset.
+  const settings = useAppSettings();
   const blankTask: Task | null = useMemo(() => {
     if (!open) return null;
     return {
@@ -20,7 +22,7 @@ const AddTaskDialog = ({ open, onClose, onAdd, prefilledDate }: AddTaskDialogPro
       description: '',
       category: '',
       importance: 2,
-      estimatedMinutes: 25,
+      estimatedMinutes: Math.max(0, Number(settings.defaultTaskMinutes) || 0),
       spentMinutes: 0,
       dueDate: prefilledDate || '',
       completed: false,

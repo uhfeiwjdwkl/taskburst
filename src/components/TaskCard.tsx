@@ -1,3 +1,5 @@
+import { getDuePill, DEFAULT_DUE_BANDS } from '@/lib/dueBands';
+import { useAppSettings } from '@/hooks/useAppSettings';
 import { useState } from 'react';
 import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
@@ -33,6 +35,8 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const subtasks = task.subtasks || [];
+  const appSettings = useAppSettings();
+  const isStopwatch = appSettings.timerMode === 'stopwatch';
   const remainingMinutes = Math.max(task.estimatedMinutes - task.spentMinutes, 0);
   const remainingSeconds = Math.round(remainingMinutes * 60);
   const remainingMins = Math.floor(remainingSeconds / 60);
@@ -85,15 +89,25 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
                 )}
               </div>
             )}
+            {task.estimatedMinutes > 0 && (
             <div className="flex items-center gap-1">
               <Clock className="h-4 w-4" />
               <span>{remainingMins}m {remainingSecs}s left</span>
             </div>
+            )}
             {task.dueDate && (
               <div>
                 Due: {new Date(task.dueDate).toLocaleDateString('en-GB')}
               </div>
             )}
+            {(() => {
+              const pill = getDuePill(task.dueDate, appSettings.dueBands || DEFAULT_DUE_BANDS);
+              return (
+                <span className="rounded-full px-2 py-0.5 text-xs font-medium text-white" style={{ backgroundColor: pill.color }}>
+                  {pill.text}
+                </span>
+              );
+            })()}
           </div>
 
           {/* Universal Progress Grid - only show if grid size > 0 */}
@@ -112,18 +126,22 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
           </div>
           )}
             
-          {/* Timer Progress Bar */}
+          {/* Timer Progress Bar — stopwatch mode only shows once the timer has been used */}
+          {(isStopwatch ? task.spentMinutes > 0 : (task.estimatedMinutes > 0 || task.spentMinutes > 0)) && (
           <div className="space-y-1 mb-3">
             <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
               <div 
                 className="h-full bg-gradient-primary transition-all duration-300"
-                style={{ width: `${task.estimatedMinutes > 0 ? Math.min((task.spentMinutes / task.estimatedMinutes) * 100, 100) : 0}%` }}
+                style={{ width: `${isStopwatch && !(task.estimatedMinutes > 0) ? 100 : task.estimatedMinutes > 0 ? Math.min((task.spentMinutes / task.estimatedMinutes) * 100, 100) : 0}%` }}
               />
             </div>
             <div className="text-xs text-muted-foreground">
-              {formattedSpent} / {Math.round(task.estimatedMinutes)} minutes
+              {task.estimatedMinutes > 0
+                ? `${formattedSpent} / ${Math.round(task.estimatedMinutes)} minutes`
+                : `${formattedSpent} spent (${Math.round(task.spentMinutes)} min)`}
             </div>
           </div>
+          )}
 
           {/* Collapsible Subtasks */}
           {subtasks.length > 0 && (

@@ -17,7 +17,7 @@ interface UniversalProgressGridProps {
   interactive?: boolean;
 }
 
-const getStoredFilledIndices = (taskId: string): number[] | null => {
+export const getStoredFilledIndices = (taskId: string): number[] | null => {
   const stored = localStorage.getItem('progressGridFilledIndices');
   if (!stored) return null;
   try {
@@ -28,7 +28,7 @@ const getStoredFilledIndices = (taskId: string): number[] | null => {
   }
 };
 
-const storeFilledIndices = (taskId: string, indices: number[]): void => {
+export const storeFilledIndices = (taskId: string, indices: number[]): void => {
   const stored = localStorage.getItem('progressGridFilledIndices');
   let data: Record<string, number[]> = {};
   if (stored) {

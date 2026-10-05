@@ -1,3 +1,4 @@
+import { getStoredFilledIndices, storeFilledIndices } from '@/components/UniversalProgressGrid';
 import { useState } from 'react';
 import { Subtask } from '@/types/subtask';
 import { Button } from '@/components/ui/button';
@@ -149,7 +150,26 @@ export const SubtaskList = ({
     const [moved] = reordered.splice(from, 1);
     if (!moved) return;
     reordered.splice(to, 0, moved);
-    onSubtasksChange(reordered);
+    // Progress boxes follow subtask order: linked subtasks keep the same set of
+    // box slots, re-assigned in their new order (filled state moves with them).
+    const slots = reordered
+      .filter(st => st.linkedToProgressGrid && st.progressGridIndex !== undefined)
+      .map(st => st.progressGridIndex as number)
+      .sort((a, b) => a - b);
+    const remap = new Map<number, number>();
+    let k = 0;
+    const withBoxes = reordered.map(st => {
+      if (!st.linkedToProgressGrid || st.progressGridIndex === undefined) return st;
+      const next = slots[k++];
+      remap.set(st.progressGridIndex, next);
+      return { ...st, progressGridIndex: next };
+    });
+    const taskId = moved.taskId;
+    if (taskId && remap.size) {
+      const filled = getStoredFilledIndices(taskId);
+      if (filled) storeFilledIndices(taskId, filled.map(i => remap.get(i) ?? i).sort((a, b) => a - b));
+    }
+    onSubtasksChange(withBoxes);
   };
 
   return (
