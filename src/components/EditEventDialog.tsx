@@ -147,6 +147,7 @@ export function EditEventDialog({ event, open, onClose, onSave }: EditEventDialo
       } : undefined,
     });
 
+    window.dispatchEvent(new Event('calendarEventsUpdated'));
     onClose();
   };
 

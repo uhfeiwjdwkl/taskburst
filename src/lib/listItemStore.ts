@@ -1,3 +1,4 @@
+import { loadPartialSlots, savePartialSlots } from '@/lib/partialSchedule';
 import { List, ListItem } from '@/types/list';
 
 const readLists = (): List[] => {
@@ -40,6 +41,7 @@ export const deleteStoredListItem = (listId: string, itemId: string): List[] => 
       { ...item, listId, deletedAt: new Date().toISOString() },
     ]));
   }
+  savePartialSlots(loadPartialSlots().filter(slot => !(slot.itemType === 'listItem' && slot.itemId === itemId && slot.listId === listId)));
   const updated = lists.map(candidate =>
     candidate.id === listId
       ? { ...candidate, items: candidate.items.filter(candidateItem => candidateItem.id !== itemId) }

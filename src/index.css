@@ -15,6 +15,8 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    --pill-ink: 0 0% 0%;
+    --pill-paper: 0 0% 100%;
     --background: 240 20% 99%;
     --foreground: 240 10% 15%;
 

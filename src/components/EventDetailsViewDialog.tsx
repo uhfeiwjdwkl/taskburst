@@ -1,3 +1,6 @@
+import { eventTimingLabel, eventDuration, clockMinutes, TIMELINE_PIXELS_PER_MINUTE } from '@/lib/eventTiming';
+import { deleteStoredEntity } from '@/lib/itemDeletion';
+import { ConfirmDelete } from './ConfirmDeleteButton';
 import { CalendarEvent } from '@/types/event';
 import {
   Dialog,
@@ -8,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Calendar as CalendarIcon, Edit, MapPin, Repeat, CalendarRange } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, Edit, Trash2, MapPin, Repeat, CalendarRange } from 'lucide-react';
 import { ExportEventButton } from '@/components/ExportEventButton';
 import { differenceInDays, format, parseISO, eachDayOfInterval, addDays, startOfWeek, endOfWeek } from 'date-fns';
 import { sanitizeHtml } from '@/lib/sanitizeHtml';
@@ -19,14 +22,15 @@ interface EventDetailsViewDialogProps {
   onClose: () => void;
   onEdit?: () => void;
   onDuplicate?: () => void;
+  onDelete?: () => void;
 }
 
-const EventDetailsViewDialog = ({ event, open, onClose, onEdit, onDuplicate }: EventDetailsViewDialogProps) => {
+const EventDetailsViewDialog = ({ event, open, onClose, onEdit, onDuplicate, onDelete }: EventDetailsViewDialogProps) => {
   if (!event) return null;
 
   const isMultiDay = !!event.endDate;
   const durationInDays = isMultiDay 
-    ? differenceInDays(parseISO(event.endDate!), parseISO(event.date)) + 1
+    ? differenceInDays(parseISO(event.endDate || event.date), parseISO(event.date)) + 1
     : 1;
 
   const formatTime12Hour = (time: string) => {
@@ -43,17 +47,13 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit, onDuplicate }: E
   const calendarEnd = endOfWeek(eventEndDate, { weekStartsOn: 1 });
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-  // Generate time slots for single-day timetable view
-  const generateTimeSlots = () => {
-    if (!event.time) return [];
-    const [startHour] = event.time.split(':').map(Number);
-    const duration = event.duration || 60;
-    const endHour = Math.min(startHour + Math.ceil(duration / 60) + 1, 24);
-    const startDisplay = Math.max(startHour - 1, 0);
-    return Array.from({ length: endHour - startDisplay + 1 }, (_, i) => startDisplay + i);
-  };
-
-  const timeSlots = generateTimeSlots();
+  const duration = eventDuration(event) ?? 0;
+  const startMinutes = event.time ? clockMinutes(event.time) : 0;
+  const before = event.travelTimeStart || 0;
+  const after = event.travelTimeEnd || 0;
+  const viewStart = Math.max(0, Math.floor((startMinutes - before) / 60) * 60);
+  const viewEnd = Math.min(1440, Math.ceil((startMinutes + Math.max(5, duration) + after) / 60) * 60);
+  const timeSlots = Array.from({ length: Math.max(1, (viewEnd - viewStart) / 60) + 1 }, (_, i) => viewStart / 60 + i);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -121,40 +121,12 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit, onDuplicate }: E
                 </div>
               </div>
             ) : event.time ? (
-              // Mini timetable for single-day events
-              <div className="border rounded-lg p-2 bg-muted/30 relative">
-                <div className="space-y-0">
-                  {timeSlots.map((hour) => {
-                    const [eventHour, eventMin] = event.time!.split(':').map(Number);
-                    const duration = event.duration || 60;
-                    const isEventStart = hour === eventHour;
-                    const eventEndHour = eventHour + Math.floor((eventMin + duration) / 60);
-                    const isInEvent = hour >= eventHour && hour < eventEndHour;
-                    
-                    return (
-                      <div key={hour} className="flex items-center gap-2 h-6">
-                        <span className="text-xs text-muted-foreground w-12">
-                          {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
-                        </span>
-                        <div className={`flex-1 h-full border-t border-border relative ${
-                          isInEvent ? 'bg-primary/20' : ''
-                        }`}>
-                          {isEventStart && (
-                            <div 
-                              className="absolute left-0 right-0 bg-primary text-primary-foreground text-xs px-1 rounded z-10 truncate"
-                              style={{ 
-                                top: `${(eventMin / 60) * 100}%`,
-                                height: `${Math.min(duration / 60, eventEndHour - hour) * 100}%`,
-                                minHeight: '20px'
-                              }}
-                            >
-                              {event.title}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+              <div className="border rounded-lg bg-muted/30 max-h-72 overflow-y-auto p-2">
+                <div className="relative" style={{ height: `${Math.max(60, viewEnd - viewStart) * TIMELINE_PIXELS_PER_MINUTE}px` }}>
+                  {timeSlots.map(hour => <div key={hour} className="absolute inset-x-0 border-t text-xs text-muted-foreground" style={{ top: `${(hour * 60 - viewStart) * TIMELINE_PIXELS_PER_MINUTE}px` }}>{hour.toString().padStart(2, '0')}:00</div>)}
+                  {before > 0 && <div className="absolute left-14 right-0 bg-primary/10 border-l-2 border-primary border-dotted opacity-40" style={{ top: `${(startMinutes - before - viewStart) * TIMELINE_PIXELS_PER_MINUTE}px`, height: `${before * TIMELINE_PIXELS_PER_MINUTE}px` }} />}
+                  <div className="absolute left-14 right-0 bg-primary/20 border-l-2 border-primary px-2 text-xs overflow-hidden" style={{ top: `${(startMinutes - viewStart) * TIMELINE_PIXELS_PER_MINUTE}px`, height: `${Math.max(5, duration) * TIMELINE_PIXELS_PER_MINUTE}px` }}>{event.title}</div>
+                  {after > 0 && <div className="absolute left-14 right-0 bg-primary/10 border-l-2 border-primary border-dotted opacity-40" style={{ top: `${(startMinutes + duration - viewStart) * TIMELINE_PIXELS_PER_MINUTE}px`, height: `${after * TIMELINE_PIXELS_PER_MINUTE}px` }} />}
                 </div>
               </div>
             ) : null}
@@ -177,7 +149,7 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit, onDuplicate }: E
                   <CalendarIcon className="h-3 w-3" />
                   End Date
                 </Label>
-                <p className="mt-1">{format(parseISO(event.endDate!), 'EEEE, d MMMM yyyy')}</p>
+                <p className="mt-1">{format(parseISO(event.endDate || event.date), 'EEEE, d MMMM yyyy')}</p>
                 {event.endTime && (
                   <p className="text-sm text-muted-foreground">at {formatTime12Hour(event.endTime)}</p>
                 )}
@@ -199,7 +171,7 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit, onDuplicate }: E
                     <Clock className="h-3 w-3" />
                     Time
                   </Label>
-                  <p className="mt-1 font-semibold">{formatTime12Hour(event.time)}</p>
+                  <p className="mt-1 font-semibold break-words">{eventTimingLabel(event)}</p>
                 </div>
               )}
 
@@ -225,16 +197,7 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit, onDuplicate }: E
             </div>
           )}
 
-          {((event.travelTimeStart || 0) > 0 || (event.travelTimeEnd || 0) > 0) && (
-            <div>
-              <Label className="text-muted-foreground text-sm">Travel time</Label>
-              <p className="mt-1 text-sm">
-                {(event.travelTimeStart || 0) > 0 && <span>{event.travelTimeStart}m before</span>}
-                {(event.travelTimeStart || 0) > 0 && (event.travelTimeEnd || 0) > 0 && ' • '}
-                {(event.travelTimeEnd || 0) > 0 && <span>{event.travelTimeEnd}m after</span>}
-              </p>
-            </div>
-          )}
+          {isMultiDay && event.time && <p className="text-sm break-words">{eventTimingLabel(event)}</p>}
 
           {event.recurring?.enabled && (
             <div>
@@ -249,7 +212,8 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit, onDuplicate }: E
             </div>
           )}
 
-          <div className="pt-4 flex gap-2 justify-end">
+          <div className="pt-4 flex flex-wrap gap-2 justify-end">
+            <ConfirmDelete title="Delete this event?" description="This event will be moved to recently deleted." onConfirm={() => { if (onDelete) onDelete(); else deleteStoredEntity('calendarEvents', event.id); onClose(); }} trigger={open => <Button type="button" variant="destructive" onClick={open}><Trash2 className="h-4 w-4 mr-2" />Delete</Button>} />
             <ExportEventButton event={event} />
             {onDuplicate && (
               <Button variant="outline" onClick={onDuplicate}>
