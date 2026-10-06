@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
+import { eventTimingLabel, MIN_EVENT_MINUTES, TIMELINE_PIXELS_PER_MINUTE } from '@/lib/eventTiming';
 import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import { CalendarEvent } from '@/types/event';
@@ -93,6 +94,7 @@ export const HomeDayCalendar = ({
 
   // Load events and timetables
   useEffect(() => {
+    const loadEvents = () => {
     const savedEvents = localStorage.getItem('calendarEvents');
     if (savedEvents) {
       try {
@@ -101,6 +103,10 @@ export const HomeDayCalendar = ({
       } catch { setEvents([]); }
     }
     
+    };
+    loadEvents();
+    window.addEventListener('calendarEventsUpdated', loadEvents);
+    window.addEventListener('storage', loadEvents);
     const savedTimetables = localStorage.getItem('timetables');
     if (savedTimetables) {
       let parsed: unknown;
@@ -117,6 +123,7 @@ export const HomeDayCalendar = ({
         });
       setFlexibleEvents(allFlexEvents);
     }
+    return () => { window.removeEventListener('calendarEventsUpdated', loadEvents); window.removeEventListener('storage', loadEvents); };
   }, []);
 
   // Update current time position every minute
@@ -133,7 +140,7 @@ export const HomeDayCalendar = ({
     updatePosition();
     const interval = setInterval(updatePosition, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [startHour, totalHours]);
 
   // Get items for today
   const todayItems = useMemo(() => {
@@ -241,7 +248,7 @@ export const HomeDayCalendar = ({
     const items = timedItems.map(it => {
       const [h, m] = (it.time || '0:0').split(':').map(Number);
       const start = h * 60 + m;
-      const end = start + (it.duration || 30);
+      const end = start + Math.max(MIN_EVENT_MINUTES, it.duration ?? 30);
       return { it, start, end };
     }).sort((a, b) => a.start - b.start || a.end - b.end);
     let cluster: typeof items = [];
@@ -444,7 +451,7 @@ export const HomeDayCalendar = ({
         onWheel={handleWheel}
         style={{ touchAction: interactionMode === 'pan' ? 'none' : 'auto' }}
       >
-        <div className="relative" style={{ height: `${400 * zoomLevel}px`, width: `${100 * hZoom}%` }}>
+        <div className="relative" style={{ height: `${totalHours * 60 * TIMELINE_PIXELS_PER_MINUTE * zoomLevel}px`, width: `${100 * hZoom}%` }}>
           {/* Hour lines */}
           {hoursArr.map((hour, index) => (
             <div
@@ -471,8 +478,9 @@ export const HomeDayCalendar = ({
           {/* Timed Items */}
           <div className="absolute left-12 right-1 top-0 bottom-0">
             {timedItems.map(item => {
-              const top = getTimePosition(item.time!);
-              const height = getHeightForDuration(item.duration || 30);
+              if (!item.time) return null;
+              const top = getTimePosition(item.time);
+              const height = getHeightForDuration(Math.max(MIN_EVENT_MINUTES, item.duration ?? 30));
               const layout = layoutMap.get(item.id) || { col: 0, cols: 1 };
               const widthPct = 100 / layout.cols;
               const leftPct = layout.col * widthPct;
@@ -485,9 +493,14 @@ export const HomeDayCalendar = ({
                 ? 'bg-green-500/20 border-green-500'
                 : 'bg-primary/20 border-primary';
 
+              const before = item.type === 'event' ? item.data.travelTimeStart || 0 : 0;
+              const after = item.type === 'event' ? item.data.travelTimeEnd || 0 : 0;
+              const travelStyle = (position: number, duration: number) => ({ top: `${position}%`, height: `${getHeightForDuration(duration)}%`, left: `${leftPct}%`, width: `calc(${widthPct}% - 2px)`, borderColor: item.color });
               return (
+                <Fragment key={item.id}>
+                {before > 0 && <div aria-hidden="true" className="absolute border-l-2 border-dotted opacity-40 bg-primary/10 border-primary pointer-events-none" style={travelStyle(top - getHeightForDuration(before), before)} />}
+                {after > 0 && <div aria-hidden="true" className="absolute border-l-2 border-dotted opacity-40 bg-primary/10 border-primary pointer-events-none" style={travelStyle(top + getHeightForDuration(item.duration ?? 30), after)} />}
                 <div
-                  key={item.id}
                   className={cn(
                     "absolute border-l-2 rounded-r px-2 py-0.5 cursor-pointer overflow-hidden transition-colors hover:opacity-80",
                     bgColor,
@@ -495,7 +508,7 @@ export const HomeDayCalendar = ({
                   )}
                   style={{ 
                     top: `${top}%`, 
-                    height: `${Math.max(height, 2.5)}%`,
+                    height: `${height}%`,
                     left: `${leftPct}%`,
                     width: `calc(${widthPct}% - 2px)`,
                     backgroundColor: item.color ? `${item.color}30` : undefined,
@@ -526,8 +539,7 @@ export const HomeDayCalendar = ({
                     )}
                   </div>
                   <div className="text-[10px] text-muted-foreground">
-                    {formatTimeTo12Hour(item.time!)}
-                    {item.duration && ` • ${item.duration}m`}
+                    {item.type === 'event' ? eventTimingLabel(item.data) : `${formatTimeTo12Hour(item.time)}${item.duration !== undefined ? ` • ${item.duration}m` : ''}`}
                   </div>
                   {item.parentTitle && (
                     <div className="text-[10px] text-muted-foreground truncate">
@@ -535,6 +547,7 @@ export const HomeDayCalendar = ({
                     </div>
                   )}
                 </div>
+                </Fragment>
               );
             })}
           </div>

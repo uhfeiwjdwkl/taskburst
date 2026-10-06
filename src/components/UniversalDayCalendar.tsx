@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, Fragment } from 'react';
+import { eventTimingLabel, MIN_EVENT_MINUTES, TIMELINE_PIXELS_PER_MINUTE } from '@/lib/eventTiming';
 import { Task } from '@/types/task';
 import { ListItemFullDetailsDialog } from '@/components/ListItemFullDetailsDialog';
 import { updateStoredListItem, deleteStoredListItem } from '@/lib/listItemStore';
@@ -166,7 +167,10 @@ export const UniversalDayCalendar = ({
     load();
     window.addEventListener('storage', load);
     window.addEventListener('listsUpdated', load);
-    return () => { window.removeEventListener('storage', load); window.removeEventListener('listsUpdated', load); };
+    const loadEvents = () => setEvents(safeParse('calendarEvents') as CalendarEvent[]);
+    window.addEventListener('calendarEventsUpdated', loadEvents);
+    window.addEventListener('storage', loadEvents);
+    return () => { window.removeEventListener('storage', load); window.removeEventListener('listsUpdated', load); window.removeEventListener('calendarEventsUpdated', loadEvents); window.removeEventListener('storage', loadEvents); };
   }, []);
 
   useEffect(() => {
@@ -399,7 +403,7 @@ export const UniversalDayCalendar = ({
     const items = timedItems.map(it => {
       const [h, m] = (it.time || '0:0').split(':').map(Number);
       const start = h * 60 + m;
-      const end = start + (it.duration || 30);
+      const end = start + Math.max(MIN_EVENT_MINUTES, it.duration ?? 30);
       return { it, start, end };
     }).sort((a, b) => a.start - b.start || a.end - b.end);
 
@@ -544,7 +548,7 @@ export const UniversalDayCalendar = ({
   }, [tasks]);
 
   const datesWithEvents = useMemo(() => {
-    return getEventDatesForRange(events, addDays(currentDate, -120), addDays(currentDate, 120));
+    return getEventDatesForRange(events.filter(event => !event.recurring?.enabled), addDays(currentDate, -120), addDays(currentDate, 120));
   }, [events, currentDate]);
 
   const isToday = isSameDay(currentDate, new Date());
@@ -721,7 +725,7 @@ export const UniversalDayCalendar = ({
       <ScrollArea className="flex-1 min-h-0">
         <div
           className="relative"
-          style={{ height: '680px' }}
+          style={{ height: `${totalHours * 60 * TIMELINE_PIXELS_PER_MINUTE}px` }}
           onDragOver={(event) => { if (moveMode) event.preventDefault(); }}
           onDrop={(event) => {
             if (!moveMode || !onMoveItems) return;
@@ -764,8 +768,9 @@ export const UniversalDayCalendar = ({
           {/* Timed Items */}
           <div className="absolute left-12 right-1 top-0 bottom-0">
             {timedItems.map(item => {
-              const top = getTimePosition(item.time!);
-              const height = getHeightForDuration(item.duration || 30);
+              if (!item.time) return null;
+              const top = getTimePosition(item.time);
+              const height = getHeightForDuration(Math.max(MIN_EVENT_MINUTES, item.duration ?? 30));
               const layout = layoutMap.get(item.id) || { col: 0, cols: 1 };
               const widthPct = 100 / layout.cols;
               const leftPct = layout.col * widthPct;
@@ -779,13 +784,13 @@ export const UniversalDayCalendar = ({
               return (
                 <Fragment key={item.id}>
                 {travelBefore > 0 && (
-                  <div className="absolute border-l-2 border-dotted rounded-r px-2 opacity-40 bg-blue-500/10 border-blue-500 pointer-events-none overflow-hidden" style={travelStyle(top - getHeightForDuration(travelBefore), getHeightForDuration(travelBefore))}>
-                    <span className="text-[10px]">{travelBefore}m travel</span>
+                  <div className="absolute border-l-2 border-dotted rounded-r px-2 opacity-40 bg-primary/10 border-primary pointer-events-none overflow-hidden" style={travelStyle(top - getHeightForDuration(travelBefore), getHeightForDuration(travelBefore))}>
+                    
                   </div>
                 )}
                 {travelAfter > 0 && (
-                  <div className="absolute border-l-2 border-dotted rounded-r px-2 opacity-40 bg-blue-500/10 border-blue-500 pointer-events-none overflow-hidden" style={travelStyle(top + Math.max(height, 3), getHeightForDuration(travelAfter))}>
-                    <span className="text-[10px]">{travelAfter}m travel</span>
+                  <div className="absolute border-l-2 border-dotted rounded-r px-2 opacity-40 bg-primary/10 border-primary pointer-events-none overflow-hidden" style={travelStyle(top + getHeightForDuration(item.duration ?? 30), getHeightForDuration(travelAfter))}>
+                    
                   </div>
                 )}
                 <div
@@ -796,7 +801,7 @@ export const UniversalDayCalendar = ({
                   )}
                   style={{
                     top: `${top}%`,
-                    height: `${Math.max(height, 3)}%`,
+                    height: `${height}%`,
                     left: `${leftPct}%`,
                     width: `calc(${widthPct}% - 2px)`,
                     backgroundColor: item.color ? `${item.color}30` : undefined,
@@ -810,7 +815,7 @@ export const UniversalDayCalendar = ({
                    {moveSelection.has(item.id) && <div className="absolute inset-0 z-10 ring-2 ring-ring pointer-events-none" />}
                   <div className="flex items-center gap-1">
                     {item.completed && <CheckCircle2 className="h-3 w-3 text-green-600 flex-shrink-0" />}
-                    <span className={cn("text-xs font-medium truncate", item.completed && "line-through")}>
+                    <span className={cn("text-xs font-medium break-words", item.completed && "line-through")}>
                       {item.title}
                     </span>
                     {item.type === 'subtask' && !item.completed && onStartSubtask && (
@@ -832,8 +837,7 @@ export const UniversalDayCalendar = ({
                     )}
                   </div>
                   <div className="text-[10px] text-muted-foreground">
-                    {formatTimeTo12Hour(item.time!)}
-                    {item.duration && ` • ${item.duration}m`}
+                    {item.type === 'event' ? eventTimingLabel(item.data) : `${formatTimeTo12Hour(item.time)}${item.duration !== undefined ? ` • ${item.duration}m` : ''}`}
                   </div>
                   {item.parentTitle && (
                     <div className="text-[10px] text-muted-foreground truncate">
@@ -856,7 +860,6 @@ export const UniversalDayCalendar = ({
         <Card className={cn("p-4 h-full flex flex-col", className)}>{content}</Card>
         <ExportDayPlanDialog open={exportOpen} onClose={() => setExportOpen(false)} date={currentDate} />
         {slotDialog}
-    {internalListItemDialog}
         {internalListItemDialog}
       </>
     );
@@ -866,5 +869,6 @@ export const UniversalDayCalendar = ({
     <div className={cn("h-full flex flex-col", className)}>{content}</div>
     <ExportDayPlanDialog open={exportOpen} onClose={() => setExportOpen(false)} date={currentDate} />
     {slotDialog}
+    {internalListItemDialog}
   </>;
 };

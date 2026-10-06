@@ -1,5 +1,6 @@
 import { addDays, differenceInCalendarDays, eachDayOfInterval, parseISO } from 'date-fns';
 import { CalendarEvent } from '@/types/event';
+import { eventDuration } from '@/lib/eventTiming';
 
 const toDateOnly = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
@@ -59,17 +60,17 @@ export const getEventTimeSpanForDate = (
 ): { time?: string; duration?: number } => {
   const start = safeParseDate(event.date);
   const target = toDateOnly(targetDate);
-  if (!start) return { time: event.time, duration: event.duration };
+  if (!start) return { time: event.time, duration: eventDuration(event) };
 
   const end = safeParseDate(event.endDate);
   const isMultiDay = !!end && differenceInCalendarDays(end, start) > 0;
-  if (!isMultiDay) return { time: event.time, duration: event.duration };
+  if (!isMultiDay || !end) return { time: event.time, duration: eventDuration(event) };
 
   // For recurring multi-day events, project the target onto the matching occurrence.
-  const spanDays = differenceInCalendarDays(end!, start);
+  const spanDays = differenceInCalendarDays(end, start);
   const recurringInterval = event.recurring?.enabled ? Math.max(1, event.recurring.intervalDays || 1) : null;
   let occStart = start;
-  let occEnd = end!;
+  let occEnd = end;
   if (recurringInterval) {
     const diffFromStart = differenceInCalendarDays(target, start);
     if (diffFromStart >= 0) {
@@ -92,7 +93,7 @@ export const getEventTimeSpanForDate = (
     if (startMin !== null && endMin !== null) {
       return { time: event.time, duration: Math.max(1, endMin - startMin) };
     }
-    return { time: event.time, duration: event.duration };
+    return { time: event.time, duration: eventDuration(event) };
   }
 
   if (isStart) {
