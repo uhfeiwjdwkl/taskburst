@@ -1,3 +1,6 @@
+import { eventTimingLabel } from '@/lib/eventTiming';
+import { deleteStoredEntity, removeSubtask } from '@/lib/itemDeletion';
+import { List as TaskList } from '@/types/list';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
@@ -62,6 +65,8 @@ const CalendarPage = () => {
   const [events, setEvents] = useState<CalendarEvent[]>(() => safeParse('calendarEvents') as CalendarEvent[]);
   const tasksMountedRef = useRef(false);
   const eventsMountedRef = useRef(false);
+  const [lists, setLists] = useState<TaskList[]>(() => safeParse('lists') as TaskList[]);
+  const [partialSlots, setPartialSlots] = useState(loadPartialSlots);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [timetables, setTimetables] = useState<Timetable[]>([]);
   const [selectedTimetableId, setSelectedTimetableIdState] = useState<string>(() => {
@@ -109,6 +114,22 @@ const CalendarPage = () => {
   useEffect(() => {
     setAssessments(safeParse('assessments').filter((a: Assessment) => !a.deletedAt) as Assessment[]);
     setTimetables((safeParse('timetables') as Timetable[]).filter(t => !t.deletedAt));
+  }, []);
+
+  useEffect(() => {
+    const reload = () => {
+      setTasks(safeParse('tasks') as Task[]);
+      setEvents(safeParse('calendarEvents') as CalendarEvent[]);
+      setLists(safeParse('lists') as TaskList[]);
+      setPartialSlots(loadPartialSlots());
+    };
+    const reloadEvents = () => setEvents(safeParse('calendarEvents') as CalendarEvent[]);
+    const reloadLists = () => { setLists(safeParse('lists') as TaskList[]); setPartialSlots(loadPartialSlots()); };
+    window.addEventListener('storage', reload);
+    window.addEventListener('calendarEventsUpdated', reloadEvents);
+    window.addEventListener('listsUpdated', reloadLists);
+    window.addEventListener('partialScheduleUpdated', reloadLists);
+    return () => { window.removeEventListener('storage', reload); window.removeEventListener('calendarEventsUpdated', reloadEvents); window.removeEventListener('listsUpdated', reloadLists); window.removeEventListener('partialScheduleUpdated', reloadLists); };
   }, []);
 
   // Skip the mount run: re-saving loaded data must never touch storage (or sync).
@@ -278,7 +299,7 @@ const CalendarPage = () => {
   const getDatesWithEvents = () => {
     const anchor = selectedDate || new Date();
     return getEventDatesForRange(
-      events,
+      events.filter(event => !event.recurring?.enabled),
       new Date(anchor.getTime() - 1000 * 60 * 60 * 24 * 120),
       new Date(anchor.getTime() + 1000 * 60 * 60 * 24 * 120)
     );
@@ -438,28 +459,43 @@ const CalendarPage = () => {
         </div>
 
         <div className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Calendar */}
-            <Card className="p-6">
-              <div className="mb-4 p-3 bg-muted/50 rounded-md">
-                <p className="text-sm text-muted-foreground">
-                  <strong>Legend:</strong> <span className="underline decoration-primary decoration-2">Underlined</span> = tasks • <strong className="font-bold">Bold</strong> = events
-                </p>
-              </div>
-              <div className="flex justify-center">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={handleDateSelect}
-                  className="pointer-events-auto"
-                  modifiers={{ hasTask: datesWithTasks, hasEvent: datesWithEvents }}
-                  modifiersStyles={{
-                    hasTask: { textDecoration: 'underline', textDecorationColor: 'hsl(var(--primary))', textDecorationThickness: '2px' },
-                    hasEvent: { fontWeight: 'bold' },
-                  }}
-                />
-              </div>
-            </Card>
+          <div className="grid gap-6">
+            <section className="min-w-0">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={handleDateSelect}
+                className="pointer-events-auto w-full p-0"
+                classNames={{
+                  months: 'w-full', month: 'w-full space-y-3',
+                  caption: 'flex justify-center relative items-center h-10', caption_label: 'text-lg font-semibold',
+                  table: 'w-full border-collapse table-fixed',
+                  head_row: 'grid grid-cols-7', head_cell: 'text-muted-foreground text-xs text-center py-2',
+                  row: 'grid grid-cols-7 w-full',
+                  cell: 'min-w-0 h-24 sm:h-32 border border-border relative text-center p-0',
+                  day: 'w-full h-full rounded-none p-1 sm:p-2 flex flex-col items-start justify-start font-normal hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring',
+                  day_selected: 'bg-primary/15 text-foreground ring-2 ring-inset ring-primary',
+                  day_today: 'bg-muted text-foreground', day_outside: 'text-muted-foreground opacity-50',
+                }}
+                modifiers={{ hasEvent: date => events.some(event => !event.recurring?.enabled && eventOccursOnDate(event, date)) }}
+                components={{ DayContent: ({ date }) => {
+                  const dateKey = format(date, 'yyyy-MM-dd');
+                  const counts = [
+                    { label: 'Tasks', count: getTasksForDate(date).length },
+                    { label: 'Subtasks', count: getSubtasksForDate(date).length },
+                    { label: 'List items', count: lists.filter(list => !list.archivedAt && !list.deletedAt).reduce((sum, list) => sum + (list.items || []).filter(item => !item.deletedAt && item.dateTime?.slice(0, 10) === dateKey).length, 0) },
+                    { label: 'Sessions', count: partialSlots.filter(slot => slot.date === dateKey).length },
+                    { label: 'Events', count: events.filter(event => !event.recurring?.enabled && eventOccursOnDate(event, date)).length },
+                  ];
+                  const total = counts.reduce((sum, item) => sum + item.count, 0);
+                  return <div className="w-full min-w-0 text-left" title={counts.map(item => `${item.count} ${item.label.toLowerCase()}`).join(', ')}>
+                    <span className={cn('text-sm', counts[4].count > 0 && 'font-bold')}>{format(date, 'd')}</span>
+                    <div className="hidden sm:flex flex-col mt-1 gap-0.5 text-[10px] leading-3">{counts.filter(item => item.count > 0).map(item => <span key={item.label}>{item.count} {item.label}</span>)}</div>
+                    {total > 0 && <span className="sm:hidden block text-[10px] leading-3 mt-1 break-words">{total} items</span>}
+                  </div>;
+                } }}
+              />
+            </section>
 
             {/* Day Items List */}
             <Card className="p-6">
@@ -548,17 +584,7 @@ const CalendarPage = () => {
                             <span className="font-semibold text-sm truncate">{event.title}</span>
                           </div>
                           <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                            {event.time && (() => {
-                              const [h, m] = event.time.split(':').map(Number);
-                              const dur = event.duration ?? 60;
-                              const endMin = h * 60 + m + dur;
-                              const endTime = event.endTime ?? `${String(Math.floor((endMin/60)%24)).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`;
-                              return (
-                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" />
-                                  {formatTimeTo12Hour(event.time)} – {formatTimeTo12Hour(endTime)} ({dur}m)
-                                </span>
-                              );
-                            })()}
+                            <span className="flex flex-wrap items-center gap-1"><Clock className="h-3 w-3" />{eventTimingLabel(event)}</span>
                             {event.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{event.location}</span>}
                           </div>
                           <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive h-6 w-6 p-0 float-right -mt-8"
@@ -673,17 +699,7 @@ const CalendarPage = () => {
                             <p className="font-medium text-sm truncate">{event.title}</p>
                             <div className="flex gap-2 text-xs text-muted-foreground">
                               <span>{format(parseISO(event.date), 'MMM d, yyyy')}</span>
-                              {event.time && (() => {
-                                const [h, m] = event.time.split(':').map(Number);
-                                const dur = event.duration ?? 60;
-                                const endMin = h * 60 + m + dur;
-                                const endTime = event.endTime ?? `${String(Math.floor((endMin/60)%24)).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`;
-                                return (
-                                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" />
-                                    {formatTimeTo12Hour(event.time)}–{formatTimeTo12Hour(endTime)} · {dur}m
-                                  </span>
-                                );
-                              })()}
+                              <span className="flex flex-wrap items-center gap-1"><Clock className="h-3 w-3" />{eventTimingLabel(event)}</span>
                               {event.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{event.location}</span>}
                             </div>
                           </div>
@@ -737,10 +753,10 @@ const CalendarPage = () => {
           prefilledDate={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined} />
 
         <TaskDetailsDialog task={selectedTask} open={editDialogOpen} onClose={() => setEditDialogOpen(false)} onSave={handleUpdateTask} />
-        <TaskDetailsViewDialog task={selectedTask} open={detailsDialogOpen} onClose={() => setDetailsDialogOpen(false)} onUpdateTask={handleUpdateTask} onEdit={handleEdit} />
+        <TaskDetailsViewDialog task={selectedTask} open={detailsDialogOpen} onClose={() => setDetailsDialogOpen(false)} onUpdateTask={handleUpdateTask} onEdit={handleEdit} onDelete={id => { deleteStoredEntity('tasks', id); setTasks(safeParse('tasks') as Task[]); }} />
         
         <EventDetailsViewDialog event={selectedEvent} open={eventDetailsDialogOpen}
-          onClose={() => { setEventDetailsDialogOpen(false); setSelectedEvent(null); }} onEdit={handleEditEvent} onDuplicate={handleDuplicateEvent} />
+          onClose={() => { setEventDetailsDialogOpen(false); setSelectedEvent(null); }} onEdit={handleEditEvent} onDuplicate={handleDuplicateEvent} onDelete={() => { if (!selectedEvent) return; deleteStoredEntity('calendarEvents', selectedEvent.id); setEvents(safeParse('calendarEvents') as CalendarEvent[]); }} />
 
         <EditEventDialog event={selectedEvent} open={editEventDialogOpen}
           onClose={() => setEditEventDialogOpen(false)} onSave={handleUpdateEvent} />
@@ -750,6 +766,7 @@ const CalendarPage = () => {
           open={subtaskDetailsOpen}
           onClose={() => setSubtaskDetailsOpen(false)}
           parentTaskName={selectedSubtask?.task.name}
+          onDelete={() => { if (!selectedSubtask) return; const task = tasks.find(task => task.id === selectedSubtask.task.id); if (task) handleUpdateTask(removeSubtask(task, selectedSubtask.subtask.id)); setSelectedSubtask(null); }}
           onGoToParentTask={() => {
             if (selectedSubtask) {
               setSubtaskDetailsOpen(false);

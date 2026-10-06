@@ -1,3 +1,4 @@
+import { ConfirmDelete } from './ConfirmDeleteButton';
 import { useState } from 'react';
 import { Subtask } from '@/types/subtask';
 import {
@@ -9,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { X, Edit, Clock, Calendar as CalendarIcon, Check, Undo, ArrowUpRight } from 'lucide-react';
+import { X, Edit, Clock, Calendar as CalendarIcon, Check, Undo, ArrowUpRight, Trash2 } from 'lucide-react';
 import { formatTimeTo12Hour } from '@/lib/dateFormat';
 
 interface SubtaskFullDetailsDialogProps {
@@ -17,6 +18,7 @@ interface SubtaskFullDetailsDialogProps {
   open: boolean;
   onClose: () => void;
   onEdit?: () => void;
+  onDelete?: () => void;
   onComplete?: () => void;
   onUncomplete?: () => void;
   onGoToParentTask?: () => void;
@@ -28,6 +30,7 @@ export const SubtaskFullDetailsDialog = ({
   open,
   onClose,
   onEdit,
+  onDelete,
   onComplete,
   onUncomplete,
   onGoToParentTask,
@@ -148,7 +151,8 @@ export const SubtaskFullDetailsDialog = ({
           )}
         </div>
 
-        <div className="flex gap-2 justify-end border-t pt-4">
+        <div className="flex flex-wrap gap-2 justify-end border-t pt-4">
+          {onDelete && <ConfirmDelete title="Delete this subtask?" description="This subtask will be moved to recently deleted." onConfirm={() => { onDelete(); onClose(); }} trigger={open => <Button type="button" variant="destructive" onClick={open}><Trash2 className="h-4 w-4 mr-1" />Delete</Button>} />}
           {onEdit && (
             <Button variant="outline" onClick={onEdit}>
               <Edit className="h-4 w-4 mr-1" />

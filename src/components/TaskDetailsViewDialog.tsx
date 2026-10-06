@@ -1,3 +1,5 @@
+import { deleteStoredEntity, removeSubtask } from '@/lib/itemDeletion';
+import { ConfirmDelete } from './ConfirmDeleteButton';
 import { useState, useEffect } from 'react';
 import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
@@ -12,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Clock, Calendar as CalendarIcon, Tag, Grid3X3, X, Edit, Info } from 'lucide-react';
+import { Clock, Calendar as CalendarIcon, Tag, Grid3X3, X, Edit, Info, Trash2 } from 'lucide-react';
 import ProgressRing from '@/components/ProgressRing';
 import { ExportTaskButton } from '@/components/ExportTaskButton';
 import { cn } from '@/lib/utils';
@@ -31,6 +33,7 @@ interface TaskDetailsViewDialogProps {
   onClose: () => void;
   onUpdateTask?: (task: Task) => void;
   onEdit?: (taskId: string) => void;
+  onDelete?: (taskId: string) => void;
 }
 
 // Helper to get stored filled indices
@@ -61,7 +64,7 @@ const storeFilledIndices = (taskId: string, indices: number[]): void => {
   localStorage.setItem('progressGridFilledIndices', JSON.stringify(data));
 };
 
-const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: TaskDetailsViewDialogProps) => {
+const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit, onDelete }: TaskDetailsViewDialogProps) => {
   const [filledIndices, setFilledIndices] = useState<number[]>([]);
   const [subtaskDialogOpen, setSubtaskDialogOpen] = useState(false);
   const [activeSubtask, setActiveSubtask] = useState<Subtask | null>(null);
@@ -488,6 +491,7 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
           )}
 
           <div className="pt-4 flex gap-2 justify-end">
+            <ConfirmDelete title="Delete this task?" description="This task will be moved to recently deleted." onConfirm={() => { if (onDelete) onDelete(task.id); else deleteStoredEntity((task as Task & { archivedAt?: string }).archivedAt ? 'archivedTasks' : 'tasks', task.id); onClose(); }} trigger={open => <Button type="button" variant="destructive" onClick={open}><Trash2 className="h-4 w-4 mr-2" />Delete</Button>} />
             <ExportTaskButton task={task} />
             <Button onClick={onClose}>
               Close
@@ -514,6 +518,7 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit }: Ta
             open={!!detailsSubtask}
             onClose={() => setDetailsSubtask(null)}
             parentTaskName={task.name}
+            onDelete={() => { if (!detailsSubtask || !onUpdateTask) return; onUpdateTask(removeSubtask(task, detailsSubtask.id)); setDetailsSubtask(null); }}
             onGoToParentTask={() => {
               setDetailsSubtask(null);
               onClose();

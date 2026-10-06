@@ -1,3 +1,5 @@
+import { removeSubtask } from '@/lib/itemDeletion';
+import { contrastingTextToken } from '@/lib/dueBands';
 import { getDuePill, DEFAULT_DUE_BANDS } from '@/lib/dueBands';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { useState } from 'react';
@@ -78,9 +80,9 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
             </Badge>
           </div>
 
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground mb-3">
             {task.category && (
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1">
                 <Badge variant="outline">{task.category}</Badge>
                 {task.subcategory && (
                   <Badge variant="secondary" className="text-xs">
@@ -103,7 +105,7 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
             {(() => {
               const pill = getDuePill(task.dueDate, appSettings.dueBands || DEFAULT_DUE_BANDS);
               return (
-                <span className="rounded-full px-2 py-0.5 text-xs font-medium text-white" style={{ backgroundColor: pill.color }}>
+                <span className="rounded-full px-2 py-1 text-xs leading-4 font-semibold whitespace-nowrap shrink-0 max-w-full" style={{ backgroundColor: pill.color, color: contrastingTextToken(pill.color) }}>
                   {pill.text}
                 </span>
               );
@@ -328,6 +330,7 @@ const TaskCard = ({ task, onStartFocus, onShowDetails, onEdit, onComplete, onDel
         subtask={detailsSubtask}
         open={!!detailsSubtask}
         onClose={() => setDetailsSubtask(null)}
+        onDelete={() => { if (!detailsSubtask) return; onUpdateTask(removeSubtask(task, detailsSubtask.id)); setDetailsSubtask(null); }}
         onEdit={() => {
           if (detailsSubtask) {
             setEditSubtask(detailsSubtask);

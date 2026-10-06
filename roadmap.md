@@ -1,4 +1,8 @@
 # Roadmap
+- [ ] Current request: reliable details deletion for events/tasks/list items/subtasks
+- [ ] Current request: full-width boxed month days with non-recurring activity counts
+- [ ] Current request: high-contrast mobile due pills
+- [ ] Current request: live event updates, unified timing, proportional five-minute-minimum timelines
 - [ ] Extensive Guide update
 - [ ] List items on day calendar (click → details, complete/delete sync)
 - [ ] Stop sync on Categories / Lists / Calendar page clicks

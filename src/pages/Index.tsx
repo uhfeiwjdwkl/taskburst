@@ -1,3 +1,4 @@
+import { removeSubtask } from '@/lib/itemDeletion';
 import { useState, useEffect, useMemo } from 'react';
 import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
@@ -802,6 +803,7 @@ const Index = () => {
           onClose={() => setDetailsDialogOpen(false)}
           onUpdateTask={handleUpdateTask}
           onEdit={handleEdit}
+          onDelete={handleDeleteTask}
         />
 
         <AddTaskDialog
@@ -895,6 +897,7 @@ const Index = () => {
               setSubtaskDetailsOpen(false);
               setSelectedSubtask(null);
             }}
+            onDelete={() => { if (!selectedSubtask) return; const task = tasks.find(task => task.id === selectedSubtask.task.id); if (task) handleUpdateTask(removeSubtask(task, selectedSubtask.subtask.id)); setSubtaskDetailsOpen(false); setSelectedSubtask(null); }}
             parentTaskName={selectedSubtask?.task.name}
             onGoToParentTask={() => {
               setSubtaskDetailsOpen(false);
