@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Calendar refinement: tight two-line scale, size setting, homepage Add Event, compact side-by-side month calendar
 - [ ] Current request: reliable details deletion for events/tasks/list items/subtasks
 - [ ] Current request: full-width boxed month days with non-recurring activity counts
 - [ ] Current request: high-contrast mobile due pills

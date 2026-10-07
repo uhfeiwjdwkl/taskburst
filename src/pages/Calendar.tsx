@@ -459,7 +459,7 @@ const CalendarPage = () => {
         </div>
 
         <div className="space-y-6">
-          <div className="grid gap-6">
+          <div className="grid lg:grid-cols-2 items-start gap-6">
             <section className="min-w-0">
               <Calendar
                 mode="single"
@@ -472,7 +472,7 @@ const CalendarPage = () => {
                   table: 'w-full border-collapse table-fixed',
                   head_row: 'grid grid-cols-7', head_cell: 'text-muted-foreground text-xs text-center py-2',
                   row: 'grid grid-cols-7 w-full',
-                  cell: 'min-w-0 h-24 sm:h-32 border border-border relative text-center p-0',
+                  cell: 'min-w-0 h-16 sm:h-20 border border-border relative text-center p-0',
                   day: 'w-full h-full rounded-none p-1 sm:p-2 flex flex-col items-start justify-start font-normal hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring',
                   day_selected: 'bg-primary/15 text-foreground ring-2 ring-inset ring-primary',
                   day_today: 'bg-muted text-foreground', day_outside: 'text-muted-foreground opacity-50',
@@ -490,8 +490,7 @@ const CalendarPage = () => {
                   const total = counts.reduce((sum, item) => sum + item.count, 0);
                   return <div className="w-full min-w-0 text-left" title={counts.map(item => `${item.count} ${item.label.toLowerCase()}`).join(', ')}>
                     <span className={cn('text-sm', counts[4].count > 0 && 'font-bold')}>{format(date, 'd')}</span>
-                    <div className="hidden sm:flex flex-col mt-1 gap-0.5 text-[10px] leading-3">{counts.filter(item => item.count > 0).map(item => <span key={item.label}>{item.count} {item.label}</span>)}</div>
-                    {total > 0 && <span className="sm:hidden block text-[10px] leading-3 mt-1 break-words">{total} items</span>}
+                    {total > 0 && <span className="block text-[10px] leading-3 mt-1 break-words">{total} {total === 1 ? 'item' : 'items'}</span>}
                   </div>;
                 } }}
               />
@@ -499,7 +498,7 @@ const CalendarPage = () => {
 
             {/* Day Items List */}
             <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div>
                   <h2 className="text-xl font-semibold flex items-center gap-2">
                     <CalendarIcon className="h-5 w-5" />
@@ -509,7 +508,7 @@ const CalendarPage = () => {
                     {totalItems} {totalItems === 1 ? 'item' : 'items'}
                   </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button size="sm" onClick={() => setExportDayOpen(true)} variant="outline" disabled={!selectedDate} title="Export day plan">
                     <Download className="h-4 w-4 mr-1" /> Export Day
                   </Button>

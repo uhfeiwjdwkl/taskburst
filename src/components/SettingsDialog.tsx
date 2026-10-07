@@ -440,6 +440,19 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
 
               {/* Calendar visible time range */}
               <div>
+                <Label htmlFor="calendarReadableMinutes">Calendar size: minutes per two-line event</Label>
+                <Input
+                  id="calendarReadableMinutes"
+                  type="number"
+                  min={1}
+                  max={60}
+                  step={1}
+                  value={settings.calendarReadableMinutes ?? 5}
+                  onChange={event => setSettings({ ...settings, calendarReadableMinutes: Math.max(1, Math.min(60, Number(event.target.value) || 5)) })}
+                  className="mt-1"
+                />
+              </div>
+              <div>
                 <Label>Calendar visible time range (hours)</Label>
                 <div className="mt-1 grid grid-cols-2 gap-2">
                   <div>

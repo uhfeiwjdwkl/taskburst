@@ -1,4 +1,5 @@
-import { eventTimingLabel, eventDuration, clockMinutes, TIMELINE_PIXELS_PER_MINUTE } from '@/lib/eventTiming';
+import { useAppSettings } from '@/hooks/useAppSettings';
+import { eventTimingLabel, eventDuration, clockMinutes, timelinePixelsPerMinute } from '@/lib/eventTiming';
 import { deleteStoredEntity } from '@/lib/itemDeletion';
 import { ConfirmDelete } from './ConfirmDeleteButton';
 import { CalendarEvent } from '@/types/event';
@@ -26,6 +27,8 @@ interface EventDetailsViewDialogProps {
 }
 
 const EventDetailsViewDialog = ({ event, open, onClose, onEdit, onDuplicate, onDelete }: EventDetailsViewDialogProps) => {
+  const settings = useAppSettings();
+  const pixelsPerMinute = timelinePixelsPerMinute(settings.calendarReadableMinutes);
   if (!event) return null;
 
   const isMultiDay = !!event.endDate;
@@ -122,11 +125,11 @@ const EventDetailsViewDialog = ({ event, open, onClose, onEdit, onDuplicate, onD
               </div>
             ) : event.time ? (
               <div className="border rounded-lg bg-muted/30 max-h-72 overflow-y-auto p-2">
-                <div className="relative" style={{ height: `${Math.max(60, viewEnd - viewStart) * TIMELINE_PIXELS_PER_MINUTE}px` }}>
-                  {timeSlots.map(hour => <div key={hour} className="absolute inset-x-0 border-t text-xs text-muted-foreground" style={{ top: `${(hour * 60 - viewStart) * TIMELINE_PIXELS_PER_MINUTE}px` }}>{hour.toString().padStart(2, '0')}:00</div>)}
-                  {before > 0 && <div className="absolute left-14 right-0 bg-primary/10 border-l-2 border-primary border-dotted opacity-40" style={{ top: `${(startMinutes - before - viewStart) * TIMELINE_PIXELS_PER_MINUTE}px`, height: `${before * TIMELINE_PIXELS_PER_MINUTE}px` }} />}
-                  <div className="absolute left-14 right-0 bg-primary/20 border-l-2 border-primary px-2 text-xs overflow-hidden" style={{ top: `${(startMinutes - viewStart) * TIMELINE_PIXELS_PER_MINUTE}px`, height: `${Math.max(5, duration) * TIMELINE_PIXELS_PER_MINUTE}px` }}>{event.title}</div>
-                  {after > 0 && <div className="absolute left-14 right-0 bg-primary/10 border-l-2 border-primary border-dotted opacity-40" style={{ top: `${(startMinutes + duration - viewStart) * TIMELINE_PIXELS_PER_MINUTE}px`, height: `${after * TIMELINE_PIXELS_PER_MINUTE}px` }} />}
+                <div className="relative" style={{ height: `${Math.max(60, viewEnd - viewStart) * pixelsPerMinute}px` }}>
+                  {timeSlots.map(hour => <div key={hour} className="absolute inset-x-0 border-t text-xs text-muted-foreground" style={{ top: `${(hour * 60 - viewStart) * pixelsPerMinute}px` }}>{hour.toString().padStart(2, '0')}:00</div>)}
+                  {before > 0 && <div className="absolute left-14 right-0 bg-primary/10 border-l-2 border-primary border-dotted opacity-40" style={{ top: `${(startMinutes - before - viewStart) * pixelsPerMinute}px`, height: `${before * pixelsPerMinute}px` }} />}
+                  <div className="absolute left-14 right-0 bg-primary/20 border-l-2 border-primary px-2 text-xs overflow-hidden" style={{ top: `${(startMinutes - viewStart) * pixelsPerMinute}px`, height: `${Math.max(5, duration) * pixelsPerMinute}px` }}>{event.title}</div>
+                  {after > 0 && <div className="absolute left-14 right-0 bg-primary/10 border-l-2 border-primary border-dotted opacity-40" style={{ top: `${(startMinutes + duration - viewStart) * pixelsPerMinute}px`, height: `${after * pixelsPerMinute}px` }} />}
                 </div>
               </div>
             ) : null}
