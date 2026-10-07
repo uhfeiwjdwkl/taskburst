@@ -447,8 +447,8 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                   min={1}
                   max={60}
                   step={1}
-                  value={settings.calendarReadableMinutes ?? 5}
-                  onChange={event => setSettings({ ...settings, calendarReadableMinutes: Math.max(1, Math.min(60, Number(event.target.value) || 5)) })}
+                  value={settings.calendarReadableMinutes ?? 15}
+                  onChange={event => setSettings({ ...settings, calendarReadableMinutes: Math.max(1, Math.min(60, Number(event.target.value) || 15)) })}
                   className="mt-1"
                 />
               </div>
