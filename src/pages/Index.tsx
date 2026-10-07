@@ -39,6 +39,7 @@ import { DayTimetableView } from '@/components/DayTimetableView';
 import { SubtaskFullDetailsDialog } from '@/components/SubtaskFullDetailsDialog';
 import EventDetailsViewDialog from '@/components/EventDetailsViewDialog';
 import { EditEventDialog } from '@/components/EditEventDialog';
+import { AddEventDialog } from '@/components/AddEventDialog';
 import { SubtaskDialog } from '@/components/SubtaskDialog';
 import { FlexibleEventDetailsDialog } from '@/components/FlexibleEventDetailsDialog';
 import { AssessmentDetailsDialog } from '@/components/AssessmentDetailsDialog';
@@ -56,6 +57,7 @@ const Index = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addEventOpen, setAddEventOpen] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [timerRunning, setTimerRunning] = useState(false);
   const [favoriteTimetables, setFavoriteTimetables] = useState<Timetable[]>([]);
@@ -426,7 +428,7 @@ const Index = () => {
             </h1>
             <p className="text-muted-foreground mt-1">Stay productive with Pomodoro technique</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -437,6 +439,9 @@ const Index = () => {
               Export All
             </Button>
             <ImportAllButton onImport={() => window.location.reload()} />
+            <Button variant="outline" onClick={() => setAddEventOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />Add Event
+            </Button>
             <Button
               onClick={() => setAddDialogOpen(true)}
               className="bg-gradient-primary hover:opacity-90 shadow-glow"
@@ -790,6 +795,16 @@ const Index = () => {
         )}
 
         {/* Dialogs */}
+        <AddEventDialog
+          open={addEventOpen}
+          onClose={() => setAddEventOpen(false)}
+          onAdd={event => {
+            const events = readArray('calendarEvents') as CalendarEvent[];
+            localStorage.setItem('calendarEvents', JSON.stringify([...events, { ...event, id: crypto.randomUUID(), createdAt: new Date().toISOString() }]));
+            window.dispatchEvent(new Event('calendarEventsUpdated'));
+            toast.success('Event added');
+          }}
+        />
         <TaskDetailsDialog
           task={selectedTask}
           open={editDialogOpen}

@@ -255,6 +255,7 @@ export interface AppSettings {
   // Calendar visible time range (hours 0-24)
   calendarStartHour: number;
   calendarEndHour: number;
+  calendarReadableMinutes: number;
   weekStartsOn: 0 | 1 | 6;
 
   // Semester / year ranges used for grouping and filtering results
@@ -297,6 +298,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   dueBands: DEFAULT_DUE_BANDS,
   calendarStartHour: 6,
   calendarEndHour: 22,
+  calendarReadableMinutes: 5,
   weekStartsOn: 1,
   terms: [],
   symbolPalette: DEFAULT_SYMBOL_PALETTE,
