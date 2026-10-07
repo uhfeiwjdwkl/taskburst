@@ -169,14 +169,9 @@ const CalendarPage = () => {
 
   const handleDeleteEvent = () => {
     if (eventToDelete) {
-      const event = events.find(e => e.id === eventToDelete);
-      if (event) {
-        const deletedEvent = { ...event, deletedAt: new Date().toISOString() };
-        const deleted = safeParse('deletedEvents');
-        localStorage.setItem('deletedEvents', JSON.stringify([...deleted, deletedEvent]));
-        setEvents(events.filter(e => e.id !== eventToDelete));
-        toast.success('Event moved to recently deleted');
-      }
+      deleteStoredEntity('calendarEvents', eventToDelete);
+      setEvents(safeParse('calendarEvents') as CalendarEvent[]);
+      toast.success('Event moved to recently deleted');
     }
     setDeleteEventDialog(false);
     setEventToDelete(null);

@@ -28,7 +28,7 @@ export function ConfirmDelete({ onConfirm, title = 'Delete?', description = 'Thi
     <>
       {trigger(() => setOpen(true))}
       <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[210]">
           <AlertDialogHeader>
             <AlertDialogTitle>{title}</AlertDialogTitle>
             <AlertDialogDescription>{description}</AlertDialogDescription>

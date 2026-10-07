@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Event menu deletion: accessible confirmation and immediate recently-deleted storage; default calendar scale fits two lines in 15 minutes
 - [x] Calendar refinement: tight two-line scale, size setting, homepage Add Event, compact side-by-side month calendar
 - [ ] Current request: reliable details deletion for events/tasks/list items/subtasks
 - [ ] Current request: full-width boxed month days with non-recurring activity counts

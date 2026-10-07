@@ -298,7 +298,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   dueBands: DEFAULT_DUE_BANDS,
   calendarStartHour: 6,
   calendarEndHour: 22,
-  calendarReadableMinutes: 5,
+  calendarReadableMinutes: 15,
   weekStartsOn: 1,
   terms: [],
   symbolPalette: DEFAULT_SYMBOL_PALETTE,

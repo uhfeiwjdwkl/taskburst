@@ -5,8 +5,8 @@ import { formatTimeTo12Hour } from '@/lib/dateFormat';
 export const MIN_EVENT_MINUTES = 5;
 // Two fixed text lines (16px + 14px) with equal 2px top/bottom padding.
 export const EVENT_TEXT_HEIGHT = 34;
-export const timelinePixelsPerMinute = (readableMinutes = 5) =>
-  EVENT_TEXT_HEIGHT / Math.max(1, Math.min(60, Number(readableMinutes) || 5));
+export const timelinePixelsPerMinute = (readableMinutes = 15) =>
+  EVENT_TEXT_HEIGHT / Math.max(1, Math.min(60, Number(readableMinutes) || 15));
 export const TIMELINE_PIXELS_PER_MINUTE = timelinePixelsPerMinute();
 export const clockMinutes = (time: string) => {
   const [h, m] = time.split(':').map(Number);
