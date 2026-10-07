@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
-import { eventTimingLabel, MIN_EVENT_MINUTES, TIMELINE_PIXELS_PER_MINUTE } from '@/lib/eventTiming';
+import { eventTimingLabel, MIN_EVENT_MINUTES, timelinePixelsPerMinute } from '@/lib/eventTiming';
 import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
 import { CalendarEvent } from '@/types/event';
@@ -451,7 +451,7 @@ export const HomeDayCalendar = ({
         onWheel={handleWheel}
         style={{ touchAction: interactionMode === 'pan' ? 'none' : 'auto' }}
       >
-        <div className="relative" style={{ height: `${totalHours * 60 * TIMELINE_PIXELS_PER_MINUTE * zoomLevel}px`, width: `${100 * hZoom}%` }}>
+        <div className="relative" style={{ height: `${totalHours * 60 * timelinePixelsPerMinute(settings.calendarReadableMinutes) * zoomLevel}px`, width: `${100 * hZoom}%` }}>
           {/* Hour lines */}
           {hoursArr.map((hour, index) => (
             <div
@@ -516,10 +516,10 @@ export const HomeDayCalendar = ({
                   }}
                   onClick={() => handleItemClick(item)}
                 >
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 h-4">
                     {item.completed && <CheckCircle2 className="h-3 w-3 text-green-600" />}
                     <span className={cn(
-                      "text-xs font-medium truncate",
+                      "text-xs leading-4 font-medium truncate",
                       item.completed && "line-through"
                     )}>
                       {item.title}
@@ -538,7 +538,7 @@ export const HomeDayCalendar = ({
                       </Button>
                     )}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">
+                  <div className="text-[10px] leading-[14px] text-muted-foreground truncate" title={item.type === 'event' ? eventTimingLabel(item.data) : undefined}>
                     {item.type === 'event' ? eventTimingLabel(item.data) : `${formatTimeTo12Hour(item.time)}${item.duration !== undefined ? ` • ${item.duration}m` : ''}`}
                   </div>
                   {item.parentTitle && (

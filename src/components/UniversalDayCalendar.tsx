@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, Fragment } from 'react';
-import { eventTimingLabel, MIN_EVENT_MINUTES, TIMELINE_PIXELS_PER_MINUTE } from '@/lib/eventTiming';
+import { eventTimingLabel, MIN_EVENT_MINUTES, timelinePixelsPerMinute } from '@/lib/eventTiming';
 import { Task } from '@/types/task';
 import { ListItemFullDetailsDialog } from '@/components/ListItemFullDetailsDialog';
 import { updateStoredListItem, deleteStoredListItem } from '@/lib/listItemStore';
@@ -725,7 +725,7 @@ export const UniversalDayCalendar = ({
       <ScrollArea className="flex-1 min-h-0">
         <div
           className="relative"
-          style={{ height: `${totalHours * 60 * TIMELINE_PIXELS_PER_MINUTE}px` }}
+          style={{ height: `${totalHours * 60 * timelinePixelsPerMinute(settings.calendarReadableMinutes)}px` }}
           onDragOver={(event) => { if (moveMode) event.preventDefault(); }}
           onDrop={(event) => {
             if (!moveMode || !onMoveItems) return;
@@ -813,9 +813,9 @@ export const UniversalDayCalendar = ({
                    aria-selected={moveSelection.has(item.id)}
                 >
                    {moveSelection.has(item.id) && <div className="absolute inset-0 z-10 ring-2 ring-ring pointer-events-none" />}
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 h-4">
                     {item.completed && <CheckCircle2 className="h-3 w-3 text-green-600 flex-shrink-0" />}
-                    <span className={cn("text-xs font-medium break-words", item.completed && "line-through")}>
+                    <span className={cn("text-xs leading-4 font-medium truncate min-w-0", item.completed && "line-through")}>
                       {item.title}
                     </span>
                     {item.type === 'subtask' && !item.completed && onStartSubtask && (
@@ -836,7 +836,7 @@ export const UniversalDayCalendar = ({
                       </Button>
                     )}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">
+                  <div className="text-[10px] leading-[14px] text-muted-foreground truncate" title={item.type === 'event' ? eventTimingLabel(item.data) : undefined}>
                     {item.type === 'event' ? eventTimingLabel(item.data) : `${formatTimeTo12Hour(item.time)}${item.duration !== undefined ? ` • ${item.duration}m` : ''}`}
                   </div>
                   {item.parentTitle && (
