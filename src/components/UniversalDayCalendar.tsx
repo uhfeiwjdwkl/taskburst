@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, Fragment } from 'react';
-import { eventTimingLabel, MIN_EVENT_MINUTES, timelinePixelsPerMinute } from '@/lib/eventTiming';
+import { eventTimingLabel, MIN_EVENT_MINUTES, timelinePixelsPerMinute, displayEventMinutes, isCompactEvent } from '@/lib/eventTiming';
 import { Task } from '@/types/task';
 import { ListItemFullDetailsDialog } from '@/components/ListItemFullDetailsDialog';
 import { updateStoredListItem, deleteStoredListItem } from '@/lib/listItemStore';
@@ -770,7 +770,8 @@ export const UniversalDayCalendar = ({
             {timedItems.map(item => {
               if (!item.time) return null;
               const top = getTimePosition(item.time);
-              const height = getHeightForDuration(Math.max(MIN_EVENT_MINUTES, item.duration ?? 30));
+              const height = getHeightForDuration(displayEventMinutes(item.duration, settings.calendarReadableMinutes));
+              const compact = isCompactEvent(item.duration, settings.calendarReadableMinutes);
               const layout = layoutMap.get(item.id) || { col: 0, cols: 1 };
               const widthPct = 100 / layout.cols;
               const leftPct = layout.col * widthPct;
@@ -818,6 +819,7 @@ export const UniversalDayCalendar = ({
                     <span className={cn("text-xs leading-4 font-medium truncate min-w-0", item.completed && "line-through")}>
                       {item.title}
                     </span>
+                    {compact && <span className="text-[10px] leading-4 text-muted-foreground flex-shrink-0">{formatTimeTo12Hour(item.time)}</span>}
                     {item.type === 'subtask' && !item.completed && onStartSubtask && (
                       <Button size="sm" variant="ghost" className="ml-auto h-5 w-5 p-0 flex-shrink-0" onClick={(e) => {
                         e.stopPropagation();
@@ -836,9 +838,9 @@ export const UniversalDayCalendar = ({
                       </Button>
                     )}
                   </div>
-                  <div className="text-[10px] leading-[14px] text-muted-foreground truncate" title={item.type === 'event' ? eventTimingLabel(item.data) : undefined}>
+                  {!compact && <div className="text-[10px] leading-[14px] text-muted-foreground truncate" title={item.type === 'event' ? eventTimingLabel(item.data) : undefined}>
                     {item.type === 'event' ? eventTimingLabel(item.data) : `${formatTimeTo12Hour(item.time)}${item.duration !== undefined ? ` • ${item.duration}m` : ''}`}
-                  </div>
+                  </div>}
                   {item.parentTitle && (
                     <div className="text-[10px] text-muted-foreground truncate">
                       {item.parentTitle}
