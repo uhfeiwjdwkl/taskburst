@@ -110,6 +110,8 @@ const CalendarPage = () => {
   const [eventSelectionMode, setEventSelectionMode] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [moveMode, setMoveMode] = useState(false);
+  const [fullView, setFullView] = useState(() => localStorage.getItem('calendarFullView') === 'true');
+  useEffect(() => { localStorage.setItem('calendarFullView', String(fullView)); }, [fullView]);
   
   useEffect(() => {
     setAssessments(safeParse('assessments').filter((a: Assessment) => !a.deletedAt) as Assessment[]);
@@ -450,11 +452,14 @@ const CalendarPage = () => {
           <Button variant={moveMode ? 'default' : 'outline'} onClick={() => setMoveMode(value => !value)}>
             <Move className="mr-2 h-4 w-4" />{moveMode ? 'Exit move mode' : 'Move mode'}
           </Button>
+          <Button variant={fullView ? 'default' : 'outline'} onClick={() => setFullView(v => !v)} aria-pressed={fullView}>
+            {fullView ? 'Full view' : 'Visual view'}
+          </Button>
           {moveMode && <span className="text-xs text-muted-foreground">Select timed items, then drag one to a 30-minute position.</span>}
         </div>
 
         <div className="space-y-6">
-          <div className="grid lg:grid-cols-2 items-start gap-6">
+          <div className={cn("grid items-start gap-6", !fullView && "lg:grid-cols-2")}>
             <section className="min-w-0">
               <Calendar
                 mode="single"
@@ -467,7 +472,7 @@ const CalendarPage = () => {
                   table: 'w-full border-collapse table-fixed',
                   head_row: 'grid grid-cols-7', head_cell: 'text-muted-foreground text-xs text-center py-2',
                   row: 'grid grid-cols-7 w-full',
-                  cell: 'min-w-0 h-16 sm:h-20 border border-border relative text-center p-0',
+                  cell: cn('min-w-0 border border-border relative text-center p-0', fullView ? 'min-h-28' : 'h-16 sm:h-20'),
                   day: 'w-full h-full rounded-none p-1 sm:p-2 flex flex-col items-start justify-start font-normal hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring',
                   day_selected: 'bg-primary/15 text-foreground ring-2 ring-inset ring-primary',
                   day_today: 'bg-muted text-foreground', day_outside: 'text-muted-foreground opacity-50',
@@ -483,6 +488,21 @@ const CalendarPage = () => {
                     { label: 'Events', count: events.filter(event => !event.recurring?.enabled && eventOccursOnDate(event, date)).length },
                   ];
                   const total = counts.reduce((sum, item) => sum + item.count, 0);
+                  if (fullView) {
+                    const names = [
+                      ...events.filter(event => eventOccursOnDate(event, date)).map(event => ({ key: `e-${event.id}`, title: `${event.time ? formatTimeTo12Hour(event.time) + ' ' : ''}${event.title}`, color: event.color })),
+                      ...getTasksForDate(date).map(task => ({ key: `t-${task.id}`, title: task.name, color: task.color })),
+                      ...getSubtasksForDate(date).map(({ subtask }) => ({ key: `s-${subtask.id}`, title: subtask.title, color: undefined as string | undefined })),
+                      ...lists.filter(list => !list.archivedAt && !list.deletedAt).flatMap(list => (list.items || []).filter(item => !item.deletedAt && item.dateTime?.slice(0, 10) === dateKey).map(item => ({ key: `l-${item.id}`, title: item.title, color: undefined as string | undefined }))),
+                      ...partialSlots.filter(slot => slot.date === dateKey).map(slot => ({ key: `p-${slot.id}`, title: slot.itemTitle || 'Session', color: undefined as string | undefined })),
+                    ];
+                    return <div className="w-full min-w-0 text-left">
+                      <span className={cn('text-sm', counts[4].count > 0 && 'font-bold')}>{format(date, 'd')}</span>
+                      <ul className="mt-1 space-y-0.5">
+                        {names.map(n => <li key={n.key} className="text-[10px] leading-3 truncate border-l-2 border-primary pl-1" style={n.color ? { borderColor: n.color } : undefined}>{n.title}</li>)}
+                      </ul>
+                    </div>;
+                  }
                   return <div className="w-full min-w-0 text-left" title={counts.map(item => `${item.count} ${item.label.toLowerCase()}`).join(', ')}>
                     <span className={cn('text-sm', counts[4].count > 0 && 'font-bold')}>{format(date, 'd')}</span>
                     {total > 0 && <span className="block text-[10px] leading-3 mt-1 break-words">{total} {total === 1 ? 'item' : 'items'}</span>}

@@ -8,6 +8,13 @@ export const EVENT_TEXT_HEIGHT = 34;
 export const timelinePixelsPerMinute = (readableMinutes = 15) =>
   EVENT_TEXT_HEIGHT / Math.max(1, Math.min(60, Number(readableMinutes) || 15));
 export const TIMELINE_PIXELS_PER_MINUTE = timelinePixelsPerMinute();
+const readable = (readableMinutes = 15) => Math.max(1, Math.min(60, Number(readableMinutes) || 15));
+/** Visual minutes for a timeline block: never smaller than half the readable size (one text line). */
+export const displayEventMinutes = (duration: number | undefined, readableMinutes = 15) =>
+  Math.max(readable(readableMinutes) / 2, duration ?? 30);
+/** Shorter than the readable size: show only the title and start time on one line. */
+export const isCompactEvent = (duration: number | undefined, readableMinutes = 15) =>
+  (duration ?? 30) < readable(readableMinutes);
 export const clockMinutes = (time: string) => {
   const [h, m] = time.split(':').map(Number);
   return h * 60 + m;
