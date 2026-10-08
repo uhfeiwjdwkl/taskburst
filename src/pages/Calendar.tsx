@@ -472,8 +472,7 @@ const CalendarPage = () => {
                   table: 'w-full border-collapse table-fixed',
                   head_row: 'grid grid-cols-7', head_cell: 'text-muted-foreground text-xs text-center py-2',
                   row: 'grid grid-cols-7 w-full',
-                  cell: cn('min-w-0 border', fullView ? 'min-h-28 h-auto' : 'h-16 sm:h-20'),
-                  _unused: 'min-w-0 border border-border relative text-center p-0',
+                  cell: cn('min-w-0 border border-border relative text-center p-0', fullView ? 'min-h-28' : 'h-16 sm:h-20'),
                   day: 'w-full h-full rounded-none p-1 sm:p-2 flex flex-col items-start justify-start font-normal hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring',
                   day_selected: 'bg-primary/15 text-foreground ring-2 ring-inset ring-primary',
                   day_today: 'bg-muted text-foreground', day_outside: 'text-muted-foreground opacity-50',
@@ -494,7 +493,7 @@ const CalendarPage = () => {
                       ...events.filter(event => eventOccursOnDate(event, date)).map(event => ({ key: `e-${event.id}`, title: `${event.time ? formatTimeTo12Hour(event.time) + ' ' : ''}${event.title}`, color: event.color })),
                       ...getTasksForDate(date).map(task => ({ key: `t-${task.id}`, title: task.name, color: task.color })),
                       ...getSubtasksForDate(date).map(({ subtask }) => ({ key: `s-${subtask.id}`, title: subtask.title, color: undefined as string | undefined })),
-                      ...lists.filter(list => !list.archivedAt && !list.deletedAt).flatMap(list => (list.items || []).filter(item => !item.deletedAt && item.dateTime?.slice(0, 10) === dateKey).map(item => ({ key: `l-${item.id}`, title: item.text ?? item.title ?? 'List item', color: undefined as string | undefined }))),
+                      ...lists.filter(list => !list.archivedAt && !list.deletedAt).flatMap(list => (list.items || []).filter(item => !item.deletedAt && item.dateTime?.slice(0, 10) === dateKey).map(item => ({ key: `l-${item.id}`, title: item.title, color: undefined as string | undefined }))),
                       ...partialSlots.filter(slot => slot.date === dateKey).map(slot => ({ key: `p-${slot.id}`, title: slot.itemTitle || 'Session', color: undefined as string | undefined })),
                     ];
                     return <div className="w-full min-w-0 text-left">
