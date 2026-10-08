@@ -161,13 +161,20 @@ function collectItemsForDate(date: Date): PlanItem[] {
     });
   });
 
+  // Only favourite timetables (or all, if none are favourited) to avoid repeated entries
+  const liveTimetables = (Array.isArray(timetables) ? timetables : []).filter((t: Timetable) => !t.deletedAt);
+  const anyFavourite = liveTimetables.some((t: Timetable) => t.favorite);
+  const useTimetable = (t: Timetable) => !anyFavourite || t.favorite;
   // Timetable flexible events for this day
   (Array.isArray(flexEvents) ? flexEvents : []).forEach(ev => {
-    if (ev.dayIndex !== ttDayIdx) return;
     const tt = (timetables as Timetable[]).find(t => t.id === ev.timetableId);
+    if (!tt || tt.deletedAt || !useTimetable(tt)) return;
+    const dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][ttDayIdx];
+    const flexCol = tt.columns.findIndex(c => c.toLowerCase().startsWith(dayName.slice(0, 3).toLowerCase()));
+    if (ev.dayIndex !== flexCol) return;
     if (tt?.type === 'fortnightly' && tt.fortnightStartDate && ev.week) {
       const start = new Date(tt.fortnightStartDate);
-      const daysDiff = Math.floor((date.getTime() - start.getTime()) / 86400000);
+      const daysDiff = differenceInCalendarDays(date, start);
       const wk = (Math.floor(daysDiff / 7) % 2) === 0 ? 1 : 2;
       if (ev.week !== wk) return;
     }
@@ -185,15 +192,15 @@ function collectItemsForDate(date: Date): PlanItem[] {
 
   // Rigid timetable cells for this day
   (Array.isArray(timetables) ? timetables : [])
-    .filter(tt => tt.mode === 'rigid' && !tt.deletedAt)
+    .filter(tt => tt.mode === 'rigid' && !tt.deletedAt && useTimetable(tt))
     .forEach(tt => {
       const dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][ttDayIdx];
-      const colIndex = tt.columns.indexOf(dayName);
+      const colIndex = tt.columns.findIndex(c => c.toLowerCase().startsWith(dayName.slice(0, 3).toLowerCase()));
       if (colIndex < 0) return;
       let wk: 1 | 2 = 1;
       if (tt.type === 'fortnightly' && tt.fortnightStartDate) {
         const start = new Date(tt.fortnightStartDate);
-        const daysDiff = Math.floor((date.getTime() - start.getTime()) / 86400000);
+        const daysDiff = differenceInCalendarDays(date, start);
         wk = (Math.floor(daysDiff / 7) % 2) === 0 ? 1 : 2;
       }
       tt.rows.forEach((row, rowIndex) => {
