@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { format, parseISO, isValid } from 'date-fns';
+import { format, parseISO, isValid, differenceInCalendarDays } from 'date-fns';
 import { toast } from 'sonner';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
@@ -300,7 +300,13 @@ function collectItemsForDate(date: Date): PlanItem[] {
     });
   });
 
-  return items;
+  const seen = new Set<string>();
+  return items.filter(it => {
+    const key = `${it.type}|${it.title}|${it.startMin}|${it.endMin}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 // Pack overlapping items into columns (leftmost fit).
