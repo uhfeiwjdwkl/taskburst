@@ -1,11 +1,5 @@
-export interface AssessmentResultPart {
-  name: string;
-  score: number | null;
-  maxScore: number;
-  weight?: number;
-  notes?: string;
-  flagged?: boolean;
-}
+import { ResultPart } from '@/lib/resultParts';
+export interface AssessmentResultPart extends ResultPart {}
 
 export interface Assessment {
   id: string;
@@ -15,9 +9,11 @@ export interface Assessment {
   subcategory?: string;
   assessmentType: string; // custom types like "Exam", "Test", "Quiz", etc.
   dueDate: string;
+  termId?: string;
   completed: boolean;
   linkedTaskId?: string; // optional link to a study/revision task
   result: {
+    notes?: string;
     totalScore: number | null;
     totalMaxScore: number;
     totalMode?: 'marks' | 'average';
