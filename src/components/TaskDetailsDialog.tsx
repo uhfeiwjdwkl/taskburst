@@ -1,3 +1,5 @@
+import { ResultPartFields } from '@/components/ResultPartFields';
+import { emptyResultPart } from '@/lib/resultParts';
 import { useState, useEffect, useRef } from 'react';
 import { Task, TaskResult, TaskResultPart, TaskType, TASK_TYPES } from '@/types/task';
 import { Subtask } from '@/types/subtask';
@@ -746,7 +748,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
                     size="sm"
                     onClick={() => setEditedTask({
                       ...editedTask,
-                      result: { ...editedTask.result!, totalMode: 'marks' }
+                      result: { ...(editedTask.result || { totalScore: null, totalMaxScore: 100, parts: [emptyResultPart()] }), totalMode: 'marks' }
                     })}
                   >
                     Sum
@@ -757,80 +759,19 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
                     size="sm"
                     onClick={() => setEditedTask({
                       ...editedTask,
-                      result: { ...editedTask.result!, totalMode: 'average' }
+                      result: { ...(editedTask.result || { totalScore: null, totalMaxScore: 100, parts: [emptyResultPart()] }), totalMode: 'average' }
                     })}
                   >
                     Average
                   </Button>
                 </div>
 
-                {/* Parts Editor */}
-                {editedTask.result && (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground px-2">
-                      <span className="flex-1">Name</span>
-                      <span className="w-20 text-center">Score</span>
-                      <span className="w-1"></span>
-                      <span className="w-16 text-center">Max</span>
-                      <span className="w-14 text-center">Weight</span>
-                      <span className="w-8"></span>
-                    </div>
-                    {editedTask.result.parts.map((part, index) => (
-                      <div key={index} className="flex items-center gap-2 p-2 border rounded-md">
-                        <Input
-                          value={part.name}
-                          onChange={(e) => handlePartChange(index, 'name', e.target.value)}
-                          placeholder="Part name"
-                          className="flex-1 h-8 text-sm"
-                        />
-                        <Input
-                          type="number"
-                          value={part.score ?? ''}
-                          onChange={(e) => handlePartChange(index, 'score', e.target.value)}
-                          placeholder="Score"
-                          className="w-20 h-8 text-sm"
-                        />
-                        <span className="text-muted-foreground">/</span>
-                        <Input
-                          type="number"
-                          value={part.maxScore}
-                          onChange={(e) => handlePartChange(index, 'maxScore', e.target.value)}
-                          className="w-16 h-8 text-sm"
-                        />
-                        <Input
-                          type="number"
-                          value={part.weight ?? 1}
-                          onChange={(e) => handlePartChange(index, 'weight', e.target.value)}
-                          placeholder="Wt"
-                          className="w-14 h-8 text-sm"
-                          title="Weight"
-                          step="0.1"
-                          min="0"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleRemovePart(index)}
-                          disabled={editedTask.result!.parts.length <= 1}
-                        >
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
-                      </div>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleAddPart}
-                      className="w-full"
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add Part
-                    </Button>
-                  </div>
-                )}
+                {editedTask.result && <div>
+                  <Textarea aria-label="Result note" placeholder="General result note / mistake" value={editedTask.result.notes || ''} onChange={e => { if (editedTask.result) setEditedTask({ ...editedTask, result: { ...editedTask.result, notes: e.target.value } }); }} />
+                  {editedTask.result.parts.map((part, index) => <ResultPartFields key={index} label={`Part ${index + 1}`} part={part} onChange={value => { if (editedTask.result) setEditedTask({ ...editedTask, result: { ...editedTask.result, parts: editedTask.result.parts.map((p, i) => i === index ? value : p) } }); }} onRemove={editedTask.result.parts.length > 1 ? () => handleRemovePart(index) : undefined} />)}
+                  <Button type="button" variant="outline" onClick={() => { if (editedTask.result) setEditedTask({ ...editedTask, result: { ...editedTask.result, parts: [...editedTask.result.parts, emptyResultPart()] } }); }}><Plus className="h-3 w-3 mr-1" />Add Part</Button>
+                </div>}
+
               </>
             )}
           </div>

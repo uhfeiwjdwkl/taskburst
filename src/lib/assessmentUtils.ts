@@ -1,16 +1,11 @@
+import { emptyResultPart } from '@/lib/resultParts';
 import { addDays } from 'date-fns';
 import { Assessment, AssessmentResultPart } from '@/types/assessment';
 import { Task, TaskResult } from '@/types/task';
 
 const ASSESSMENTS_KEY = 'assessments';
 
-const defaultParts = (): AssessmentResultPart[] =>
-  Array.from({ length: 4 }, (_, index) => ({
-    name: `Part ${index + 1}`,
-    score: null,
-    maxScore: 25,
-    notes: '',
-  }));
+const defaultParts = (): AssessmentResultPart[] => [emptyResultPart()];
 
 export const createDefaultAssessmentResult = () => ({
   totalScore: null,
@@ -22,20 +17,7 @@ export const createDefaultAssessmentResult = () => ({
 const cloneTaskResult = (result?: TaskResult) => {
   if (!result) return createDefaultAssessmentResult();
 
-  return {
-    totalScore: result.totalScore ?? null,
-    totalMaxScore: result.totalMaxScore || 100,
-    totalMode: result.totalMode || 'marks',
-    parts:
-      result.parts?.length > 0
-        ? result.parts.map((part) => ({
-            name: part.name,
-            score: part.score,
-            maxScore: part.maxScore,
-            notes: part.notes,
-          }))
-        : defaultParts(),
-  };
+  return { ...structuredClone(result), totalMode: result.totalMode || 'marks', parts: result.parts?.length ? structuredClone(result.parts) : defaultParts() };
 };
 
 export const safeParseArray = <T,>(key: string): T[] => {

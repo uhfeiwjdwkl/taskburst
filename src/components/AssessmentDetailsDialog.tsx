@@ -1,3 +1,7 @@
+import { ResultPartFields } from '@/components/ResultPartFields';
+import { emptyResultPart, resolveResultPart } from '@/lib/resultParts';
+import { Textarea } from '@/components/ui/textarea';
+import { getTerms } from '@/lib/terms';
 import { useState, useEffect } from 'react';
 import { Assessment, AssessmentResultPart } from '@/types/assessment';
 import { Task } from '@/types/task';
@@ -53,13 +57,15 @@ export const AssessmentDetailsDialog = ({
     }
   }, [open]);
 
+  useEffect(() => { setEditing(false); setEditedAssessment(assessment ? structuredClone(assessment) : null); }, [assessment?.id, open]);
+
   if (!assessment) return null;
 
-  const a = editing ? editedAssessment! : assessment;
+  const a = editing && editedAssessment ? editedAssessment : assessment;
 
   const calculateTotal = () => {
     const mode = a.result.totalMode || 'marks';
-    const scored = a.result.parts.filter(p => p.score !== null);
+    const scored = a.result.parts.map(resolveResultPart).filter(p => p.score !== null && (p.maxScore ?? 0) > 0);
     if (scored.length === 0) return { display: '-', percentage: '-' };
 
     if (mode === 'average') {
@@ -78,7 +84,7 @@ export const AssessmentDetailsDialog = ({
     : null;
 
   const handleStartEdit = () => {
-    setEditedAssessment({ ...assessment });
+    setEditedAssessment(structuredClone(assessment));
     setEditing(true);
   };
 
@@ -100,7 +106,7 @@ export const AssessmentDetailsDialog = ({
 
   const handleAddPart = () => {
     if (!editedAssessment) return;
-    const newPart: AssessmentResultPart = { name: `Part ${editedAssessment.result.parts.length + 1}`, score: null, maxScore: 25 };
+    const newPart: AssessmentResultPart = emptyResultPart();
     setEditedAssessment({ ...editedAssessment, result: { ...editedAssessment.result, parts: [...editedAssessment.result.parts, newPart] } });
   };
 
@@ -130,9 +136,9 @@ export const AssessmentDetailsDialog = ({
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" showClose={false}
         onPointerDownOutside={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
         <DialogHeader className="flex flex-row items-center justify-between">
-          <div className={a.result.flagged ? 'text-primary' : ''}>
-            <DialogTitle className={a.result.flagged ? 'text-primary' : ''}>{a.name}</DialogTitle>
-            <DialogDescription className={a.result.flagged ? 'text-primary' : ''}>{a.assessmentType} • {a.category || 'Uncategorized'}</DialogDescription>
+          <div className={a.result.flagged ? 'text-destructive' : ''}>
+            <DialogTitle className={a.result.flagged ? 'text-destructive' : ''}>{a.name}</DialogTitle>
+            <DialogDescription className={a.result.flagged ? 'text-destructive' : ''}>{a.assessmentType} • {a.category || 'Uncategorized'}</DialogDescription>
           </div>
           <div className="flex items-center gap-1">
             <Button
@@ -242,44 +248,8 @@ export const AssessmentDetailsDialog = ({
           {/* Parts */}
           <div className="space-y-2">
             <Label>Result Parts</Label>
-            {a.result.parts.map((part, i) => (
-              <div key={i} className={`flex items-center gap-2 p-2 border rounded-md ${part.flagged ? 'text-primary' : ''}`}>
-                {editing && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => handleTogglePartFlag(i)}
-                    aria-label={part.flagged ? 'Unflag part' : 'Flag part'}
-                  >
-                    <Flag className={`h-3 w-3 ${part.flagged ? 'fill-primary text-primary' : ''}`} />
-                  </Button>
-                )}
-                {editing ? (
-                  <>
-                    <Input value={part.name} onChange={(e) => handlePartChange(i, 'name', e.target.value)} className="flex-1 h-8 text-sm" />
-                    <Input type="number" value={part.score ?? ''} onChange={(e) => handlePartChange(i, 'score', e.target.value)} placeholder="—" className="w-16 h-8 text-sm" />
-                    <span className="text-muted-foreground">/</span>
-                    <Input type="number" value={part.maxScore} onChange={(e) => handlePartChange(i, 'maxScore', e.target.value)} className="w-16 h-8 text-sm" />
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleRemovePart(i)} disabled={a.result.parts.length <= 1}>
-                      <X className="h-3 w-3 text-destructive" />
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <span className="flex-1 text-sm">{part.name}</span>
-                    <span className="text-sm font-medium">
-                      {part.score !== null ? `${part.score}/${part.maxScore}` : '—'}
-                    </span>
-                    {part.score !== null && (
-                      <Badge variant="outline" className="text-xs">
-                        {((part.score / part.maxScore) * 100).toFixed(0)}%
-                      </Badge>
-                    )}
-                  </>
-                )}
-              </div>
-            ))}
+            <Textarea aria-label="Result note" placeholder="General result note / mistake" value={a.result.notes || ''} readOnly={!editing} onChange={e => { if (editedAssessment) setEditedAssessment({ ...editedAssessment, result: { ...editedAssessment.result, notes: e.target.value } }); }} />
+            {a.result.parts.map((part, i) => <ResultPartFields key={i} label={`Part ${i + 1}`} part={part} readOnly={!editing} onChange={value => { if (editedAssessment) setEditedAssessment({ ...editedAssessment, result: { ...editedAssessment.result, parts: editedAssessment.result.parts.map((p, index) => index === i ? value : p) } }); }} onRemove={editing && a.result.parts.length > 1 ? () => handleRemovePart(i) : undefined} />)}
             {editing && (
               <Button variant="outline" size="sm" onClick={handleAddPart} className="w-full">
                 <Plus className="h-3 w-3 mr-1" /> Add Part
@@ -289,7 +259,7 @@ export const AssessmentDetailsDialog = ({
 
           {/* Linked task */}
           {a.linkedTaskId && onViewLinkedTask && (
-            <Button variant="outline" className="w-full" onClick={() => onViewLinkedTask(a.linkedTaskId!)}>
+            <Button variant="outline" className="w-full" onClick={() => onViewLinkedTask(a.linkedTaskId || '')}>
               <ExternalLink className="h-4 w-4 mr-2" />
               View Linked Task
             </Button>
