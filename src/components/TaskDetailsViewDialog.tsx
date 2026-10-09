@@ -1,3 +1,4 @@
+import { ResultPartFields } from '@/components/ResultPartFields';
 import { deleteStoredEntity, removeSubtask } from '@/lib/itemDeletion';
 import { ConfirmDelete } from './ConfirmDeleteButton';
 import { useState, useEffect } from 'react';
@@ -324,11 +325,8 @@ const TaskDetailsViewDialog = ({ task, open, onClose, onUpdateTask, onEdit, onDe
                 </div>
                 {task.result?.parts && task.result.parts.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2 justify-center">
-                    {task.result.parts.map((part, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">
-                        {part.name}: {part.score !== null ? `${part.score}/${part.maxScore}` : '-'}
-                      </Badge>
-                    ))}
+                    {task.result.parts.map((part, i) => <div className="w-full text-left" key={i}><ResultPartFields part={part} readOnly label={`Part ${i + 1}`} /></div>)}
+                    {task.result.notes && <p className="whitespace-pre-wrap text-sm">{task.result.notes}</p>}
                   </div>
                 )}
               </div>

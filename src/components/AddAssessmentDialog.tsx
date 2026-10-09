@@ -1,3 +1,5 @@
+import { emptyResultPart } from '@/lib/resultParts';
+import { getTerms } from '@/lib/terms';
 import { useState, useEffect } from 'react';
 import { Assessment, AssessmentResultPart } from '@/types/assessment';
 import { Task } from '@/types/task';
@@ -31,13 +33,14 @@ interface AddAssessmentDialogProps {
 }
 
 export const AddAssessmentDialog = ({ open, onClose, onAdd, prefilledDate }: AddAssessmentDialogProps) => {
+  const [termId, setTermId] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [assessmentType, setAssessmentType] = useState('');
   const [dueDate, setDueDate] = useState(prefilledDate || '');
   const [linkedTaskId, setLinkedTaskId] = useState('');
-  const [partCount, setPartCount] = useState(4);
+  const [partCount, setPartCount] = useState(1);
   const [assessmentTypes, setAssessmentTypes] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -57,7 +60,7 @@ export const AddAssessmentDialog = ({ open, onClose, onAdd, prefilledDate }: Add
       }
 
       // Load categories
-      const savedCats = localStorage.getItem('categories');
+      const savedCats = localStorage.getItem('taskCategories');
       if (savedCats) setCategories(JSON.parse(savedCats));
 
       // Load tasks for linking
@@ -82,18 +85,15 @@ export const AddAssessmentDialog = ({ open, onClose, onAdd, prefilledDate }: Add
   const handleAdd = () => {
     if (!name.trim() || !assessmentType) return;
 
-    const parts: AssessmentResultPart[] = Array.from({ length: partCount }, (_, i) => ({
-      name: `Part ${i + 1}`,
-      score: null,
-      maxScore: 25,
-    }));
+    const parts: AssessmentResultPart[] = Array.from({ length: partCount }, emptyResultPart);
 
     onAdd({
       name: name.trim(),
       description: description.trim(),
       category: category.trim(),
       assessmentType,
-      dueDate,
+      dueDate: termId ? '' : dueDate,
+      termId: termId || undefined,
       completed: false,
       linkedTaskId: linkedTaskId || undefined,
       result: {
@@ -112,8 +112,9 @@ export const AddAssessmentDialog = ({ open, onClose, onAdd, prefilledDate }: Add
     setCategory('');
     setAssessmentType('');
     setDueDate('');
+    setTermId('');
     setLinkedTaskId('');
-    setPartCount(4);
+    setPartCount(1);
     onClose();
   };
 
@@ -173,11 +174,13 @@ export const AddAssessmentDialog = ({ open, onClose, onAdd, prefilledDate }: Add
           </div>
 
           <div>
-            <Label>Due Date</Label>
-            <div className="mt-1 flex gap-2">
+            <Label>Time period</Label>
+            <Select value={termId || 'date'} onValueChange={v => setTermId(v === 'date' ? '' : v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="date">Specific date</SelectItem><SelectItem value="unassigned">Unassigned</SelectItem>{getTerms().map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select>
+            {!termId && <Label>Due Date</Label>}
+            {!termId && <div className="mt-1 flex gap-2">
               <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="flex-1" />
               <DatePickerButton value={dueDate} onChange={setDueDate} />
-            </div>
+            </div>}
           </div>
 
           <div>
@@ -195,7 +198,7 @@ export const AddAssessmentDialog = ({ open, onClose, onAdd, prefilledDate }: Add
 
           <div>
             <Label>Number of Parts</Label>
-            <Input type="number" min="1" max="20" value={partCount} onChange={(e) => setPartCount(parseInt(e.target.value) || 4)} className="mt-1" />
+            <Input type="number" min="1" max="20" value={partCount} onChange={(e) => setPartCount(parseInt(e.target.value) || 1)} className="mt-1" />
           </div>
 
           <div className="pt-4 flex gap-2 justify-end">
