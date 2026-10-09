@@ -1,14 +1,11 @@
 import { Subtask } from './subtask';
+import { ResultPart } from '@/lib/resultParts';
 
-export interface TaskResultPart {
-  name: string;
-  score: number | null;
-  maxScore: number;
-  weight?: number;
-  notes?: string;
-}
+export interface TaskResultPart extends ResultPart {}
 
 export interface TaskResult {
+  notes?: string;
+  flagged?: boolean;
   totalScore: number | null;
   totalMaxScore: number;
   parts: TaskResultPart[];

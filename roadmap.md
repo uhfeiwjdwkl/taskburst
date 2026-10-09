@@ -1,4 +1,8 @@
 # Roadmap
+- [ ] Results: blank one-part defaults, zero scores, subparts, notes by subject, flags, assessment periods and reliable editing
+- [ ] Date fields: editable current-year seed without saving incomplete dates
+- [ ] Calendar Full view: clickable non-recurring items and multi-day spans
+- [ ] Centre current-time line when entering homepage and Calendar timelines
 - [x] Event menu deletion: accessible confirmation and immediate recently-deleted storage; default calendar scale fits two lines in 15 minutes
 - [x] Calendar refinement: tight two-line scale, size setting, homepage Add Event, compact side-by-side month calendar
 - [ ] Current request: reliable details deletion for events/tasks/list items/subtasks

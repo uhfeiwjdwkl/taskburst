@@ -1,12 +1,10 @@
-export interface ProjectResultPart {
-  name: string;
-  score: number | null;
-  maxScore: number;
-  weight?: number;
-  notes?: string;
-}
+import { ResultPart } from '@/lib/resultParts';
+export interface ProjectResultPart extends ResultPart {}
 
 export interface ProjectResult {
+  notes?: string;
+  flagged?: boolean;
+  totalMode?: 'marks' | 'average';
   totalScore: number | null;
   totalMaxScore: number;
   parts: ProjectResultPart[];
