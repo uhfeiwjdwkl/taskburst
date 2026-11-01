@@ -1,4 +1,7 @@
 # Roadmap
+- [ ] Inclusive shared day-plan/planner collection; item selection, timetable/recurring switches, single-copy print with duration/end times
+- [ ] Time calculator on scheduling screens
+- [ ] Correct schedule day overflow counts
 - [ ] Results: blank one-part defaults, zero scores, subparts, notes by subject, flags, assessment periods and reliable editing
 - [ ] Date fields: editable current-year seed without saving incomplete dates
 - [ ] Calendar Full view: clickable non-recurring items and multi-day spans

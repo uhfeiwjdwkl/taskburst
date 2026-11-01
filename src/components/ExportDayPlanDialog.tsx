@@ -1,3 +1,4 @@
+import { PlanItem, collectItemsForDate, planItemVisible, planTime as fmt, planDuration as durLabel } from '@/lib/planItems';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -23,290 +24,6 @@ interface ExportDayPlanDialogProps {
   open: boolean;
   onClose: () => void;
   date?: Date;
-}
-
-type PlanItem = {
-  id: string;
-  type: 'event' | 'task' | 'subtask' | 'timetable' | 'assessment' | 'list' | 'partial';
-  title: string;
-  startMin: number; // minutes from midnight
-  endMin: number;
-  color: string;
-  allDay?: boolean;
-};
-
-const safeParse = <T,>(key: string, fallback: T): T => {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    const p = JSON.parse(raw);
-    return p ?? fallback;
-  } catch { return fallback; }
-};
-
-const fmt = (min: number, format12: boolean) => {
-  const h = Math.floor(min / 60), m = min % 60;
-  if (format12) {
-    const period = h >= 12 ? 'PM' : 'AM';
-    const dh = h % 12 || 12;
-    return `${dh}:${String(m).padStart(2, '0')} ${period}`;
-  }
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-};
-
-const durLabel = (min: number) => {
-  if (min < 60) return `${min}m`;
-  const h = Math.floor(min / 60), m = min % 60;
-  return m === 0 ? `${h}h` : `${h}h ${m}m`;
-};
-
-function collectItemsForDate(date: Date): PlanItem[] {
-  const dateStr = format(date, 'yyyy-MM-dd');
-  const items: PlanItem[] = [];
-  const dow = date.getDay();
-  const ttDayIdx = dow === 0 ? 6 : dow - 1;
-
-  const tasks = safeParse<Task[]>('tasks', []);
-  const events = safeParse<CalendarEvent[]>('calendarEvents', []);
-  const timetables = safeParse<Timetable[]>('timetables', []);
-  const flexEvents = safeParse<FlexibleEvent[]>('flexibleTimetableEvents', []);
-  const assessments = safeParse<Assessment[]>('assessments', []);
-  const lists = safeParse<List[]>('lists', []);
-
-  // Events
-  (Array.isArray(events) ? events : []).forEach(ev => {
-    try {
-      if (!eventOccursOnDate(ev, date)) return;
-      const span = getEventTimeSpanForDate(ev, date);
-      if (!span.time) {
-        items.push({
-          id: `event-${ev.id}`,
-          type: 'event',
-          title: ev.title,
-          startMin: 0,
-          endMin: 0,
-          color: ev.color || '#3b82f6',
-          allDay: true,
-        });
-        return;
-      }
-      const [h, m] = span.time.split(':').map(Number);
-      const start = h * 60 + m;
-      items.push({
-        id: `event-${ev.id}`,
-        type: 'event',
-        title: ev.title,
-        startMin: start,
-        endMin: start + (span.duration || 60),
-        color: ev.color || '#3b82f6',
-      });
-    } catch { /* ignore */ }
-  });
-
-  // Tasks (only if scheduled at a specific time — otherwise skip in timeline)
-  (Array.isArray(tasks) ? tasks : []).forEach(t => {
-    if (t.deletedAt) return;
-    if (!t.dueDate) return;
-    if (t.dueDate.split('T')[0] !== dateStr) return;
-    // Try to pull a time from the ISO string
-    const d = parseISO(t.dueDate);
-    if (isValid(d) && (t.dueDate.includes('T') && !t.dueDate.endsWith('T00:00:00.000Z'))) {
-      const startMin = d.getHours() * 60 + d.getMinutes();
-      const dur = t.estimatedMinutes || 30;
-      items.push({
-        id: `task-${t.id}`,
-        type: 'task',
-        title: t.name,
-        startMin,
-        endMin: startMin + dur,
-        color: t.color || '#8b5cf6',
-      });
-    } else {
-      items.push({
-        id: `task-${t.id}`,
-        type: 'task',
-        title: t.name,
-        startMin: 0,
-        endMin: 0,
-        color: t.color || '#8b5cf6',
-        allDay: true,
-      });
-    }
-    // Subtasks with scheduled time
-    (t.subtasks || []).forEach(s => {
-      if (s.dueDate !== dateStr) return;
-      if (!s.scheduledTime) {
-        items.push({
-          id: `subtask-${s.id}`,
-          type: 'subtask',
-          title: `${s.title} — ${t.name}`,
-          startMin: 0,
-          endMin: 0,
-          color: s.color || '#10b981',
-          allDay: true,
-        });
-        return;
-      }
-      const [h, m] = s.scheduledTime.split(':').map(Number);
-      const start = h * 60 + m;
-      const dur = s.estimatedMinutes || 30;
-      items.push({
-        id: `subtask-${s.id}`,
-        type: 'subtask',
-        title: `${s.title} — ${t.name}`,
-        startMin: start,
-        endMin: start + dur,
-        color: s.color || '#10b981',
-      });
-    });
-  });
-
-  // Only favourite timetables (or all, if none are favourited) to avoid repeated entries
-  const liveTimetables = (Array.isArray(timetables) ? timetables : []).filter((t: Timetable) => !t.deletedAt);
-  const anyFavourite = liveTimetables.some((t: Timetable) => t.favorite);
-  const useTimetable = (t: Timetable) => !anyFavourite || t.favorite;
-  // Timetable flexible events for this day
-  (Array.isArray(flexEvents) ? flexEvents : []).forEach(ev => {
-    const tt = (timetables as Timetable[]).find(t => t.id === ev.timetableId);
-    if (!tt || tt.deletedAt || !useTimetable(tt)) return;
-    const dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][ttDayIdx];
-    const flexCol = tt.columns.findIndex(c => c.toLowerCase().startsWith(dayName.slice(0, 3).toLowerCase()));
-    if (ev.dayIndex !== flexCol) return;
-    if (tt?.type === 'fortnightly' && tt.fortnightStartDate && ev.week) {
-      const start = new Date(tt.fortnightStartDate);
-      const daysDiff = differenceInCalendarDays(date, start);
-      const wk = (Math.floor(daysDiff / 7) % 2) === 0 ? 1 : 2;
-      if (ev.week !== wk) return;
-    }
-    const [sh, sm] = ev.startTime.split(':').map(Number);
-    const [eh, em] = ev.endTime.split(':').map(Number);
-    items.push({
-      id: `tt-${ev.id}`,
-      type: 'timetable',
-      title: ev.title + (tt ? ` (${tt.name})` : ''),
-      startMin: sh * 60 + sm,
-      endMin: eh * 60 + em,
-      color: ev.color || '#f59e0b',
-    });
-  });
-
-  // Rigid timetable cells for this day
-  (Array.isArray(timetables) ? timetables : [])
-    .filter(tt => tt.mode === 'rigid' && !tt.deletedAt && useTimetable(tt))
-    .forEach(tt => {
-      const dayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][ttDayIdx];
-      const colIndex = tt.columns.findIndex(c => c.toLowerCase().startsWith(dayName.slice(0, 3).toLowerCase()));
-      if (colIndex < 0) return;
-      let wk: 1 | 2 = 1;
-      if (tt.type === 'fortnightly' && tt.fortnightStartDate) {
-        const start = new Date(tt.fortnightStartDate);
-        const daysDiff = differenceInCalendarDays(date, start);
-        wk = (Math.floor(daysDiff / 7) % 2) === 0 ? 1 : 2;
-      }
-      tt.rows.forEach((row, rowIndex) => {
-        const cell = tt.cells[`${rowIndex}-${colIndex}`];
-        if (!cell || cell.hidden || (cell.week && cell.week !== wk)) return;
-        const fields = (cell.fields || []).filter(Boolean);
-        if (fields.length === 0) return;
-        const [h, m] = row.startTime.split(':').map(Number);
-        items.push({
-          id: `rigid-${tt.id}-${rowIndex}-${colIndex}`,
-          type: 'timetable',
-          title: `${fields.join(' · ')} (${tt.name})`,
-          startMin: h * 60 + m,
-          endMin: h * 60 + m + row.duration,
-          color: cell.color || '#f59e0b',
-        });
-      });
-    });
-
-  // Assessments due on this date (all-day → put at 09:00 as a marker)
-  (Array.isArray(assessments) ? assessments : []).forEach(a => {
-    if (!a.dueDate || a.dueDate.split('T')[0] !== dateStr) return;
-    if (a.deletedAt) return;
-    items.push({
-      id: `assessment-${a.id}`,
-      type: 'assessment',
-      title: `Assessment: ${a.name}`,
-      startMin: 0,
-      endMin: 0,
-      color: '#ef4444',
-      allDay: true,
-    });
-  });
-
-  // Lists: the list itself when due today, plus any items scheduled today
-  (Array.isArray(lists) ? lists : []).forEach(l => {
-    if (l.deletedAt) return;
-    if (l.dueDateTime && l.dueDateTime.split('T')[0] === dateStr) {
-      items.push({
-        id: `list-${l.id}`,
-        type: 'list',
-        title: `List: ${l.title}`,
-        startMin: 0,
-        endMin: 0,
-        color: '#0ea5e9',
-        allDay: true,
-      });
-    }
-    (l.items || []).forEach(it => {
-      if (it.deletedAt || !it.dateTime) return;
-      if (it.dateTime.split('T')[0] !== dateStr) return;
-      const d = parseISO(it.dateTime);
-      const hasTime = it.dateTime.includes('T') && isValid(d) && (d.getHours() !== 0 || d.getMinutes() !== 0);
-      if (!hasTime) {
-        items.push({
-          id: `listitem-${it.id}`,
-          type: 'list',
-          title: `${it.title} — ${l.title}`,
-          startMin: 0,
-          endMin: 0,
-          color: '#0ea5e9',
-          allDay: true,
-        });
-        return;
-      }
-      const start = d.getHours() * 60 + d.getMinutes();
-      items.push({
-        id: `listitem-${it.id}`,
-        type: 'list',
-        title: `${it.title} — ${l.title}`,
-        startMin: start,
-        endMin: start + 30,
-        color: '#0ea5e9',
-      });
-    });
-  });
-
-  // Partial scheduling slots (task / subtask work sessions)
-  getPartialSlotsForDate(dateStr).forEach(slot => {
-    const parentTask = (Array.isArray(tasks) ? tasks : []).find(t => t.id === slot.itemId);
-    let label = parentTask?.name || slot.itemTitle || 'Scheduled session';
-    if (!parentTask) {
-      for (const t of (Array.isArray(tasks) ? tasks : [])) {
-        const s = t.subtasks?.find(x => x.id === slot.itemId);
-        if (s) { label = `${s.title} — ${t.name}`; break; }
-      }
-    }
-    const [h, m] = slot.time.split(':').map(Number);
-    const start = h * 60 + m;
-    items.push({
-      id: `partial-${slot.id}`,
-      type: 'partial',
-      title: label,
-      startMin: start,
-      endMin: start + (slot.duration || 30),
-      color: parentTask?.color || '#14b8a6',
-    });
-  });
-
-  const seen = new Set<string>();
-  return items.filter(it => {
-    const key = `${it.type}|${it.title}|${it.startMin}|${it.endMin}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
 }
 
 // Pack overlapping items into columns (leftmost fit).
@@ -363,6 +80,7 @@ const TYPE_LABEL: Record<PlanItem['type'], string> = {
   assessment: 'Assessment',
   list: 'List',
   partial: 'Session',
+  listItem: 'List item',
 };
 
 export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialogProps) {
@@ -375,6 +93,8 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const previewRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
+  const [includeTimetable, setIncludeTimetable] = useState(true);
+  const [includeRecurring, setIncludeRecurring] = useState(true);
 
   useEffect(() => {
     if (open) {
@@ -394,8 +114,8 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
 
   const allItems = useMemo(() => collectItemsForDate(parsedDate), [parsedDate]);
   const selectedItems = useMemo(
-    () => allItems.filter(i => !excluded.has(i.id)),
-    [allItems, excluded]
+    () => allItems.filter(i => !excluded.has(i.id) && planItemVisible(i, includeTimetable, includeRecurring)),
+    [allItems, excluded, includeTimetable, includeRecurring]
   );
 
   const timedSelected = useMemo(() => selectedItems.filter(i => !i.allDay), [selectedItems]);
@@ -454,7 +174,8 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
             const canvas = document.createElement('canvas');
             canvas.width = img.width;
             canvas.height = img.height;
-            const ctx = canvas.getContext('2d')!;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error('Canvas unavailable');
             ctx.drawImage(img, 0, 0);
             const pageHpx = (img.width * (pageH - margin * 2)) / availW;
             let y = 0;
@@ -464,7 +185,8 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
               const sliceCanvas = document.createElement('canvas');
               sliceCanvas.width = img.width;
               sliceCanvas.height = sliceH;
-              const sctx = sliceCanvas.getContext('2d')!;
+              const sctx = sliceCanvas.getContext('2d');
+              if (!sctx) throw new Error('Canvas unavailable');
               sctx.fillStyle = '#ffffff';
               sctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
               sctx.drawImage(canvas, 0, -y);
@@ -515,6 +237,8 @@ export function ExportDayPlanDialog({ open, onClose, date }: ExportDayPlanDialog
               <Label htmlFor="colour-toggle" className="font-normal">Colour output (off = B&W, outline only)</Label>
               <Switch id="colour-toggle" checked={colour} onCheckedChange={setColour} />
             </div>
+            <div className="flex items-center justify-between"><Label htmlFor="day-timetables">Timetables</Label><Switch id="day-timetables" checked={includeTimetable} onCheckedChange={setIncludeTimetable} /></div>
+            <div className="flex items-center justify-between"><Label htmlFor="day-recurring">Recurring events</Label><Switch id="day-recurring" checked={includeRecurring} onCheckedChange={setIncludeRecurring} /></div>
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label>Items to include ({selectedItems.length}/{allItems.length})</Label>
@@ -631,7 +355,7 @@ const TimelinePreview = forwardRef<HTMLDivElement, TimelinePreviewProps>(functio
             cluster.forEach(it => columnItems[it.col].push(it));
             columnItems.forEach(col => col.sort((a, b) => a.startMin - b.startMin));
             return (
-              <div key={ci} style={{ display: 'flex', gap: 8, height: groupHeight }}>
+              <div key={ci} style={{ display: 'flex', gap: 8, minHeight: groupHeight }}>
                 {columnItems.map((colItems, coli) => {
                   const stretchH = colItems.length ? (groupHeight - (colItems.length - 1) * gap) / colItems.length : groupHeight;
                   return (
@@ -644,13 +368,13 @@ const TimelinePreview = forwardRef<HTMLDivElement, TimelinePreviewProps>(functio
                             background: colour ? `${it.color}18` : '#fff',
                             borderRadius: 6,
                             padding: '8px 10px',
-                            height: stretchH,
+                            minHeight: stretchH,
                             boxSizing: 'border-box',
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'space-between',
                             fontSize: 12,
-                            overflow: 'hidden',
+                            overflow: 'visible',
                           }}
                         >
                           <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, opacity: 0.7 }}>
@@ -683,7 +407,7 @@ function renderStandaloneHtml(date: Date, clusters: (PlanItem & { col: number; c
     h2 { font-size: 14px; font-weight: 400; margin: 0 0 16px; }
     .cluster { display: flex; gap: 8px; margin-bottom: 16px; }
     .col { flex: 1; display: flex; flex-direction: column; gap: 8px; }
-    .box { border: 1.5px solid #000; border-radius: 6px; padding: 8px 10px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; font-size: 12px; overflow: hidden; }
+    .box { border: 1.5px solid #000; border-radius: 6px; padding: 8px 10px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; font-size: 12px; overflow: visible; }
     .type { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; }
     .title { font-weight: 600; font-size: 13px; word-break: break-word; }
     .time { font-size: 11px; opacity: 0.85; }
@@ -710,14 +434,14 @@ function renderStandaloneHtml(date: Date, clusters: (PlanItem & { col: number; c
     const columnItems: (PlanItem & { col: number; cols: number })[][] = Array.from({ length: cols }, () => []);
     cluster.forEach(it => columnItems[it.col].push(it));
     columnItems.forEach(col => col.sort((a, b) => a.startMin - b.startMin));
-    body += `<div class="cluster" style="height:${groupHeight}px">`;
+    body += `<div class="cluster" style="min-height:${groupHeight}px">`;
     columnItems.forEach(colItems => {
       const stretchH = colItems.length ? (groupHeight - (colItems.length - 1) * 8) / colItems.length : groupHeight;
       body += `<div class="col">`;
       colItems.forEach(it => {
         const border = colour ? it.color : '#000';
         const bg = colour ? `${it.color}18` : '#fff';
-        body += `<div class="box" style="height:${stretchH}px;border-color:${border};background:${bg};"><div class="type">${TYPE_LABEL[it.type]}</div><div class="title">${escapeHtml(it.title)}</div><div class="time">${fmt(it.startMin, format12)} – ${fmt(it.endMin, format12)} · ${durLabel(it.endMin - it.startMin)}</div></div>`;
+        body += `<div class="box" style="min-height:${stretchH}px;border-color:${border};background:${bg};"><div class="type">${TYPE_LABEL[it.type]}</div><div class="title">${escapeHtml(it.title)}</div><div class="time">${fmt(it.startMin, format12)} – ${fmt(it.endMin, format12)} · ${durLabel(it.endMin - it.startMin)}</div></div>`;
       });
       body += `</div>`;
     });

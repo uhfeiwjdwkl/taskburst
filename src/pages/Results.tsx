@@ -1,3 +1,4 @@
+import { ResultPart, emptyResultPart, resolveResultPart, resultNotes } from '@/lib/resultParts';
 import { useState, useEffect } from 'react';
 import { Task, TaskResultPart } from '@/types/task';
 import { Project, ProjectResultPart } from '@/types/project';
@@ -42,7 +43,11 @@ type ResultItem = {
   category: string;
   subcategory?: string;
   date?: string;
+  termId?: string;
+  flagged?: boolean;
   result: {
+    notes?: string;
+    flagged?: boolean;
     totalScore: number | null;
     totalMaxScore: number;
     totalMode?: 'marks' | 'average';
@@ -87,7 +92,7 @@ export default function Results() {
   } | null>(null);
   const [partsEditorOpen, setPartsEditorOpen] = useState(false);
   const [editingPartsItem, setEditingPartsItem] = useState<ResultItem | null>(null);
-  const [defaultPartCount, setDefaultPartCount] = useState(4);
+  const [defaultPartCount, setDefaultPartCount] = useState(1);
   
   // Task details dialogs
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
@@ -173,9 +178,9 @@ export default function Results() {
           totalMaxScore: 100,
           totalMode: 'marks' as const,
           parts: Array.from({ length: defaultPartCount }, (_, i) => ({
-            name: `Part ${i + 1}`,
+            name: '',
             score: null,
-            maxScore: 25,
+            maxScore: null,
             notes: ''
           }))
         };
@@ -187,6 +192,7 @@ export default function Results() {
           category: task.category || 'Uncategorized',
           subcategory: task.subcategory,
           date: task.dueDate,
+          flagged: task.flagged,
           result,
           originalTask: task
         });
@@ -201,9 +207,9 @@ export default function Results() {
           totalMaxScore: 100,
           totalMode: 'marks' as const,
           parts: Array.from({ length: defaultPartCount }, (_, i) => ({
-            name: `Part ${i + 1}`,
+            name: '',
             score: null,
-            maxScore: 25,
+            maxScore: null,
             notes: ''
           }))
         };
@@ -230,21 +236,24 @@ export default function Results() {
           shortName: a.resultShortName,
           category: a.category || 'Uncategorized',
           date: a.dueDate,
+          termId: a.termId,
           result: {
             totalScore: a.result.totalScore,
             totalMaxScore: a.result.totalMaxScore,
             totalMode: a.result.totalMode || 'marks',
             parts: a.result.parts,
+            notes: a.result.notes,
+            flagged: a.result.flagged,
           },
         });
       }
     });
 
-    return items;
+    return items.map(item => ({ ...item, result: { ...item.result, parts: item.result.parts.map(resolveResultPart) } }));
   };
 
   const resultItems = getResultItems()
-    .filter(item => matchesTerm(item.date, termFilter, terms))
+    .filter(item => item.termId ? (termFilter === 'all' || item.termId === termFilter) : matchesTerm(item.date, termFilter, terms))
     .sort((a, b) => (a.shortName || a.name).localeCompare(b.shortName || b.name));
   const maxParts = Math.max(defaultPartCount, ...resultItems.map(item => item.result.parts.length));
 
@@ -279,7 +288,7 @@ export default function Results() {
     } else if (groupBy === 'term') {
       const grouped: Record<string, ResultItem[]> = {};
       resultItems.forEach(item => {
-        const key = termLabel(item.date, terms);
+        const key = terms.find(t => t.id === item.termId)?.name || termLabel(item.date, terms);
         if (!grouped[key]) grouped[key] = [];
         grouped[key].push(item);
       });
@@ -305,25 +314,25 @@ export default function Results() {
 
   const groupedItems = getGroupedItems();
 
-  const calculatePercentage = (score: number | null, maxScore: number): string => {
-    if (score === null) return '-';
+  const calculatePercentage = (score: number | null, maxScore: number | null): string => {
+    if (score === null || !maxScore || maxScore <= 0) return '-';
     return ((score / maxScore) * 100).toFixed(2) + '%';
   };
 
   const calculateTotalScore = (item: ResultItem): { score: number | null; maxScore: number; percentage: string; displayValue: string } => {
     const mode = item.result.totalMode || 'marks';
-    const parts = item.result.parts;
-    const scoredParts = parts.filter(p => p.score !== null);
+    const parts = item.result.parts.map(resolveResultPart);
+    const scoredParts = parts.filter(p => p.score !== null && (p.maxScore ?? 0) > 0);
     
     if (scoredParts.length === 0) return { score: null, maxScore: item.result.totalMaxScore, percentage: '-', displayValue: '-' };
     
     if (mode === 'average') {
       const totalWeight = scoredParts.reduce((sum, p) => sum + (p.weight ?? 1), 0);
-      const weightedAvg = scoredParts.reduce((sum, p) => sum + ((p.score || 0) / p.maxScore) * 100 * (p.weight ?? 1), 0) / totalWeight;
+      const weightedAvg = scoredParts.reduce((sum, p) => sum + ((p.score || 0) / Number(p.maxScore)) * 100 * (p.weight ?? 1), 0) / totalWeight;
       return { score: null, maxScore: 100, percentage: weightedAvg.toFixed(2) + '%', displayValue: weightedAvg.toFixed(2) + '%' };
     } else {
       const totalScore = scoredParts.reduce((sum, p) => sum + (p.score || 0), 0);
-      const totalMax = scoredParts.reduce((sum, p) => sum + p.maxScore, 0);
+      const totalMax = scoredParts.reduce((sum, p) => sum + (p.maxScore ?? 0), 0);
       return { score: totalScore, maxScore: totalMax, percentage: ((totalScore / totalMax) * 100).toFixed(2) + '%', displayValue: `${totalScore}/${totalMax}` };
     }
   };
@@ -371,6 +380,9 @@ export default function Results() {
     if (item.type === 'task' && item.originalTask) {
       setViewingTask(item.originalTask);
       setDetailsDialogOpen(true);
+    } else {
+      const assessment = assessments.find(a => a.id === item.id);
+      if (assessment) { setSelectedAssessment(assessment); setAssessmentDetailsOpen(true); }
     }
   };
 
@@ -395,10 +407,20 @@ export default function Results() {
     toast.success('Task updated');
   };
 
-  const handleCellSave = (score: number | null, maxScore: number, notes: string) => {
+  const handleCellSave = (score: number | null, maxScore: number | null, notes: string, fullPart: ResultPart) => {
     if (!editingCell) return;
 
     const { itemId, itemType, partIndex } = editingCell;
+    const assessment = assessments.find(a => a.id === itemId);
+    if (assessment) {
+      const parts = [...assessment.result.parts];
+      while (parts.length <= partIndex) parts.push(emptyResultPart());
+      parts[partIndex] = resolveResultPart(fullPart);
+      handleSaveAssessment({ ...assessment, result: { ...assessment.result, parts } });
+      setEditingCell(null);
+      return;
+    }
+
 
     if (itemType === 'task') {
       const updateTasks = (taskList: Task[]) => taskList.map(task => {
@@ -408,13 +430,15 @@ export default function Results() {
             totalMaxScore: 100,
             totalMode: 'marks' as const,
             parts: Array.from({ length: defaultPartCount }, (_, i) => ({
-              name: `Part ${i + 1}`,
-              score: null,
-              maxScore: 25,
+              name: '',
+            score: null,
+            maxScore: null,
               notes: ''
             }))
           };
-          result.parts[partIndex] = { ...result.parts[partIndex], score, maxScore, notes };
+          result.parts = [...result.parts];
+          while (result.parts.length <= partIndex) result.parts.push(emptyResultPart());
+          result.parts[partIndex] = resolveResultPart(fullPart);
           return { ...task, result };
         }
         return task;
@@ -434,13 +458,15 @@ export default function Results() {
             totalMaxScore: 100,
             totalMode: 'marks' as const,
             parts: Array.from({ length: defaultPartCount }, (_, i) => ({
-              name: `Part ${i + 1}`,
-              score: null,
-              maxScore: 25,
+              name: '',
+            score: null,
+            maxScore: null,
               notes: ''
             }))
           };
-          result.parts[partIndex] = { ...result.parts[partIndex], score, maxScore, notes };
+          result.parts = [...result.parts];
+          while (result.parts.length <= partIndex) result.parts.push(emptyResultPart());
+          result.parts[partIndex] = resolveResultPart(fullPart);
           return { ...project, result };
         }
         return project;
@@ -522,6 +548,11 @@ export default function Results() {
     if (!editingPartsItem) return;
 
     const { id, type } = editingPartsItem;
+    const assessment = assessments.find(a => a.id === id);
+    if (assessment) {
+      handleSaveAssessment({ ...assessment, result: { ...assessment.result, parts: parts.map(resolveResultPart) } });
+      setPartsEditorOpen(false); setEditingPartsItem(null); return;
+    }
 
     if (type === 'task') {
       const updateTasks = (taskList: Task[]) => taskList.map(task => {
@@ -564,7 +595,7 @@ export default function Results() {
     const item = resultItems.find(i => i.id === editingCell.itemId);
     if (!item) return null;
     const part = item.result.parts[editingCell.partIndex];
-    return part || { name: `Part ${editingCell.partIndex + 1}`, score: null, maxScore: 25, notes: '' };
+    return part || emptyResultPart();
   };
 
   const getPartColumnName = (index: number): string => {
@@ -594,15 +625,16 @@ export default function Results() {
       id: Date.now().toString(),
       createdAt: new Date().toISOString(),
     };
-    const updated = [...assessments, assessment];
+    const updated = [...JSON.parse(localStorage.getItem('assessments') || '[]'), assessment];
     setAssessments(updated);
     localStorage.setItem('assessments', JSON.stringify(updated));
     toast.success('Assessment added!');
   };
 
   const handleSaveAssessment = (updated: Assessment) => {
-    const newList = assessments.map(a => a.id === updated.id ? updated : a);
-    setAssessments(newList);
+    const stored: Assessment[] = JSON.parse(localStorage.getItem('assessments') || '[]');
+    const newList = stored.map(a => a.id === updated.id ? updated : a);
+    setAssessments(newList.filter(a => !a.deletedAt));
     localStorage.setItem('assessments', JSON.stringify(newList));
     toast.success('Assessment updated!');
   };
@@ -818,13 +850,13 @@ export default function Results() {
                     {items.map((item) => {
                       const total = calculateTotalScore(item);
                       return (
-                        <TableRow key={item.id}>
+                        <TableRow key={item.id} className={item.flagged || item.result.flagged ? 'outline outline-1 outline-destructive' : ''}>
                           <TableCell className="font-medium">
                             <div 
                               className="cursor-pointer hover:text-primary transition-colors"
                               onClick={() => handleViewTask(item)}
                             >
-                              <span>{item.shortName || item.name}</span>
+                              <span>{(item.flagged || item.result.flagged) && <Flag aria-label="Flagged result" className="inline mr-1 h-3 w-3 text-destructive fill-current" />}{item.shortName || item.name}</span>
                               {item.shortName && (
                                 <span className="text-xs text-muted-foreground block">
                                   {item.name}
@@ -865,7 +897,7 @@ export default function Results() {
                                 {part ? (
                                   <div>
                                     <div className="text-sm font-medium">
-                                      {part.score !== null ? `${part.score}/${part.maxScore}` : '-'}
+                                      {part.score !== null ? `${Number(part.score.toFixed(2))}/${part.maxScore ?? '—'}` : '-'}{part.subparts?.length ? <span aria-label="Has subparts" className="ml-1">…</span> : null}{part.flagged && <Flag className="inline ml-1 h-3 w-3 text-destructive fill-current" />}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
                                       {calculatePercentage(part.score, part.maxScore)}
@@ -1053,7 +1085,7 @@ export default function Results() {
         </div>
         {(() => {
           const filtered = assessments
-            .filter(a => (showCompletedAssessments || !a.completed) && matchesTerm(a.dueDate, termFilter, terms))
+            .filter(a => (showCompletedAssessments || !a.completed) && (a.termId ? (termFilter === 'all' || a.termId === termFilter) : matchesTerm(a.dueDate, termFilter, terms)))
             .sort((a, b) => (a.resultShortName || a.name).localeCompare(b.resultShortName || b.name));
           if (filtered.length === 0) return (
             <Card className="p-6 text-center text-muted-foreground">No assessments to display.</Card>
@@ -1063,12 +1095,12 @@ export default function Results() {
             return (
               <div className="space-y-2">
                 {filtered.map(a => {
-                  const scored = a.result.parts.filter(p => p.score !== null);
+                  const scored = a.result.parts.map(resolveResultPart).filter(p => p.score !== null && (p.maxScore ?? 0) > 0);
                   const totalScore = scored.reduce((s, p) => s + (p.score || 0), 0);
-                  const totalMax = scored.reduce((s, p) => s + p.maxScore, 0);
+                  const totalMax = scored.reduce((s, p) => s + (p.maxScore ?? 0), 0);
                   const mode = a.result.totalMode || 'marks';
                   const pct = mode === 'average' && scored.length > 0
-                    ? (() => { const tw = scored.reduce((s, p) => s + (p.weight ?? 1), 0); return (scored.reduce((s, p) => s + ((p.score || 0) / p.maxScore) * 100 * (p.weight ?? 1), 0) / tw).toFixed(1); })()
+                    ? (() => { const tw = scored.reduce((s, p) => s + (p.weight ?? 1), 0); return (scored.reduce((s, p) => s + ((p.score || 0) / Number(p.maxScore)) * 100 * (p.weight ?? 1), 0) / tw).toFixed(1); })()
                     : totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
                   const displayTotal = mode === 'average' && scored.length > 0 ? `${pct}% avg` : scored.length > 0 ? `${totalScore}/${totalMax}` : '—';
                   const daysUntil = a.dueDate ? Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
@@ -1088,7 +1120,7 @@ export default function Results() {
                       setSelectedAssessment(a); setAssessmentDetailsOpen(true);
                     }}>
                       {a.result?.flagged && (
-                        <Flag className="absolute top-1 right-1 h-3 w-3 fill-red-500 text-red-500" />
+                        <Flag className="absolute top-1 right-1 h-3 w-3 fill-current text-destructive" />
                       )}
                       <div className="flex-1 min-w-0">
                         <span className="font-medium text-sm">{a.name}</span>
@@ -1114,12 +1146,12 @@ export default function Results() {
           return (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map(a => {
-                const scored = a.result.parts.filter(p => p.score !== null);
+                const scored = a.result.parts.map(resolveResultPart).filter(p => p.score !== null && (p.maxScore ?? 0) > 0);
                 const totalScore = scored.reduce((s, p) => s + (p.score || 0), 0);
-                const totalMax = scored.reduce((s, p) => s + p.maxScore, 0);
+                const totalMax = scored.reduce((s, p) => s + (p.maxScore ?? 0), 0);
                 const mode = a.result.totalMode || 'marks';
                 const pct = mode === 'average' && scored.length > 0
-                  ? (() => { const tw = scored.reduce((s, p) => s + (p.weight ?? 1), 0); return (scored.reduce((s, p) => s + ((p.score || 0) / p.maxScore) * 100 * (p.weight ?? 1), 0) / tw).toFixed(1); })()
+                  ? (() => { const tw = scored.reduce((s, p) => s + (p.weight ?? 1), 0); return (scored.reduce((s, p) => s + ((p.score || 0) / Number(p.maxScore)) * 100 * (p.weight ?? 1), 0) / tw).toFixed(1); })()
                   : totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : '-';
                 const displayTotal = mode === 'average' && scored.length > 0 ? `${pct}% avg` : scored.length > 0 ? `${totalScore}/${totalMax}` : '—';
                 const daysUntil = a.dueDate ? Math.ceil((new Date(a.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
@@ -1141,7 +1173,7 @@ export default function Results() {
                     setSelectedAssessment(a); setAssessmentDetailsOpen(true);
                   }}>
                     {a.result?.flagged && (
-                      <Flag className="absolute top-1.5 right-1.5 h-3.5 w-3.5 fill-red-500 text-red-500" />
+                      <Flag className="absolute top-1.5 right-1.5 h-3.5 w-3.5 fill-current text-destructive" />
                     )}
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0">
@@ -1182,6 +1214,13 @@ export default function Results() {
         })()}
       </div>
 
+      <details className="mt-8 border-t pt-4"><summary className="cursor-pointer text-lg font-semibold">Notes by subject</summary>
+        {Object.entries([...getResultItems(), ...assessments.filter(a => a.linkedTaskId).map(a => ({ id: a.id, category: a.category || 'Uncategorized', name: a.name, result: a.result }))].reduce((groups, item) => {
+          const notes = [...(item.result.notes?.trim() ? [{ label: 'General', note: item.result.notes }] : []), ...resultNotes(item.result.parts)];
+          if (notes.length) (groups[item.category] ||= []).push(...notes.map(n => ({ ...n, item: item.name })));
+          return groups;
+        }, {} as Record<string, {label: string; note: string; item: string}[]>)).sort(([a],[b]) => a.localeCompare(b)).map(([subject, notes]) => <details key={subject} className="mt-3"><summary className="cursor-pointer font-medium">{subject} ({notes.length})</summary><ul className="ml-4 space-y-3 py-2">{notes.map((note,index) => <li key={index}><div className="text-sm font-medium">{note.item} · {note.label}</div><p className="whitespace-pre-wrap text-sm text-muted-foreground">{note.note}</p></li>)}</ul></details>)}
+      </details>
       <ResultCellDialog
         open={editingCell !== null}
         onClose={() => setEditingCell(null)}
