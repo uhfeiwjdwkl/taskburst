@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, Fragment } from 'react';
+import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
 import { eventTimingLabel, MIN_EVENT_MINUTES, timelinePixelsPerMinute, displayEventMinutes, isCompactEvent } from '@/lib/eventTiming';
 import { Task } from '@/types/task';
 import { ListItemFullDetailsDialog } from '@/components/ListItemFullDetailsDialog';
@@ -98,6 +98,7 @@ export const UniversalDayCalendar = ({
   moveMode = false,
   onMoveItems,
 }: UniversalDayCalendarProps) => {
+  const scrollRoot = useRef<HTMLDivElement>(null);
   const settings = useAppSettings();
   const mirrorColor = Boolean((settings as any).mirrorColorToProgressBox);
   const [internalDate, setInternalDate] = useState(initialDate || new Date());
@@ -167,10 +168,11 @@ export const UniversalDayCalendar = ({
     load();
     window.addEventListener('storage', load);
     window.addEventListener('listsUpdated', load);
+    window.addEventListener('partialScheduleUpdated', load);
     const loadEvents = () => setEvents(safeParse('calendarEvents') as CalendarEvent[]);
     window.addEventListener('calendarEventsUpdated', loadEvents);
     window.addEventListener('storage', loadEvents);
-    return () => { window.removeEventListener('storage', load); window.removeEventListener('listsUpdated', load); window.removeEventListener('calendarEventsUpdated', loadEvents); window.removeEventListener('storage', loadEvents); };
+    return () => { window.removeEventListener('storage', load); window.removeEventListener('listsUpdated', load); window.removeEventListener('partialScheduleUpdated', load); window.removeEventListener('calendarEventsUpdated', loadEvents); window.removeEventListener('storage', loadEvents); };
   }, []);
 
   useEffect(() => {
@@ -202,6 +204,8 @@ export const UniversalDayCalendar = ({
           id: `task-${task.id}`,
           type: 'task',
           title: task.name,
+          time: task.scheduledTime || (task.dueDate.includes('T') ? format(parseISO(task.dueDate), 'HH:mm') : undefined),
+          duration: task.estimatedMinutes,
           completed: task.completed,
           color: task.color,
           data: task,
@@ -453,6 +457,16 @@ export const UniversalDayCalendar = ({
   const endHour = expanded ? 24 : Math.max(startHour + 1, Math.min(24, (settings as any).calendarEndHour ?? 22));
   const totalHours = endHour - startHour;
   const hours = Array.from({ length: totalHours + 1 }, (_, i) => i + startHour);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const viewport = scrollRoot.current?.querySelector<HTMLElement>('[data-radix-scroll-area-viewport]');
+      if (!viewport || !isSameDay(currentDate, new Date())) return;
+      const now = new Date();
+      viewport.scrollTop = Math.max(0, (now.getHours() * 60 + now.getMinutes() - startHour * 60) * timelinePixelsPerMinute(settings.calendarReadableMinutes) - viewport.clientHeight / 2);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [dateStr, expanded, settings.calendarReadableMinutes, startHour]);
 
   const getTimePosition = (time: string): number => {
     const [hours, minutes] = time.split(':').map(Number);
@@ -722,7 +736,7 @@ export const UniversalDayCalendar = ({
       )}
 
       {/* Timeline Grid */}
-      <ScrollArea className="flex-1 min-h-0">
+      <ScrollArea ref={scrollRoot} className="flex-1 min-h-0">
         <div
           className="relative"
           style={{ height: `${totalHours * 60 * timelinePixelsPerMinute(settings.calendarReadableMinutes)}px` }}
