@@ -24,8 +24,10 @@ export const loadPartialSlots = (): PartialSlot[] => {
   }
 };
 
-export const savePartialSlots = (slots: PartialSlot[]) =>
+export const savePartialSlots = (slots: PartialSlot[]) => {
   localStorage.setItem(PARTIAL_KEY, JSON.stringify(slots));
+  window.dispatchEvent(new Event('partialScheduleUpdated'));
+};
 
 export const getPartialSlotsForDate = (dateStr: string): PartialSlot[] =>
   loadPartialSlots().filter((s) => s.date === dateStr && s.time);

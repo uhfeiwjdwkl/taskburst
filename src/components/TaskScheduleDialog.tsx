@@ -1,3 +1,5 @@
+import { TimeCalculator } from './TimeCalculator';
+import { Switch } from '@/components/ui/switch';
 import { useState, useEffect } from 'react';
 import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
@@ -32,6 +34,7 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
   const [editedTask, setEditedTask] = useState<Task | null>(null);
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [selectedSubtaskId, setSelectedSubtaskId] = useState<string | null>(null);
+  const [partial, setPartial] = useState(false);
   const [partialTarget, setPartialTarget] = useState<'task' | 'subtask'>('task');
   const [partialSlots, setPartialSlots] = useState<PartialSlot[]>([]);
   const [newPartial, setNewPartial] = useState({ date: '', time: '', duration: 30 });
@@ -136,7 +139,7 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
         ? { 
             ...s, 
             dueDate: date ? format(date, 'yyyy-MM-dd') : undefined, 
-            scheduledTime: time !== undefined ? time : s.scheduledTime,
+            scheduledTime: date ? (time !== undefined ? time : s.scheduledTime) : undefined,
             estimatedMinutes: duration !== undefined ? duration : s.estimatedMinutes
           }
         : s
@@ -173,7 +176,7 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
     const others = allTasks.filter(t => t.id !== editedTask.id);
     return [editedTask, ...others];
   })();
-  const usingSubtask = partialTarget === 'subtask' && !!selectedSubtask;
+  const usingSubtask = !!selectedSubtask;
   const targetItemId = (usingSubtask ? selectedSubtaskId : task?.id) || '';
   const targetItemType: 'task' | 'subtask' = usingSubtask ? 'subtask' : 'task';
   const targetItemTitle = usingSubtask ? (selectedSubtask?.title || '') : task.name;
@@ -209,7 +212,7 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
-            Schedule Subtasks - {task.name}
+            Schedule - {task.name}
           </DialogTitle>
         </DialogHeader>
 
@@ -228,6 +231,7 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
               </Button>
             </div>
             <div className="flex gap-2">
+              <TimeCalculator />
               <Button
                 variant={viewMode === 'month' ? 'default' : 'outline'}
                 size="sm"
@@ -292,7 +296,7 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
                     ))}
                     {(daySubtasks.length > 2 || dayEvents.length > 1) && (
                       <div className="text-xs text-muted-foreground">
-                        +{daySubtasks.length - 2 + dayEvents.length - 1} more
+                        +{Math.max(0, daySubtasks.length - 2) + Math.max(0, dayEvents.length - 1)} more
                       </div>
                     )}
                   </div>
@@ -316,24 +320,23 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
 
           {/* Unscheduled Subtasks */}
           <div className="border-t pt-4">
-            <h4 className="font-medium mb-2">Unscheduled Subtasks (click to select, then click a day)</h4>
+            <h4 className="font-medium mb-2">Scheduling bank</h4>
             <div className="flex flex-wrap gap-2">
-              {subtasks.filter(s => !s.dueDate).map(subtask => (
+              <Button type="button" size="sm" variant={selectedSubtaskId === null ? 'default' : 'outline'} onClick={() => { setSelectedSubtaskId(null); setPartialTarget('task'); }}>Whole task: {task.name}</Button>
+              {subtasks.filter(s => !s.dueDate || s.partial).map(subtask => (
                 <Badge
                   key={subtask.id}
                   variant={selectedSubtaskId === subtask.id ? "default" : "outline"}
                   className="cursor-pointer hover:bg-primary/10"
                   onClick={() => {
                     setSelectedSubtaskId(subtask.id);
-                    if (selectedDate) {
-                      handleScheduleSubtask(subtask.id, selectedDate);
-                    }
+                    setPartialTarget('subtask');
                   }}
                 >
                   {subtask.title}
                 </Badge>
               ))}
-              {subtasks.filter(s => !s.dueDate).length === 0 && (
+              {subtasks.filter(s => !s.dueDate || s.partial).length === 0 && (
                 <p className="text-sm text-muted-foreground">All subtasks are scheduled</p>
               )}
             </div>
@@ -460,57 +463,25 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
           </Button>
         </div>
 
-        {/* Partial scheduling mode */}
-        <div className="border-t pt-4 mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="font-medium">Partial Scheduling</h4>
-            <div className="flex gap-1">
-              <Button size="sm" variant={partialTarget === 'task' ? 'default' : 'outline'} onClick={() => setPartialTarget('task')}>
-                Whole task
-              </Button>
-              <Button
-                size="sm"
-                variant={partialTarget === 'subtask' ? 'default' : 'outline'}
-                disabled={!selectedSubtask}
-                onClick={() => setPartialTarget('subtask')}
-              >
-                Selected subtask
-              </Button>
-            </div>
+        <div className="border-t pt-4 mt-4 space-y-3">
+          <h4 className="font-medium">Schedule: {selectedSubtask ? selectedSubtask.title : task.name}</h4>
+          <Label className="flex items-center gap-2"><Switch checked={partial} onCheckedChange={setPartial} />Partial</Label>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
+            <Label>Date<Input type="date" value={newPartial.date || (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '')} onChange={e => setNewPartial({ ...newPartial, date: e.target.value, time: e.target.value ? newPartial.time : '' })} /></Label>
+            <Label>Time<Input type="time" value={newPartial.time} onChange={e => setNewPartial({ ...newPartial, time: e.target.value })} /></Label>
+            <Label>Duration (min)<Input type="number" min={0} value={newPartial.duration} onChange={e => setNewPartial({ ...newPartial, duration: Number(e.target.value) })} /></Label>
+            <Button type="button" onClick={() => {
+              const date = newPartial.date || (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '');
+              if (!date || !newPartial.time) return;
+              if (partial) {
+                addPartialSlot();
+                setEditedTask(selectedSubtask ? { ...editedTask, subtasks: subtasks.map(s => s.id === selectedSubtask.id ? { ...s, partial: true } : s) } : { ...editedTask, partial: true });
+              } else if (selectedSubtask) {
+                handleScheduleSubtask(selectedSubtask.id, new Date(date + 'T12:00:00'), newPartial.time, newPartial.duration);
+              } else { setEditedTask({ ...editedTask, dueDate: date, scheduledTime: newPartial.time, estimatedMinutes: newPartial.duration, partial: false }); }
+            }}>Schedule</Button>
           </div>
-          {targetItemId && (
-            <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">
-                Schedule <span className="font-medium">{targetItemTitle}</span> for multiple time slots across different dates.
-                Slots appear on every day calendar and can be started from there.
-              </p>
-              <div className="grid grid-cols-4 gap-2 items-end">
-                <div>
-                  <Label className="text-xs">Date</Label>
-                  <Input type="date" value={newPartial.date} onChange={e => setNewPartial({ ...newPartial, date: e.target.value })} />
-                </div>
-                <div>
-                  <Label className="text-xs">Time</Label>
-                  <Input type="time" value={newPartial.time} onChange={e => setNewPartial({ ...newPartial, time: e.target.value })} />
-                </div>
-                <div>
-                  <Label className="text-xs">Duration (min)</Label>
-                  <Input type="number" min={1} value={newPartial.duration} onChange={e => setNewPartial({ ...newPartial, duration: parseInt(e.target.value) || 0 })} />
-                </div>
-                <Button onClick={addPartialSlot} size="sm">Add Slot</Button>
-              </div>
-              {itemSlots.length > 0 && (
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {itemSlots.map(s => (
-                    <div key={s.id} className="flex items-center justify-between p-2 bg-muted rounded text-sm">
-                      <span>{s.date} • {s.time} • {s.duration}m</span>
-                      <Button size="sm" variant="ghost" onClick={() => removePartialSlot(s.id)}>Remove</Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {itemSlots.map(slot => <div key={slot.id} className="flex justify-between items-center text-sm"><span>{slot.date} · {slot.time} · {slot.duration}m</span><Button type="button" size="sm" variant="ghost" onClick={() => removePartialSlot(slot.id)}>Remove</Button></div>)}
         </div>
       </DialogContent>
     </Dialog>

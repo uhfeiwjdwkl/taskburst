@@ -1,3 +1,4 @@
+import { duplicateFreshTask } from '@/lib/taskScheduling';
 import { removeSubtask } from '@/lib/itemDeletion';
 import { useState, useEffect, useMemo } from 'react';
 import { Task } from '@/types/task';
@@ -387,22 +388,7 @@ const Index = () => {
     toast.success('Task hidden');
   };
   const handleDuplicateTask = (task: Task) => {
-    const copy: Task = {
-      ...task,
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: `${task.name} (copy)`,
-      createdAt: new Date().toISOString(),
-      order: 0,
-      spentMinutes: 0,
-      completed: false,
-      completedAt: undefined,
-      archivedAt: undefined,
-      subtasks: (task.subtasks || []).map((sub) => ({
-        ...sub,
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        completed: false,
-      })),
-    } as Task;
+    const copy = duplicateFreshTask(task);
     setTasks([copy, ...tasks.map((t) => ({ ...t, order: (t.order ?? 0) + 1 }))]);
     toast.success('Task duplicated');
   };

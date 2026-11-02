@@ -36,6 +36,8 @@ export interface Task {
   estimatedMinutes: number;
   spentMinutes: number;
   dueDate: string;
+  scheduledTime?: string;
+  partial?: boolean;
   completed: boolean;
   createdAt: string;
   progressGridSize: number; // Total number of squares in the grid

@@ -62,7 +62,7 @@ export const SubtaskDialog = ({
       setEstimatedMinutes(subtask.estimatedMinutes ?? 0);
       setPriority(subtask.priority);
       setDueDate(subtask.dueDate || '');
-      setScheduledTime(subtask.scheduledTime || '');
+      setScheduledTime(subtask.dueDate ? subtask.scheduledTime || '' : '');
       setLinkedToProgressGrid(subtask.linkedToProgressGrid);
       setProgressGridIndex(subtask.progressGridIndex);
       setColor(subtask.color);
@@ -101,7 +101,8 @@ export const SubtaskDialog = ({
       estimatedMinutes: estimatedMinutes || undefined,
       priority: priority || undefined,
       dueDate: dueDate || undefined,
-      scheduledTime: scheduledTime || undefined,
+      scheduledTime: dueDate ? scheduledTime || undefined : undefined,
+      partial: subtask?.partial,
       completed: subtask?.completed || false,
       linkedToProgressGrid,
       progressGridIndex: linkedToProgressGrid ? progressGridIndex : undefined,
@@ -206,7 +207,7 @@ export const SubtaskDialog = ({
                 id="dueDate"
                 type="date"
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                onChange={(e) => { setDueDate(e.target.value); if (!e.target.value) setScheduledTime(''); }}
                 className="mt-1"
               />
             </div>
@@ -216,6 +217,7 @@ export const SubtaskDialog = ({
                 id="scheduledTime"
                 type="time"
                 value={scheduledTime}
+                disabled={!dueDate}
                 onChange={(e) => setScheduledTime(e.target.value)}
                 className="mt-1"
               />
