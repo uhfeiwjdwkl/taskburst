@@ -1,3 +1,5 @@
+import { HomeLayout, HomeWidget } from '@/components/HomeLayout';
+import { duplicateFreshTask } from '@/lib/taskScheduling';
 import { removeSubtask } from '@/lib/itemDeletion';
 import { useState, useEffect, useMemo } from 'react';
 import { Task } from '@/types/task';
@@ -387,22 +389,7 @@ const Index = () => {
     toast.success('Task hidden');
   };
   const handleDuplicateTask = (task: Task) => {
-    const copy: Task = {
-      ...task,
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: `${task.name} (copy)`,
-      createdAt: new Date().toISOString(),
-      order: 0,
-      spentMinutes: 0,
-      completed: false,
-      completedAt: undefined,
-      archivedAt: undefined,
-      subtasks: (task.subtasks || []).map((sub) => ({
-        ...sub,
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        completed: false,
-      })),
-    } as Task;
+    const copy = duplicateFreshTask(task);
     setTasks([copy, ...tasks.map((t) => ({ ...t, order: (t.order ?? 0) + 1 }))]);
     toast.success('Task duplicated');
   };
@@ -453,7 +440,8 @@ const Index = () => {
         </header>
 
         {/* Timer Section with Day Calendar */}
-        <section className="grid lg:grid-cols-[1fr,400px] gap-6 mb-8">
+        <HomeLayout>
+        <HomeWidget kind="timer">
           {/* Timer */}
           <div className="bg-card rounded-2xl shadow-lg p-8 border border-border relative z-50 pointer-events-auto">
             <TimetableCurrentBlock />
@@ -471,8 +459,9 @@ const Index = () => {
             />
           </div>
 
-          {/* Day Calendar - shown beside timer on large screens */}
-          <div className="hidden lg:block h-[550px]">
+        </HomeWidget>
+        <HomeWidget kind="calendar">
+          <div className="h-[550px]">
             <UniversalDayCalendar
               tasks={tasks}
               onTaskClick={(task) => {
@@ -502,42 +491,10 @@ const Index = () => {
               onListItemClick={(item, list) => setCalendarListItem({ item, list })}
             />
           </div>
-        </section>
-
-        {/* Day Calendar - shown above tasks on smaller screens */}
-        <section className="lg:hidden mb-6">
-            <UniversalDayCalendar
-              tasks={tasks}
-              onTaskClick={(task) => {
-                setSelectedTask(task);
-                setDetailsDialogOpen(true);
-              }}
-              onSubtaskClick={(subtask, task) => {
-                setSelectedSubtask({ subtask, task });
-                setSubtaskDetailsOpen(true);
-              }}
-              onEventClick={(event) => {
-                setSelectedEvent(event);
-                setEventDetailsOpen(true);
-              }}
-              onAssessmentClick={(assessment) => {
-                setSelectedAssessment(assessment);
-                setAssessmentDetailsOpen(true);
-              }}
-              onTimetableEventClick={(event) => {
-                setSelectedTimetableEvent(event);
-                setTimetableEventDetailsOpen(true);
-              }}
-              onStartSubtask={(subtask, task) => {
-                setActiveTaskId(task.id);
-                toast.success(`Starting focus session for: ${subtask.title}`);
-              }}
-              onListItemClick={(item, list) => setCalendarListItem({ item, list })}
-            />
-        </section>
+        </HomeWidget>
 
         {/* Tasks Section with Drag & Drop */}
-        <section>
+        <HomeWidget kind="tasks">
           <div className="flex flex-col gap-3 mb-4">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold">
@@ -660,7 +617,7 @@ const Index = () => {
               )}
             </Droppable>
           </DragDropContext>
-        </section>
+        </HomeWidget>
 
         {hiddenTasks.length > 0 && (
           <Collapsible className="mt-8">
@@ -701,7 +658,7 @@ const Index = () => {
             setFavoriteLists(favoriteLists.map(l => l.id === updatedList.id ? updatedList : l));
           };
           return (
-            <section className="mt-8">
+            <HomeWidget kind="lists">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-semibold flex items-center gap-2">
                   <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
@@ -758,13 +715,13 @@ const Index = () => {
                   ))}
                 </div>
               </Card>
-            </section>
+            </HomeWidget>
           );
         })()}
 
         {/* Favorite Timetables Section */}
         {favoriteTimetables.length > 0 && (
-          <section className="mt-8">
+          <HomeWidget kind="timetables">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-semibold flex items-center gap-2">
                 <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
@@ -791,8 +748,9 @@ const Index = () => {
                 </div>
               ))}
             </div>
-          </section>
+          </HomeWidget>
         )}
+        </HomeLayout>
 
         {/* Dialogs */}
         <AddEventDialog
@@ -983,6 +941,7 @@ const Index = () => {
             setEventDetailsOpen(false);
             setSelectedEvent(null);
           }}
+          onDelete={() => { if (!selectedEvent) return; const all = readArray<CalendarEvent>('calendarEvents'); localStorage.setItem('calendarEvents', JSON.stringify(all.filter(e => e.id !== selectedEvent.id))); const deleted = readArray<CalendarEvent>('deletedCalendarEvents'); localStorage.setItem('deletedCalendarEvents', JSON.stringify([...deleted, { ...selectedEvent, deletedAt: new Date().toISOString() }])); window.dispatchEvent(new Event('calendarEventsUpdated')); setEventDetailsOpen(false); }}
           onEdit={() => {
             setEventDetailsOpen(false);
             setEventEditOpen(true);

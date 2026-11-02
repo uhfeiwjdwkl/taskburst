@@ -12,7 +12,11 @@
 - [ ] Current request: full-width boxed month days with non-recurring activity counts
 - [ ] Current request: high-contrast mobile due pills
 - [ ] Current request: live event updates, unified timing, proportional five-minute-minimum timelines
-- [ ] Extensive Guide update
+- [ ] Calendar fullscreen and editable home widget layout (size, add/remove, reorder)
+- [ ] Unified partial scheduling for whole tasks/subtasks; preserve partial items in bank
+- [ ] Duplicate tasks clear schedules and completion; undated subtasks clear time
+- [ ] Linked progress-box/subtask ordering controls
+- [x] Guide update skipped as requested
 - [ ] List items on day calendar (click → details, complete/delete sync)
 - [ ] Stop sync on Categories / Lists / Calendar page clicks
 - [ ] Improve list item syncing

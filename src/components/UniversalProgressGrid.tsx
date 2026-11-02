@@ -1,3 +1,4 @@
+import { moveProgressBox } from '@/lib/taskScheduling';
 import { useState, useEffect } from 'react';
 import { Task } from '@/types/task';
 import { Subtask } from '@/types/subtask';
@@ -64,7 +65,7 @@ export const UniversalProgressGrid = ({
   useEffect(() => {
     const stored = getStoredFilledIndices(task.id);
     setFilledIndices(stored || Array.from({ length: task.progressGridFilled }, (_, i) => i));
-  }, [task.id, task.progressGridFilled]);
+  }, [task.id, task.progressGridFilled, task.subtasks]);
 
   const getSubtaskForIndex = (index: number): Subtask | undefined => {
     return task.subtasks?.find(s => s.linkedToProgressGrid && s.progressGridIndex === index);
@@ -175,7 +176,12 @@ export const UniversalProgressGrid = ({
               : null;
 
             return (
-              <div key={index} className="relative">
+              <div key={index} className="relative" draggable={interactive && !!onUpdateTask}
+                aria-label={`Progress box ${index + 1}`} title="Drag to reorder progress box"
+                onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('application/taskburst-box', String(index)); }}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => { e.preventDefault(); e.stopPropagation(); const raw = e.dataTransfer.getData('application/taskburst-box'); if (!raw || !onUpdateTask) return; const result = moveProgressBox(task, Number(raw), index, filledIndices); storeFilledIndices(task.id, result.filled); setFilledIndices(result.filled); onUpdateTask(result.task); }}
+              >
                 <ProgressGridBox
                   icon={settings.progressGridIcon}
                   filled={isFilled}

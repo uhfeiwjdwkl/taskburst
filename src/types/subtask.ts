@@ -7,6 +7,7 @@ export interface Subtask {
   estimatedMinutes?: number;
   priority?: number; // 1-5, optional
   dueDate?: string; // ISO date string
+  partial?: boolean;
   scheduledTime?: string; // "09:00" format for time scheduling
   completed: boolean;
   linkedToProgressGrid: boolean; // Whether this subtask corresponds to a progress grid box

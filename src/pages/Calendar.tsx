@@ -1,3 +1,4 @@
+import { TimeCalculator } from '@/components/TimeCalculator';
 import { eventTimingLabel } from '@/lib/eventTiming';
 import { deleteStoredEntity, removeSubtask } from '@/lib/itemDeletion';
 import { List as TaskList } from '@/types/list';
@@ -13,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Plus, Calendar as CalendarIcon, Clock, MapPin, Trash2, ChevronDown, ChevronRight, Search, CheckCircle, Move } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar as CalendarIcon, Clock, MapPin, Trash2, ChevronDown, ChevronRight, Search, CheckCircle, Move, Maximize2, Minimize2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Timetable } from '@/types/timetable';
@@ -110,6 +111,9 @@ const CalendarPage = () => {
   const [eventSelectionMode, setEventSelectionMode] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [moveMode, setMoveMode] = useState(false);
+  const fullscreenRoot = useRef<HTMLDivElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => { const changed = () => setFullscreen(document.fullscreenElement === fullscreenRoot.current); document.addEventListener('fullscreenchange', changed); return () => document.removeEventListener('fullscreenchange', changed); }, []);
   const [fullView, setFullView] = useState(() => localStorage.getItem('calendarFullView') === 'true');
   useEffect(() => { localStorage.setItem('calendarFullView', String(fullView)); }, [fullView]);
   
@@ -397,7 +401,7 @@ const CalendarPage = () => {
   });
 
   return (
-    <div className="min-h-screen bg-background">
+    <div ref={fullscreenRoot} className="min-h-screen bg-background overflow-y-auto">
       <div className="container max-w-6xl mx-auto px-4 py-8">
         <header className="flex items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
@@ -448,6 +452,8 @@ const CalendarPage = () => {
               ))}
             </SelectContent>
           </Select>
+          <TimeCalculator />
+          <Button variant="outline" title={fullscreen ? 'Exit fullscreen' : 'Fullscreen calendar'} onClick={async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await fullscreenRoot.current?.requestFullscreen(); } catch { toast.error('Fullscreen is unavailable in this browser'); } }}>{fullscreen ? <Minimize2 className="h-4 w-4 mr-2" /> : <Maximize2 className="h-4 w-4 mr-2" />}{fullscreen ? 'Exit fullscreen' : 'Fullscreen'}</Button>
           <Button variant="outline" onClick={() => setPlannerOpen(true)}>Planner <ChevronDown className="ml-2 h-4 w-4" /></Button>
           <Button variant={moveMode ? 'default' : 'outline'} onClick={() => setMoveMode(value => !value)}>
             <Move className="mr-2 h-4 w-4" />{moveMode ? 'Exit move mode' : 'Move mode'}
@@ -490,7 +496,7 @@ const CalendarPage = () => {
                   const total = counts.reduce((sum, item) => sum + item.count, 0);
                   if (fullView) {
                     const names = [
-                      ...events.filter(event => eventOccursOnDate(event, date)).map(event => ({ key: `e-${event.id}`, title: `${event.time ? formatTimeTo12Hour(event.time) + ' ' : ''}${event.title}`, color: event.color })),
+                      ...events.filter(event => !event.recurring?.enabled && !(event.endDate && event.endDate > event.date) && eventOccursOnDate(event, date)).map(event => ({ key: `e-${event.id}`, title: `${event.time ? formatTimeTo12Hour(event.time) + ' ' : ''}${event.title}`, color: event.color })),
                       ...getTasksForDate(date).map(task => ({ key: `t-${task.id}`, title: task.name, color: task.color })),
                       ...getSubtasksForDate(date).map(({ subtask }) => ({ key: `s-${subtask.id}`, title: subtask.title, color: undefined as string | undefined })),
                       ...lists.filter(list => !list.archivedAt && !list.deletedAt).flatMap(list => (list.items || []).filter(item => !item.deletedAt && item.dateTime?.slice(0, 10) === dateKey).map(item => ({ key: `l-${item.id}`, title: item.title, color: undefined as string | undefined }))),
