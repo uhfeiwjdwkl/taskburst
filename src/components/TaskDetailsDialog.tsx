@@ -1,3 +1,6 @@
+import { moveProgressBox, deleteProgressBox } from '@/lib/taskScheduling';
+import { getStoredFilledIndices, storeFilledIndices } from '@/components/UniversalProgressGrid';
+import { ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
 import { ResultPartFields, FractionInput } from '@/components/ResultPartFields';
 import { emptyResultPart } from '@/lib/resultParts';
 import { useState, useEffect, useRef } from 'react';
@@ -225,6 +228,20 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
       ...editedTask,
       result: { ...editedTask.result, parts: updatedParts }
     });
+  };
+
+  const currentFilled = () => getStoredFilledIndices(editedTask.id) || Array.from({ length: editedTask.progressGridFilled || 0 }, (_, i) => i);
+  const reorderBox = (from: number, to: number) => {
+    const { task: next, filled } = moveProgressBox(editedTask, from, to, currentFilled());
+    storeFilledIndices(editedTask.id, filled);
+    setEditedTask({ ...next, progressGridFilled: filled.length });
+    setSelectedProgressBox(to);
+  };
+  const removeBox = (index: number) => {
+    const { task: next, filled } = deleteProgressBox(editedTask, index, currentFilled());
+    storeFilledIndices(editedTask.id, filled);
+    setEditedTask(next);
+    setSelectedProgressBox(0);
   };
 
   const handleAddPart = () => {
@@ -619,8 +636,15 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
                       key={i}
                       className={`flex items-center gap-1 rounded p-1 ${selectedProgressBox === i ? 'ring-2 ring-ring' : ''}`}
                       onClick={() => setSelectedProgressBox(i)}
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData('text/progress-box', String(i))}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => { e.preventDefault(); const from = Number(e.dataTransfer.getData('text/progress-box')); if (Number.isFinite(from) && from !== i) reorderBox(from, i); }}
                     >
+                      <GripVertical className="h-3 w-3 text-muted-foreground cursor-grab shrink-0" />
                       <span className="text-xs text-muted-foreground w-6 text-right">{i + 1}.</span>
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label={`Move box ${i + 1} up`} disabled={i === 0} onClick={(e) => { e.stopPropagation(); reorderBox(i, i - 1); }}><ArrowUp className="h-3 w-3" /></Button>
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label={`Move box ${i + 1} down`} disabled={i === editedTask.progressGridSize - 1} onClick={(e) => { e.stopPropagation(); reorderBox(i, i + 1); }}><ArrowDown className="h-3 w-3" /></Button>
                       {/* Color ring around abbreviation */}
                       <div 
                         className="relative w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold cursor-pointer border-2 shrink-0"
@@ -700,6 +724,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
                         className="w-14 h-7 text-xs"
                         disabled={!linkedSubtask}
                       />
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label={`Delete box ${i + 1}`} onClick={(e) => { e.stopPropagation(); removeBox(i); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                     </div>
                   );
                 })}

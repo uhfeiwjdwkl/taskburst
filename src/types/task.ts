@@ -36,6 +36,7 @@ export interface Task {
   estimatedMinutes: number;
   spentMinutes: number;
   dueDate: string;
+  scheduledDate?: string; // yyyy-MM-dd when the whole task is scheduled (separate from due date)
   scheduledTime?: string;
   partial?: boolean;
   completed: boolean;
