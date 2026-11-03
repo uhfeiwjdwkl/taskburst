@@ -321,6 +321,11 @@ export default function Results() {
 
   const calculateTotalScore = (item: ResultItem): { score: number | null; maxScore: number; percentage: string; displayValue: string } => {
     const mode = item.result.totalMode || 'marks';
+    // A whole-task score overrides any part sums/averages.
+    if (item.result.totalScore !== null && item.result.totalScore !== undefined && item.result.totalMaxScore > 0) {
+      const s = item.result.totalScore, m = item.result.totalMaxScore;
+      return { score: s, maxScore: m, percentage: ((s / m) * 100).toFixed(2) + '%', displayValue: `${s}/${m}` };
+    }
     const parts = item.result.parts.map(resolveResultPart);
     const scoredParts = parts.filter(p => p.score !== null && (p.maxScore ?? 0) > 0);
     

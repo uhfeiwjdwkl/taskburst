@@ -1,4 +1,7 @@
-import { ResultPartFields } from '@/components/ResultPartFields';
+import { moveProgressBox, deleteProgressBox } from '@/lib/taskScheduling';
+import { getStoredFilledIndices, storeFilledIndices } from '@/components/UniversalProgressGrid';
+import { ArrowUp, ArrowDown, GripVertical } from 'lucide-react';
+import { ResultPartFields, FractionInput } from '@/components/ResultPartFields';
 import { emptyResultPart } from '@/lib/resultParts';
 import { useState, useEffect, useRef } from 'react';
 import { Task, TaskResult, TaskResultPart, TaskType, TASK_TYPES } from '@/types/task';
@@ -86,13 +89,10 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
       // Ensure result has default structure
       const defaultResult: TaskResult = {
         totalScore: null,
-        totalMaxScore: 100,
+        totalMaxScore: 0,
         totalMode: 'marks',
         parts: [
-          { name: 'Part 1', score: null, maxScore: 25, notes: '' },
-          { name: 'Part 2', score: null, maxScore: 25, notes: '' },
-          { name: 'Part 3', score: null, maxScore: 25, notes: '' },
-          { name: 'Part 4', score: null, maxScore: 25, notes: '' },
+          emptyResultPart(),
         ]
       };
       setEditedTask({ 
@@ -198,13 +198,10 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
       // Initialize result when enabling
       const defaultResult: TaskResult = {
         totalScore: null,
-        totalMaxScore: 100,
+        totalMaxScore: 0,
         totalMode: 'marks',
         parts: [
-          { name: 'Part 1', score: null, maxScore: 25, notes: '' },
-          { name: 'Part 2', score: null, maxScore: 25, notes: '' },
-          { name: 'Part 3', score: null, maxScore: 25, notes: '' },
-          { name: 'Part 4', score: null, maxScore: 25, notes: '' },
+          emptyResultPart(),
         ]
       };
       setEditedTask({ ...editedTask, showInResults: true, result: defaultResult });
@@ -231,6 +228,20 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
       ...editedTask,
       result: { ...editedTask.result, parts: updatedParts }
     });
+  };
+
+  const currentFilled = () => getStoredFilledIndices(editedTask.id) || Array.from({ length: editedTask.progressGridFilled || 0 }, (_, i) => i);
+  const reorderBox = (from: number, to: number) => {
+    const { task: next, filled } = moveProgressBox(editedTask, from, to, currentFilled());
+    storeFilledIndices(editedTask.id, filled);
+    setEditedTask({ ...next, progressGridFilled: filled.length });
+    setSelectedProgressBox(to);
+  };
+  const removeBox = (index: number) => {
+    const { task: next, filled } = deleteProgressBox(editedTask, index, currentFilled());
+    storeFilledIndices(editedTask.id, filled);
+    setEditedTask(next);
+    setSelectedProgressBox(0);
   };
 
   const handleAddPart = () => {
@@ -625,8 +636,15 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
                       key={i}
                       className={`flex items-center gap-1 rounded p-1 ${selectedProgressBox === i ? 'ring-2 ring-ring' : ''}`}
                       onClick={() => setSelectedProgressBox(i)}
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData('text/progress-box', String(i))}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => { e.preventDefault(); const from = Number(e.dataTransfer.getData('text/progress-box')); if (Number.isFinite(from) && from !== i) reorderBox(from, i); }}
                     >
+                      <GripVertical className="h-3 w-3 text-muted-foreground cursor-grab shrink-0" />
                       <span className="text-xs text-muted-foreground w-6 text-right">{i + 1}.</span>
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label={`Move box ${i + 1} up`} disabled={i === 0} onClick={(e) => { e.stopPropagation(); reorderBox(i, i - 1); }}><ArrowUp className="h-3 w-3" /></Button>
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label={`Move box ${i + 1} down`} disabled={i === editedTask.progressGridSize - 1} onClick={(e) => { e.stopPropagation(); reorderBox(i, i + 1); }}><ArrowDown className="h-3 w-3" /></Button>
                       {/* Color ring around abbreviation */}
                       <div 
                         className="relative w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold cursor-pointer border-2 shrink-0"
@@ -706,6 +724,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
                         className="w-14 h-7 text-xs"
                         disabled={!linkedSubtask}
                       />
+                      <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label={`Delete box ${i + 1}`} onClick={(e) => { e.stopPropagation(); removeBox(i); }}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                     </div>
                   );
                 })}
@@ -726,54 +745,27 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
               <Label htmlFor="showInResults">Show in Results page</Label>
             </div>
 
-            {editedTask.showInResults && (
-              <>
-                <div>
-                  <Label htmlFor="resultShortName">Short Name (for Results display)</Label>
-                  <Input
-                    id="resultShortName"
-                    value={editedTask.resultShortName || ''}
-                    onChange={(e) => setEditedTask({ ...editedTask, resultShortName: e.target.value })}
-                    className="mt-1"
-                    placeholder="Optional short name"
-                  />
+            {editedTask.showInResults && (() => {
+              const result = editedTask.result || { totalScore: null, totalMaxScore: 0, parts: [emptyResultPart()] };
+              const setResult = (patch: Partial<NonNullable<Task['result']>>) => setEditedTask({ ...editedTask, result: { ...result, ...patch } });
+              return <details className="rounded border border-border p-2" open>
+                <summary className="cursor-pointer text-sm font-medium">Result</summary>
+                <div className="space-y-2 pt-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input aria-label="Result short name" value={editedTask.resultShortName || ''} onChange={(e) => setEditedTask({ ...editedTask, resultShortName: e.target.value })} className="h-8 flex-1 min-w-32 text-sm" placeholder="Short name (optional)" />
+                    <Button type="button" size="sm" className="h-8" variant={result.totalMode !== 'average' ? 'default' : 'outline'} onClick={() => setResult({ totalMode: 'marks' })}>Sum</Button>
+                    <Button type="button" size="sm" className="h-8" variant={result.totalMode === 'average' ? 'default' : 'outline'} onClick={() => setResult({ totalMode: 'average' })}>Average</Button>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="flex-1 text-muted-foreground">Whole task score (overrides parts)</span>
+                    <FractionInput label="Whole task score" score={result.totalScore ?? null} maxScore={result.totalMaxScore || null} onChange={v => setResult({ totalScore: v.score, totalMaxScore: v.maxScore ?? 0 })} />
+                  </div>
+                  {result.parts.map((part, index) => <ResultPartFields key={index} label={`Part ${index + 1}`} part={part} onChange={value => setResult({ parts: result.parts.map((p, i) => i === index ? value : p) })} onRemove={result.parts.length > 1 ? () => handleRemovePart(index) : undefined} />)}
+                  <Textarea aria-label="Result note" rows={1} className="min-h-8 py-1 text-sm" placeholder="General note / mistake" value={result.notes || ''} onChange={e => setResult({ notes: e.target.value })} />
+                  <Button type="button" size="sm" variant="outline" onClick={() => setResult({ parts: [...result.parts, emptyResultPart()] })}><Plus className="h-3 w-3 mr-1" />Add part</Button>
                 </div>
-
-                {/* Total Mode Toggle */}
-                <div className="flex items-center gap-2">
-                  <Label>Total Mode:</Label>
-                  <Button
-                    type="button"
-                    variant={editedTask.result?.totalMode === 'marks' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setEditedTask({
-                      ...editedTask,
-                      result: { ...(editedTask.result || { totalScore: null, totalMaxScore: 100, parts: [emptyResultPart()] }), totalMode: 'marks' }
-                    })}
-                  >
-                    Sum
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={editedTask.result?.totalMode === 'average' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setEditedTask({
-                      ...editedTask,
-                      result: { ...(editedTask.result || { totalScore: null, totalMaxScore: 100, parts: [emptyResultPart()] }), totalMode: 'average' }
-                    })}
-                  >
-                    Average
-                  </Button>
-                </div>
-
-                {editedTask.result && <div>
-                  <Textarea aria-label="Result note" placeholder="General result note / mistake" value={editedTask.result.notes || ''} onChange={e => { if (editedTask.result) setEditedTask({ ...editedTask, result: { ...editedTask.result, notes: e.target.value } }); }} />
-                  {editedTask.result.parts.map((part, index) => <ResultPartFields key={index} label={`Part ${index + 1}`} part={part} onChange={value => { if (editedTask.result) setEditedTask({ ...editedTask, result: { ...editedTask.result, parts: editedTask.result.parts.map((p, i) => i === index ? value : p) } }); }} onRemove={editedTask.result.parts.length > 1 ? () => handleRemovePart(index) : undefined} />)}
-                  <Button type="button" variant="outline" onClick={() => { if (editedTask.result) setEditedTask({ ...editedTask, result: { ...editedTask.result, parts: [...editedTask.result.parts, emptyResultPart()] } }); }}><Plus className="h-3 w-3 mr-1" />Add Part</Button>
-                </div>}
-
-              </>
-            )}
+              </details>;
+            })()}
           </div>
 
           <div className="border-t pt-4">
