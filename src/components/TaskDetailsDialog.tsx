@@ -86,7 +86,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
       // Ensure result has default structure
       const defaultResult: TaskResult = {
         totalScore: null,
-        totalMaxScore: 100,
+        totalMaxScore: 0,
         totalMode: 'marks',
         parts: [
           emptyResultPart(),
@@ -195,7 +195,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
       // Initialize result when enabling
       const defaultResult: TaskResult = {
         totalScore: null,
-        totalMaxScore: 100,
+        totalMaxScore: 0,
         totalMode: 'marks',
         parts: [
           emptyResultPart(),
@@ -733,7 +733,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <span className="flex-1 text-muted-foreground">Whole task score (overrides parts)</span>
-                    <FractionInput label="Whole task score" score={result.totalScore ?? null} maxScore={result.totalScore === null || result.totalScore === undefined ? null : result.totalMaxScore} onChange={v => setResult({ totalScore: v.score, totalMaxScore: v.maxScore ?? 0 })} />
+                    <FractionInput label="Whole task score" score={result.totalScore ?? null} maxScore={result.totalMaxScore || null} onChange={v => setResult({ totalScore: v.score, totalMaxScore: v.maxScore ?? 0 })} />
                   </div>
                   {result.parts.map((part, index) => <ResultPartFields key={index} label={`Part ${index + 1}`} part={part} onChange={value => setResult({ parts: result.parts.map((p, i) => i === index ? value : p) })} onRemove={result.parts.length > 1 ? () => handleRemovePart(index) : undefined} />)}
                   <Textarea aria-label="Result note" rows={1} className="min-h-8 py-1 text-sm" placeholder="General note / mistake" value={result.notes || ''} onChange={e => setResult({ notes: e.target.value })} />
