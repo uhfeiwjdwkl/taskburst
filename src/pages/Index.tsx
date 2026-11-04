@@ -411,9 +411,9 @@ const Index = () => {
         <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
           <div>
             <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              Focus Timer
+              Home
             </h1>
-            <p className="text-muted-foreground mt-1">Stay productive with Pomodoro technique</p>
+            <p className="text-muted-foreground mt-1">Your timer, day and tasks at a glance</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -617,8 +617,6 @@ const Index = () => {
               )}
             </Droppable>
           </DragDropContext>
-        </HomeWidget>
-
         {hiddenTasks.length > 0 && (
           <Collapsible className="mt-8">
             <CollapsibleTrigger asChild>
@@ -642,6 +640,8 @@ const Index = () => {
             </CollapsibleContent>
           </Collapsible>
         )}
+        </HomeWidget>
+
 
         {/* Favorite Lists Section */}
         {favoriteLists.length > 0 && (() => {
@@ -720,7 +720,7 @@ const Index = () => {
         })()}
 
         {/* Favorite Timetables Section */}
-        {favoriteTimetables.length > 0 && (
+        {(
           <HomeWidget kind="timetables">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-semibold flex items-center gap-2">
@@ -731,6 +731,7 @@ const Index = () => {
                 View All
               </Button>
             </div>
+            {favoriteTimetables.length === 0 && <p className="text-sm text-muted-foreground">Star a timetable on the Timetable page to show it here.</p>}
             <div className="grid gap-4 md:grid-cols-2">
               {favoriteTimetables.map((timetable) => (
                 <div key={timetable.id} className="space-y-2">

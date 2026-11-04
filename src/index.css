@@ -239,3 +239,18 @@ All colors MUST be HSL.
 .ProseMirror h1 { font-size: 1.5rem; font-weight: 700; margin: 0.5rem 0; }
 .ProseMirror h2 { font-size: 1.25rem; font-weight: 600; margin: 0.5rem 0; }
 .ProseMirror h3 { font-size: 1.1rem; font-weight: 600; margin: 0.25rem 0; }
+/* Home layout editing: underlying 6-column square grid */
+.home-layout-editing {
+  background-image:
+    linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px);
+  background-size: calc(100% / 6) 80px;
+}
+
+/* Mobile fit: never allow sideways scrolling, keep dialogs inside the screen */
+@media (max-width: 639px) {
+  html, body { overflow-x: hidden; }
+  [role="dialog"] { max-width: calc(100vw - 1rem) !important; max-height: calc(100dvh - 1rem); overflow-y: auto; }
+  input, select, textarea { font-size: 16px; }
+  table { display: block; max-width: 100%; overflow-x: auto; }
+}

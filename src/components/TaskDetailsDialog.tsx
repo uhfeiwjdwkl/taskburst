@@ -748,7 +748,7 @@ const TaskDetailsDialog = ({ task, open, onClose, onSave, mode = 'edit', headerE
             {editedTask.showInResults && (() => {
               const result = editedTask.result || { totalScore: null, totalMaxScore: 0, parts: [emptyResultPart()] };
               const setResult = (patch: Partial<NonNullable<Task['result']>>) => setEditedTask({ ...editedTask, result: { ...result, ...patch } });
-              return <details className="rounded border border-border p-2" open>
+              return <details className="rounded border border-border p-2">
                 <summary className="cursor-pointer text-sm font-medium">Result</summary>
                 <div className="space-y-2 pt-2">
                   <div className="flex flex-wrap items-center gap-2">

@@ -246,8 +246,9 @@ export const AssessmentDetailsDialog = ({
           </Card>
 
           {/* Parts */}
-          <div className="space-y-2">
-            <Label>Result Parts</Label>
+          <details className="rounded border border-border p-2">
+            <summary className="cursor-pointer text-sm font-medium">Result Parts</summary>
+            <div className="space-y-2 pt-2">
             <Textarea aria-label="Result note" placeholder="General result note / mistake" value={a.result.notes || ''} readOnly={!editing} onChange={e => { if (editedAssessment) setEditedAssessment({ ...editedAssessment, result: { ...editedAssessment.result, notes: e.target.value } }); }} />
             {a.result.parts.map((part, i) => <ResultPartFields key={i} label={`Part ${i + 1}`} part={part} readOnly={!editing} onChange={value => { if (editedAssessment) setEditedAssessment({ ...editedAssessment, result: { ...editedAssessment.result, parts: editedAssessment.result.parts.map((p, index) => index === i ? value : p) } }); }} onRemove={editing && a.result.parts.length > 1 ? () => handleRemovePart(i) : undefined} />)}
             {editing && (
@@ -255,7 +256,8 @@ export const AssessmentDetailsDialog = ({
                 <Plus className="h-3 w-3 mr-1" /> Add Part
               </Button>
             )}
-          </div>
+            </div>
+          </details>
 
           {/* Linked task */}
           {a.linkedTaskId && onViewLinkedTask && (

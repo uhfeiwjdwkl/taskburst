@@ -45,7 +45,7 @@ export function ResultPartFields({ part, onChange, onRemove, readOnly = false, l
       <Textarea aria-label={`${label} note`} placeholder="Note / mistake" rows={1} className="min-h-8 py-1 text-sm" value={part.notes || ''} onChange={e => change({ notes: e.target.value })} />
     </>}
     {readOnly && part.notes && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{part.notes}</p>}
-    {(part.subparts?.length || !readOnly) ? <details open={!readOnly && !!part.subparts?.length}>
+    {(part.subparts?.length || !readOnly) ? <details>
       <summary className="cursor-pointer text-xs text-muted-foreground">Subparts{part.subparts?.length ? ` (${part.subparts.length}) …` : ''}</summary>
       <div className="pl-3 border-l border-border mt-1">
         {!readOnly && <div className="flex gap-1"><Button type="button" size="sm" className="h-7" variant={part.subpartMode !== 'average' ? 'default' : 'outline'} onClick={() => change({ subpartMode: 'marks' })}>Sum</Button><Button type="button" size="sm" className="h-7" variant={part.subpartMode === 'average' ? 'default' : 'outline'} onClick={() => change({ subpartMode: 'average' })}>Average</Button></div>}
