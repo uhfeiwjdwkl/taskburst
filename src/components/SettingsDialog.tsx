@@ -438,6 +438,15 @@ export const SettingsDialog = ({ open, onClose }: SettingsDialogProps) => {
                 />
               </div>
 
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="typedDateTimeOnMobile">Type dates and times on mobile (instead of scroll pickers)</Label>
+                <Switch
+                  id="typedDateTimeOnMobile"
+                  checked={settings.typedDateTimeOnMobile !== false}
+                  onCheckedChange={(checked) => setSettings({ ...settings, typedDateTimeOnMobile: checked })}
+                />
+              </div>
+
               {/* Calendar visible time range */}
               <div>
                 <Label htmlFor="calendarReadableMinutes">Calendar size: minutes per two-line event</Label>
