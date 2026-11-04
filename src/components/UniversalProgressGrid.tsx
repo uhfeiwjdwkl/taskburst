@@ -176,12 +176,16 @@ export const UniversalProgressGrid = ({
               : null;
 
             return (
-              <div key={index} className="relative" draggable={interactive && !!onUpdateTask}
+              <div key={index} className={cn('relative', dragFrom === index && 'opacity-40')} draggable={interactive && !!onUpdateTask}
                 aria-label={`Progress box ${index + 1}`} title="Drag to reorder progress box"
-                onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('application/taskburst-box', String(index)); }}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => { e.preventDefault(); e.stopPropagation(); const raw = e.dataTransfer.getData('application/taskburst-box'); if (!raw || !onUpdateTask) return; const result = moveProgressBox(task, Number(raw), index, filledIndices); storeFilledIndices(task.id, result.filled); setFilledIndices(result.filled); onUpdateTask(result.task); }}
+                onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('application/taskburst-box', String(index)); setDragFrom(index); }}
+                onDragEnd={() => { setDragFrom(null); setDropAt(null); }}
+                onDragOver={e => { e.preventDefault(); if (dragFrom !== null && dropAt !== index) setDropAt(index); }}
+                onDrop={e => { e.preventDefault(); e.stopPropagation(); setDragFrom(null); setDropAt(null); const raw = e.dataTransfer.getData('application/taskburst-box'); if (!raw || !onUpdateTask) return; const result = moveProgressBox(task, Number(raw), index, filledIndices); storeFilledIndices(task.id, result.filled); setFilledIndices(result.filled); onUpdateTask(result.task); }}
               >
+                {dragFrom !== null && dropAt === index && dragFrom !== index && (
+                  <span aria-hidden className={cn('absolute top-[-3px] bottom-[-3px] w-1 rounded-full bg-primary z-10 pointer-events-none', dragFrom > index ? '-left-1.5' : '-right-1.5')} />
+                )}
                 <ProgressGridBox
                   icon={settings.progressGridIcon}
                   filled={isFilled}
