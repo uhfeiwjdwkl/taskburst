@@ -256,6 +256,7 @@ export interface AppSettings {
   calendarStartHour: number;
   calendarEndHour: number;
   calendarReadableMinutes: number;
+  typedDateTimeOnMobile?: boolean;
   weekStartsOn: 0 | 1 | 6;
 
   // Semester / year ranges used for grouping and filtering results
@@ -299,6 +300,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   calendarStartHour: 6,
   calendarEndHour: 22,
   calendarReadableMinutes: 15,
+  typedDateTimeOnMobile: true,
   weekStartsOn: 1,
   terms: [],
   symbolPalette: DEFAULT_SYMBOL_PALETTE,
