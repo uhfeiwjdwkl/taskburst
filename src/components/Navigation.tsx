@@ -227,12 +227,12 @@ export function Navigation() {
       <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container flex flex-col px-4">
           <div className="flex h-14 items-center">
-            <div className="mr-4 flex items-center gap-2 flex-shrink-0">
+            <div className="mr-2 md:mr-4 flex items-center gap-1 sm:gap-2 md:flex-shrink-0 max-md:min-w-0 max-md:flex-1 max-md:overflow-x-auto max-md:[scrollbar-width:none]">
               <div className="relative group">
                 <Button
                   variant="ghost"
                   onClick={() => navigate('/')}
-                  className="mr-2 font-semibold px-2"
+                  className="mr-0 sm:mr-2 font-semibold px-1 sm:px-2"
                 >
                   TaskBurst
                 </Button>
@@ -260,7 +260,7 @@ export function Navigation() {
                   </button>
                 </div>
               </div>
-              <div className="px-3 py-1 rounded-md bg-muted border">
+              <div className="px-1.5 sm:px-3 py-1 rounded-md bg-muted border flex-shrink-0">
                 <div className="font-mono text-xs font-bold leading-tight text-center">
                   <div>{settings.timeFormat === '12h' ? (() => {
                     const h = currentTime.getHours();

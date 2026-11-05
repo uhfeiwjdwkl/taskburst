@@ -259,3 +259,13 @@ All colors MUST be HSL.
 .home-widget-body > :last-child { flex: 1 1 auto; }
 .home-widget-body > .widget-fill { height: auto; min-height: 550px; }
 [data-sized] .home-widget-body > .widget-fill { min-height: 0; height: 100%; }
+
+/* Phones: slim page headers and wide content instead of cutting them off. */
+@media (max-width: 639px) {
+  .container { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+  .container > header { flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+  .container > header > * { min-width: 0; flex-wrap: wrap; }
+  .container h1.text-4xl { font-size: 1.75rem; line-height: 2.1rem; }
+  .container h2.text-2xl { font-size: 1.25rem; line-height: 1.75rem; }
+  nav .flex-shrink-0 > * , nav .badge { white-space: nowrap; }
+}
