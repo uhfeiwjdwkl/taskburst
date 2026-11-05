@@ -254,3 +254,8 @@ All colors MUST be HSL.
   input, select, textarea { font-size: 16px; }
   table { display: block; max-width: 100%; overflow-x: auto; }
 }
+
+/* Home widgets: the last block fills the widget so no empty space shows below it. */
+.home-widget-body > :last-child { flex: 1 1 auto; }
+.home-widget-body > .widget-fill { height: auto; min-height: 550px; }
+[data-sized] .home-widget-body > .widget-fill { min-height: 0; height: 100%; }

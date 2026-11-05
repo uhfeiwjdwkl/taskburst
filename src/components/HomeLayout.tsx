@@ -173,7 +173,8 @@ function WidgetFrame({ widget, children }: { widget: Widget; children: ReactNode
     <section
       data-home-widget={widget.kind}
       style={{ order, height: widget.rows ? widget.rows * ROW_PX : undefined }}
-      className={cn('min-w-0 relative', spanClass, widget.rows && 'overflow-auto', editing && 'rounded-lg ring-2 ring-primary/40 bg-background/70')}
+      data-sized={widget.rows ? '' : undefined}
+      className={cn('min-w-0 relative flex flex-col', spanClass, editing && 'rounded-lg ring-2 ring-primary/40 bg-background/70')}
       onDragOver={editing ? ((e: DragEvent) => { e.preventDefault(); e.stopPropagation(); setDropHere(true); }) : undefined}
       onDragLeave={editing ? () => setDropHere(false) : undefined}
       onDrop={editing ? ((e: DragEvent) => { e.preventDefault(); e.stopPropagation(); setDropHere(false); const id = e.dataTransfer.getData('application/home-widget'); if (id) moveBefore(id, widget.id); }) : undefined}
@@ -188,7 +189,7 @@ function WidgetFrame({ widget, children }: { widget: Widget; children: ReactNode
           <button aria-label={`Remove ${widgetName(widget.kind)}`} onClick={() => remove(widget.id)} className="p-1"><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
       )}
-      <div className={cn(editing && 'pointer-events-none select-none')}>{children}</div>
+      <div className={cn('home-widget-body flex-1 min-h-0 flex flex-col', widget.rows && 'overflow-auto', editing && 'pointer-events-none select-none')}>{children}</div>
       {editing && (
         <button aria-label="Resize widget" onPointerDown={startResize} className="absolute bottom-0 right-0 z-20 h-6 w-6 flex items-center justify-center rounded-tl-md bg-primary text-primary-foreground cursor-nwse-resize touch-none">
           <MoveDiagonal2 className="h-3.5 w-3.5" />

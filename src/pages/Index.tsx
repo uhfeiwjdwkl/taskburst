@@ -461,7 +461,7 @@ const Index = () => {
 
         </HomeWidget>
         <HomeWidget kind="calendar">
-          <div className="h-[550px]">
+          <div className="widget-fill h-[550px]">
             <UniversalDayCalendar
               tasks={tasks}
               onTaskClick={(task) => {
@@ -732,7 +732,7 @@ const Index = () => {
               </Button>
             </div>
             {favoriteTimetables.length === 0 && <p className="text-sm text-muted-foreground">Star a timetable on the Timetable page to show it here.</p>}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))]">
               {favoriteTimetables.map((timetable) => (
                 <div key={timetable.id} className="space-y-2">
                   <div className="flex items-center justify-between">
