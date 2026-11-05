@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 /* Hide native browser calendar icon on date inputs — we use a custom DatePickerButton */
-input[type="date"]::-webkit-calendar-picker-indicator,
-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+*:has(> [aria-label="Pick a date"]) > input[type="date"]::-webkit-calendar-picker-indicator,
+*:has(> [aria-label="Pick a date"]) > input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   display: none;
   -webkit-appearance: none;
 }
