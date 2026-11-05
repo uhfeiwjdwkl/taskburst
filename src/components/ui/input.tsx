@@ -13,7 +13,8 @@ function wantsTypedEntry(): boolean {
     const settings = JSON.parse(localStorage.getItem("appSettings") || "{}");
     if (settings.typedDateTimeOnMobile === false) return false;
   } catch { /* default on */ }
-  return window.matchMedia?.("(pointer: coarse)").matches || window.innerWidth < 640;
+  // Phones only: desktops (even touchscreen ones) keep the native pickers.
+  return window.innerWidth < 768 && !!window.matchMedia?.("(pointer: coarse)").matches;
 }
 
 /** Native value (YYYY-MM-DD / HH:mm / YYYY-MM-DDTHH:mm) -> typed display (DD/MM/YYYY HH:MM). */
@@ -106,6 +107,13 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         className={cn(baseClass, className)}
         ref={ref}
         {...props}
+        onClick={(event) => {
+          props.onClick?.(event);
+          const el = event.currentTarget;
+          if ((type === "date" || type === "time" || type === "datetime-local") && !el.readOnly && !el.disabled) {
+            try { el.showPicker?.(); } catch { /* not allowed in this context */ }
+          }
+        }}
       />
     );
   },
