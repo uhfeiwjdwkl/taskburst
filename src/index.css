@@ -267,5 +267,5 @@ All colors MUST be HSL.
   .container > header > * { min-width: 0; flex-wrap: wrap; }
   .container h1.text-4xl { font-size: 1.75rem; line-height: 2.1rem; }
   .container h2.text-2xl { font-size: 1.25rem; line-height: 1.75rem; }
-  nav .flex-shrink-0 > * , nav .badge { white-space: nowrap; }
+  nav [class*="rounded-full"] { white-space: nowrap; flex-shrink: 0; }
 }
