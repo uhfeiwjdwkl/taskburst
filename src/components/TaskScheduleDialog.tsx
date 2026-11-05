@@ -35,9 +35,8 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [selectedSubtaskId, setSelectedSubtaskId] = useState<string | null>(null);
   const [partial, setPartial] = useState(false);
-  const [partialTarget, setPartialTarget] = useState<'task' | 'subtask'>('task');
   const [partialSlots, setPartialSlots] = useState<PartialSlot[]>([]);
-  const [newPartial, setNewPartial] = useState({ date: '', time: '', duration: 30 });
+  const [form, setForm] = useState({ date: '', time: '', duration: 30 });
 
   useEffect(() => { if (open) setPartialSlots(loadPartialSlots()); }, [open]);
   
@@ -182,21 +181,43 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
   const targetItemTitle = usingSubtask ? (selectedSubtask?.title || '') : task.name;
   const itemSlots = partialSlots.filter(p => p.itemId === targetItemId);
 
+  const itemFormFor = (id: string | null) => {
+    const item = id ? subtasks.find(s => s.id === id) : null;
+    const dueDate = item ? item.dueDate : editedTask.dueDate?.slice(0, 10);
+    const date = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : (dueDate || '');
+    return { date, time: (item ? item.scheduledTime : editedTask.scheduledTime) || '', duration: (item ? item.estimatedMinutes : editedTask.estimatedMinutes) || 30 };
+  };
+  const writeSchedule = (id: string | null, f: { date: string; time: string; duration: number }) => {
+    if (id) handleScheduleSubtask(id, f.date ? new Date(f.date + 'T12:00:00') : null, f.date ? f.time : '', f.duration);
+    else setEditedTask({ ...editedTask, dueDate: f.date || undefined, scheduledTime: f.date && f.time ? f.time : undefined, estimatedMinutes: f.duration, partial: false } as Task);
+  };
+  const selectItem = (id: string | null) => {
+    setSelectedSubtaskId(id);
+    const f = itemFormFor(id);
+    setForm(f);
+    // Picking a day then an item schedules it there straight away (non-partial).
+    if (!partial && selectedDate && id) writeSchedule(id, f);
+  };
+  const applyForm = (f: { date: string; time: string; duration: number }) => {
+    setForm(f);
+    if (!partial) writeSchedule(selectedSubtaskId, f);
+  };
+  const slotCount = (id: string) => partialSlots.filter(p => p.itemId === id).length;
+
   const addPartialSlot = () => {
-    const date = newPartial.date || (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '');
-    if (!date || !newPartial.time || !newPartial.duration) return;
+    if (!form.date || !form.time) return;
     const slot: PartialSlot = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       itemId: targetItemId,
       itemType: targetItemType,
       itemTitle: targetItemTitle,
-      date,
-      time: newPartial.time,
-      duration: newPartial.duration,
+      date: form.date,
+      time: form.time,
+      duration: form.duration || 30,
     };
     const next = [...partialSlots, slot];
     setPartialSlots(next); savePartialSlots(next);
-    setNewPartial({ date: '', time: '', duration: 30 });
+    if (selectedSubtask) setEditedTask({ ...editedTask, subtasks: subtasks.map(s => s.id === selectedSubtask.id ? { ...s, partial: true } : s) });
   };
   const removePartialSlot = (id: string) => {
     const next = partialSlots.filter(p => p.id !== id);
@@ -318,170 +339,93 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
             </div>
           )}
 
-          {/* Unscheduled Subtasks */}
+          {/* Scheduling bank */}
           <div className="border-t pt-4">
             <h4 className="font-medium mb-2">Scheduling bank</h4>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" size="sm" variant={selectedSubtaskId === null ? 'default' : 'outline'} onClick={() => { setSelectedSubtaskId(null); setPartialTarget('task'); }}>Whole task: {task.name}</Button>
+              <Badge
+                variant={selectedSubtaskId === null ? 'default' : 'outline'}
+                className="cursor-pointer hover:bg-primary/10"
+                onClick={() => selectItem(null)}
+              >
+                Whole task: {task.name}{slotCount(task.id) ? ` · ${slotCount(task.id)} partial` : ''}
+              </Badge>
               {subtasks.filter(s => !s.dueDate || s.partial).map(subtask => (
                 <Badge
                   key={subtask.id}
-                  variant={selectedSubtaskId === subtask.id ? "default" : "outline"}
+                  variant={selectedSubtaskId === subtask.id ? 'default' : 'outline'}
                   className="cursor-pointer hover:bg-primary/10"
-                  onClick={() => {
-                    setSelectedSubtaskId(subtask.id);
-                    setPartialTarget('subtask');
-                  }}
+                  onClick={() => selectItem(subtask.id)}
                 >
-                  {subtask.title}
+                  {subtask.title}{slotCount(subtask.id) ? ` · ${slotCount(subtask.id)} partial` : ''}
                 </Badge>
               ))}
-              {subtasks.filter(s => !s.dueDate || s.partial).length === 0 && (
-                <p className="text-sm text-muted-foreground">All subtasks are scheduled</p>
-              )}
             </div>
+            {subtasks.length > 0 && subtasks.every(s => s.dueDate && !s.partial) && (
+              <p className="text-sm text-muted-foreground mt-2">All subtasks are scheduled</p>
+            )}
           </div>
 
-          {/* Selected Day/Subtask Details with Time & Duration */}
-          {(selectedDate || selectedSubtask) && (
-            <div className="border-t pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Selected Day Details */}
-              {selectedDate && (
-                <div>
-                  <h4 className="font-medium mb-2">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</h4>
-                  <div className="space-y-2 max-h-[150px] overflow-y-auto">
-                    {getEventsForDay(selectedDate).map(event => (
-                      <div key={event.id} className="p-2 bg-blue-500/10 rounded text-sm">
-                        <span className="font-medium">{event.title}</span>
-                        {event.time && <span className="text-muted-foreground ml-2">{event.time}</span>}
-                      </div>
-                    ))}
-                    {getSubtasksForDay(selectedDate).map(subtask => (
-                      <div 
-                        key={subtask.id} 
-                        className={`flex items-center justify-between p-2 bg-muted rounded cursor-pointer ${
-                          selectedSubtaskId === subtask.id ? 'ring-1 ring-primary' : ''
-                        }`}
-                        onClick={() => setSelectedSubtaskId(subtask.id)}
-                      >
-                        <div>
-                          <span className={subtask.completed ? 'line-through' : ''}>{subtask.title}</span>
-                          {subtask.scheduledTime && (
-                            <span className="text-muted-foreground text-sm ml-2">{subtask.scheduledTime}</span>
-                          )}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleScheduleSubtask(subtask.id, null);
-                          }}
-                        >
-                          Unschedule
-                        </Button>
-                      </div>
-                    ))}
+          {/* Selected day */}
+          {selectedDate && (
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-2">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</h4>
+              <div className="space-y-2 max-h-[180px] overflow-y-auto">
+                {getEventsForDay(selectedDate).map(event => (
+                  <div key={event.id} className="p-2 bg-muted/60 rounded text-sm">
+                    <span className="font-medium">{event.title}</span>
+                    {event.time && <span className="text-muted-foreground ml-2">{event.time}</span>}
                   </div>
-                </div>
-              )}
-
-              {/* Time & Duration Editor for Selected Subtask */}
-              {selectedSubtask && (
-                <div className="p-3 border rounded-lg bg-muted/30">
-                  <h4 className="font-medium mb-3 flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Schedule: {selectedSubtask.title}
-                  </h4>
-                  <div className="space-y-3">
-                    <div>
-                      <Label htmlFor="subtaskDate" className="text-sm">Date</Label>
-                      <Input
-                        id="subtaskDate"
-                        type="date"
-                        value={selectedSubtask.dueDate || ''}
-                        onChange={(e) => handleScheduleSubtask(
-                          selectedSubtask.id, 
-                          e.target.value ? new Date(e.target.value) : null
-                        )}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="subtaskTime" className="text-sm">Time</Label>
-                      <Input
-                        id="subtaskTime"
-                        type="time"
-                        value={selectedSubtask.scheduledTime || ''}
-                        onChange={(e) => handleScheduleSubtask(
-                          selectedSubtask.id,
-                          selectedSubtask.dueDate ? new Date(selectedSubtask.dueDate) : null,
-                          e.target.value
-                        )}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="subtaskDuration" className="text-sm">Duration (minutes)</Label>
-                      <Input
-                        id="subtaskDuration"
-                        type="number"
-                        min="5"
-                        step="5"
-                        value={selectedSubtask.estimatedMinutes || ''}
-                        onChange={(e) => handleScheduleSubtask(
-                          selectedSubtask.id,
-                          selectedSubtask.dueDate ? new Date(selectedSubtask.dueDate) : null,
-                          selectedSubtask.scheduledTime,
-                          parseInt(e.target.value) || undefined
-                        )}
-                        placeholder="Duration"
-                        className="mt-1"
-                      />
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedSubtaskId(null)}
-                      className="w-full"
-                    >
-                      Done
-                    </Button>
+                ))}
+                {getSubtasksForDay(selectedDate).map(subtask => (
+                  <div key={subtask.id} className={`flex items-center justify-between p-2 bg-muted rounded cursor-pointer ${selectedSubtaskId === subtask.id ? 'ring-1 ring-primary' : ''}`} onClick={() => selectItem(subtask.id)}>
+                    <span className={subtask.completed ? 'line-through' : ''}>{subtask.title}{subtask.scheduledTime && <span className="text-muted-foreground text-sm ml-2">{subtask.scheduledTime}</span>}</span>
+                    <Button type="button" variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); handleScheduleSubtask(subtask.id, null); }}>Unschedule</Button>
                   </div>
-                </div>
-              )}
+                ))}
+                {partialSlots.filter(p => p.date === format(selectedDate, 'yyyy-MM-dd') && (p.itemId === task.id || subtasks.some(s => s.id === p.itemId))).map(slot => (
+                  <div key={slot.id} className="flex items-center justify-between p-2 bg-muted rounded text-sm">
+                    <span>{slot.itemTitle} <span className="text-muted-foreground ml-1">{slot.time} · {slot.duration}m · partial</span></span>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => removePartialSlot(slot.id)}>Unschedule</Button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
+
+          {/* Single schedule editor */}
+          <div className="border-t pt-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-medium flex items-center gap-2"><Clock className="h-4 w-4" />Schedule: {targetItemTitle}</h4>
+              <Label className="flex items-center gap-2"><Switch checked={partial} onCheckedChange={setPartial} />Partial</Label>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <Label className="space-y-1">Date<Input type="date" value={form.date} onChange={e => applyForm({ ...form, date: e.target.value, time: e.target.value ? form.time : '' })} /></Label>
+              <Label className="space-y-1">Time<Input type="time" value={form.time} disabled={!form.date} onChange={e => applyForm({ ...form, time: e.target.value })} /></Label>
+              <Label className="space-y-1">Duration (min)<Input type="number" min={0} value={form.duration} onChange={e => applyForm({ ...form, duration: Number(e.target.value) || 0 })} /></Label>
+            </div>
+            {partial ? (
+              <Button type="button" size="sm" disabled={!form.date || !form.time} onClick={addPartialSlot}>Add partial session</Button>
+            ) : (
+              <p className="text-xs text-muted-foreground">Changes apply straight away. Turn on Partial to add a session that keeps this item in the bank.</p>
+            )}
+            {itemSlots.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Partial sessions</p>
+                {itemSlots.map(slot => (
+                  <div key={slot.id} className="flex justify-between items-center text-sm bg-muted/50 rounded px-2">
+                    <span>{slot.date} · {slot.time} · {slot.duration}m</span>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => removePartialSlot(slot.id)}>Unschedule</Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 mt-4">
-          <Button variant="outline" onClick={handleClose}>
-            Close
-          </Button>
-          <Button onClick={handleSave}>
-            Save Schedule
-          </Button>
-        </div>
-
-        <div className="border-t pt-4 mt-4 space-y-3">
-          <h4 className="font-medium">Schedule: {selectedSubtask ? selectedSubtask.title : task.name}</h4>
-          <Label className="flex items-center gap-2"><Switch checked={partial} onCheckedChange={setPartial} />Partial</Label>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end">
-            <Label>Date<Input type="date" value={newPartial.date || (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '')} onChange={e => setNewPartial({ ...newPartial, date: e.target.value, time: e.target.value ? newPartial.time : '' })} /></Label>
-            <Label>Time<Input type="time" value={newPartial.time} onChange={e => setNewPartial({ ...newPartial, time: e.target.value })} /></Label>
-            <Label>Duration (min)<Input type="number" min={0} value={newPartial.duration} onChange={e => setNewPartial({ ...newPartial, duration: Number(e.target.value) })} /></Label>
-            <Button type="button" onClick={() => {
-              const date = newPartial.date || (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '');
-              if (!date || !newPartial.time) return;
-              if (partial) {
-                addPartialSlot();
-                setEditedTask(selectedSubtask ? { ...editedTask, subtasks: subtasks.map(s => s.id === selectedSubtask.id ? { ...s, partial: true } : s) } : { ...editedTask, partial: true });
-              } else if (selectedSubtask) {
-                handleScheduleSubtask(selectedSubtask.id, new Date(date + 'T12:00:00'), newPartial.time, newPartial.duration);
-              } else { setEditedTask({ ...editedTask, dueDate: date, scheduledTime: newPartial.time, estimatedMinutes: newPartial.duration, partial: false }); }
-            }}>Schedule</Button>
-          </div>
-          {itemSlots.map(slot => <div key={slot.id} className="flex justify-between items-center text-sm"><span>{slot.date} · {slot.time} · {slot.duration}m</span><Button type="button" size="sm" variant="ghost" onClick={() => removePartialSlot(slot.id)}>Remove</Button></div>)}
+          <Button variant="outline" onClick={handleClose}>Close</Button>
+          <Button onClick={handleSave}>Save Schedule</Button>
         </div>
       </DialogContent>
     </Dialog>
