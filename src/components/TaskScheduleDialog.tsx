@@ -291,7 +291,7 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
                   } ${!isCurrentMonth && viewMode === 'month' ? 'opacity-50' : ''} ${
                     isToday(day) ? 'bg-accent/50' : ''
                   }`}
-                  onClick={() => setSelectedDate(day)}
+                  onClick={() => { setSelectedDate(day); setForm(f => ({ ...f, date: format(day, 'yyyy-MM-dd') })); }}
                 >
                   <div className="text-xs font-medium mb-1">{format(day, 'd')}</div>
                   <div className="space-y-0.5">
@@ -334,7 +334,7 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
                 tasks={mergedTasks}
                 onDateChange={(d) => setSelectedDate(d)}
                 showCard={false}
-                onSubtaskClick={(subtask) => setSelectedSubtaskId(subtask.id)}
+                onSubtaskClick={(subtask) => selectItem(subtask.id)}
               />
             </div>
           )}
