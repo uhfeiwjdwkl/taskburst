@@ -283,9 +283,9 @@ const Archive = () => {
             {selectMode && <div className="flex flex-wrap gap-2 items-center">
               <Button size="sm" variant="outline" onClick={() => setSelectedIds(filteredTasks.every(t => selectedIds.has(t.id)) ? new Set() : new Set(filteredTasks.map(t => t.id)))}>{filteredTasks.length > 0 && filteredTasks.every(t => selectedIds.has(t.id)) ? 'Deselect All' : 'Select All'}</Button>
               <span className="text-sm text-muted-foreground">{selectedIds.size} selected</span>
-              <BulkAttributeEditor fields={taskBulkFields} disabled={!selectedIds.size} onApply={(key,value) => persistArchived(archivedTasks.map(t => selectedIds.has(t.id) ? applyBulkPatch(t,key,value) : t))} />
-            </div>
-            {filteredTasks.length === 0 ? (
+<BulkAttributeEditor fields={taskBulkFields} disabled={!selectedIds.size} onApply={(key,value) => persistArchived(archivedTasks.map(t => selectedIds.has(t.id) ? applyBulkPatch(t,key,value) : t))} />
+</div>}
+{filteredTasks.length === 0 ? (
               <Card className="p-8 text-center text-muted-foreground">
                 {archivedTasks.length === 0 ? 'No completed tasks yet. Finish some tasks to see them here!' : 'No tasks match your search.'}
               </Card>
