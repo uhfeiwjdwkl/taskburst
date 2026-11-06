@@ -1,3 +1,5 @@
+import { BulkAttributeEditor } from '@/components/BulkAttributeEditor';
+import { taskBulkFields, applyBulkPatch } from '@/lib/bulkEditing';
 import { HomeLayout, HomeWidget } from '@/components/HomeLayout';
 import { duplicateFreshTask } from '@/lib/taskScheduling';
 import { removeSubtask } from '@/lib/itemDeletion';
@@ -541,12 +543,13 @@ const Index = () => {
                 </SelectContent>
               </Select>
             </div>
-            {selectionMode && selectedTaskIds.size > 0 && (
-              <div className="flex items-center gap-2">
+            {selectionMode && (
+              <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" size="sm" onClick={handleSelectAllTasks}>
                   {selectedTaskIds.size === filteredTasks.length ? 'Deselect All' : 'Select All'}
                 </Button>
                 <span className="text-sm text-muted-foreground">{selectedTaskIds.size} selected</span>
+                <BulkAttributeEditor fields={taskBulkFields} disabled={!selectedTaskIds.size} onApply={(key, value) => setTasks(ts => ts.map(t => selectedTaskIds.has(t.id) ? applyBulkPatch(t, key, value) : t))} />
                 <div className="ml-auto flex gap-2">
                   <Button variant="outline" size="sm" onClick={handleBulkComplete} className="gap-1">
                     <CheckCircle className="h-4 w-4" /> Complete
@@ -644,6 +647,7 @@ const Index = () => {
 
 
         {/* Favorite Lists Section */}
+        {!favoriteLists.length && <HomeWidget kind="lists" valid={false} />}
         {favoriteLists.length > 0 && (() => {
           const idx = Math.min(starredListIndex, favoriteLists.length - 1);
           const current = favoriteLists[idx];

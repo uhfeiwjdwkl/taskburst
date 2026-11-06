@@ -1,4 +1,10 @@
 # Roadmap
+- [ ] Today pill: every item opens details
+- [ ] Home widget borders and reserved empty spaces
+- [ ] Schedule split screen, editable partial sessions, Unschedule in editors, desktop date/time typing
+- [ ] All bulk toolbars always offer select/deselect all
+- [ ] Typed task/archive/upcoming-event bulk attribute editing
+- [ ] Multi-field staged timetable editing; extra calendar fields; exit selection on save
 - [ ] Inclusive shared day-plan/planner collection; item selection, timetable/recurring switches, single-copy print with duration/end times
 - [ ] Time calculator on scheduling screens
 - [ ] Correct schedule day overflow counts

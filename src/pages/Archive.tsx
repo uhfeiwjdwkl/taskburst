@@ -1,3 +1,6 @@
+import { BulkAttributeEditor } from '@/components/BulkAttributeEditor';
+import { taskBulkFields, applyBulkPatch } from '@/lib/bulkEditing';
+import { Checkbox } from '@/components/ui/checkbox';
 import { duplicateFreshTask } from '@/lib/taskScheduling';
 import { useState, useEffect } from 'react';
 import { Task } from '@/types/task';
@@ -39,6 +42,8 @@ const Archive = () => {
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const persistArchived = (next: Task[]) => {
     setArchivedTasks(next);
@@ -274,6 +279,12 @@ const Archive = () => {
           </TabsList>
 
           <TabsContent value="tasks" className="space-y-4 mt-4">
+            <Button size="sm" variant="outline" onClick={() => { setSelectMode(!selectMode); setSelectedIds(new Set()); }}>{selectMode ? 'Cancel' : 'Select'}</Button>
+            {selectMode && <div className="flex flex-wrap gap-2 items-center">
+              <Button size="sm" variant="outline" onClick={() => setSelectedIds(filteredTasks.every(t => selectedIds.has(t.id)) ? new Set() : new Set(filteredTasks.map(t => t.id)))}>{filteredTasks.length > 0 && filteredTasks.every(t => selectedIds.has(t.id)) ? 'Deselect All' : 'Select All'}</Button>
+              <span className="text-sm text-muted-foreground">{selectedIds.size} selected</span>
+              <BulkAttributeEditor fields={taskBulkFields} disabled={!selectedIds.size} onApply={(key,value) => persistArchived(archivedTasks.map(t => selectedIds.has(t.id) ? applyBulkPatch(t,key,value) : t))} />
+            </div>
             {filteredTasks.length === 0 ? (
               <Card className="p-8 text-center text-muted-foreground">
                 {archivedTasks.length === 0 ? 'No completed tasks yet. Finish some tasks to see them here!' : 'No tasks match your search.'}
@@ -282,6 +293,7 @@ const Archive = () => {
               <div className="space-y-4">
                 {filteredTasks.map((task) => (
               <Card key={task.id} className="p-4 opacity-80">
+                {selectMode && <Checkbox aria-label={`Select ${task.name}`} checked={selectedIds.has(task.id)} onCheckedChange={v => setSelectedIds(ids => { const next = new Set(ids); if (v) next.add(task.id); else next.delete(task.id); return next; })} />}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">

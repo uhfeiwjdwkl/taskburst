@@ -1,3 +1,5 @@
+import { BulkAttributeEditor } from '@/components/BulkAttributeEditor';
+import { eventBulkFields, applyBulkPatch } from '@/lib/bulkEditing';
 import { TimeCalculator } from '@/components/TimeCalculator';
 import { eventTimingLabel } from '@/lib/eventTiming';
 import { deleteStoredEntity, removeSubtask } from '@/lib/itemDeletion';
@@ -685,8 +687,8 @@ const CalendarPage = () => {
                     {eventSelectionMode ? 'Cancel' : 'Select'}
                   </Button>
                 </div>
-                {eventSelectionMode && selectedEventIds.size > 0 && (
-                  <div className="flex items-center gap-2">
+                {eventSelectionMode && (
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => {
                       if (selectedEventIds.size === upcomingEvents.length) setSelectedEventIds(new Set());
                       else setSelectedEventIds(new Set(upcomingEvents.map(e => e.id)));
@@ -694,6 +696,7 @@ const CalendarPage = () => {
                       {selectedEventIds.size === upcomingEvents.length ? 'Deselect All' : 'Select All'}
                     </Button>
                     <span className="text-sm text-muted-foreground">{selectedEventIds.size} selected</span>
+                    <BulkAttributeEditor fields={eventBulkFields} disabled={!selectedEventIds.size} onApply={(key, value) => setEvents(es => es.map(e => selectedEventIds.has(e.id) ? applyBulkPatch(e, key, value) : e))} />
                     <Button variant="destructive" size="sm" onClick={handleBulkDeleteEvents} className="ml-auto gap-1">
                       <Trash2 className="h-4 w-4" /> Delete
                     </Button>

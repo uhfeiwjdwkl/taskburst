@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, LayoutDashboard, Check, GripVertical, MoveDiagonal2, RotateCcw, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, LayoutDashboard, Check, GripVertical, MoveDiagonal2, RotateCcw, ExternalLink, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,7 +12,7 @@ export const GRID_COLUMNS = 6;
 const ROW_PX = 80;
 
 /** cols: 1–6 grid columns; rows: 0 = automatic height, otherwise grid rows of ROW_PX. */
-export type Widget = { id: string; kind: string; cols: number; rows: number };
+export type Widget = { id: string; kind: string; cols: number; rows: number; border?: boolean; reserveSpace?: boolean };
 
 const defaults: Widget[] = [
   { id: 'timer', kind: 'timer', cols: 3, rows: 0 },
@@ -36,6 +36,8 @@ function loadWidgets(): Widget[] {
     kind: String(w.kind),
     cols: Math.max(1, Math.min(GRID_COLUMNS, Number(w.cols) || sizeToCols[w.size] || 3)),
     rows: Math.max(0, Number(w.rows) || 0),
+    border: Boolean(w.border),
+    reserveSpace: Boolean(w.reserveSpace),
   }));
 }
 
@@ -148,7 +150,8 @@ function CustomWidget({ kind }: { kind: string }) {
 }
 
 function WidgetFrame({ widget, children }: { widget: Widget; children: ReactNode }) {
-  const ctx = useContext(Context)!;
+  const ctx = useContext(Context);
+  if (!ctx) return <>{children}</>;
   const { editing, widgets, update, remove, moveBefore, gridRef } = ctx;
   const [dropHere, setDropHere] = useState(false);
   const order = widgets.findIndex(w => w.id === widget.id);
@@ -174,7 +177,7 @@ function WidgetFrame({ widget, children }: { widget: Widget; children: ReactNode
       data-home-widget={widget.kind}
       style={{ order, height: widget.rows ? widget.rows * ROW_PX : undefined }}
       data-sized={widget.rows ? '' : undefined}
-      className={cn('min-w-0 relative flex flex-col', spanClass, editing && 'rounded-lg ring-2 ring-primary/40 bg-background/70')}
+      className={cn('min-w-0 relative flex flex-col', spanClass, widget.border && 'border border-border rounded-md p-2', widget.reserveSpace && 'min-h-40', editing && 'rounded-lg ring-2 ring-primary/40 bg-background/70')}
       onDragOver={editing ? ((e: DragEvent) => { e.preventDefault(); e.stopPropagation(); setDropHere(true); }) : undefined}
       onDragLeave={editing ? () => setDropHere(false) : undefined}
       onDrop={editing ? ((e: DragEvent) => { e.preventDefault(); e.stopPropagation(); setDropHere(false); const id = e.dataTransfer.getData('application/home-widget'); if (id) moveBefore(id, widget.id); }) : undefined}
@@ -186,6 +189,8 @@ function WidgetFrame({ widget, children }: { widget: Widget; children: ReactNode
             <GripVertical className="h-4 w-4 shrink-0" /><span className="truncate">{widgetName(widget.kind)} · {widget.cols}/{GRID_COLUMNS} wide{widget.rows ? ` · ${widget.rows} tall` : ''}</span>
           </span>
           {widget.rows > 0 && <button className="underline" onClick={() => update(widget.id, { rows: 0 })}>Auto height</button>}
+          <Button size="icon" variant="ghost" className="h-6 w-6" aria-label="Widget border" title="Widget border" aria-pressed={Boolean(widget.border)} onClick={() => update(widget.id, { border: !widget.border })}><Square className="h-3.5 w-3.5" /></Button>
+          <Button size="sm" variant="ghost" className="h-6 px-1 text-xs" aria-pressed={Boolean(widget.reserveSpace)} onClick={() => update(widget.id, { reserveSpace: !widget.reserveSpace })}>Reserve space{widget.reserveSpace ? ' ✓' : ''}</Button>
           <button aria-label={`Remove ${widgetName(widget.kind)}`} onClick={() => remove(widget.id)} className="p-1"><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
       )}
@@ -199,8 +204,8 @@ function WidgetFrame({ widget, children }: { widget: Widget; children: ReactNode
   );
 }
 
-export function HomeWidget({ kind, children }: { kind: string; children: ReactNode }) {
+export function HomeWidget({ kind, children, valid = true }: { kind: string; children?: ReactNode; valid?: boolean }) {
   const ctx = useContext(Context);
   if (!ctx) return <>{children}</>;
-  return <>{ctx.widgets.filter(w => w.kind === kind).map(w => <WidgetFrame key={w.id} widget={w}>{children}</WidgetFrame>)}</>;
+  return <>{ctx.widgets.filter(w => w.kind === kind && (valid || ctx.editing || w.reserveSpace)).map(w => <WidgetFrame key={w.id} widget={w}>{valid ? children : ctx.editing ? <div className="p-4 text-sm text-muted-foreground">{widgetName(kind)}</div> : null}</WidgetFrame>)}</>;
 }
