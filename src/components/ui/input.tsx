@@ -110,7 +110,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         onClick={(event) => {
           props.onClick?.(event);
           const el = event.currentTarget;
-          if ((type === "date" || type === "time" || type === "datetime-local") && !el.readOnly && !el.disabled) {
+          if (window.matchMedia?.("(pointer: coarse)").matches && (type === "date" || type === "time" || type === "datetime-local") && !el.readOnly && !el.disabled) {
             try { el.showPicker?.(); } catch { /* not allowed in this context */ }
           }
         }}

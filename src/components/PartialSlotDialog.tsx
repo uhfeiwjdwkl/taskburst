@@ -26,6 +26,7 @@ interface PartialSlotDialogProps {
   /** Optional jump to the underlying task / list. */
   onOpenParent?: (slot: PartialSlot) => void;
   parentLabel?: string;
+  startInEdit?: boolean;
 }
 
 export const PartialSlotDialog = ({
@@ -35,6 +36,7 @@ export const PartialSlotDialog = ({
   onChanged,
   onOpenParent,
   parentLabel,
+  startInEdit = false,
 }: PartialSlotDialogProps) => {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -50,12 +52,13 @@ export const PartialSlotDialog = ({
     setDuration(slot.duration || 30);
     setCompleted(Boolean(slot.completed));
     setNote(slot.note || '');
-    setEditing(false);
-  }, [slot?.id, open]);
+    setEditing(startInEdit);
+  }, [slot?.id, open, startInEdit]);
 
   if (!slot) return null;
 
   const save = () => {
+    if (!date) { remove(); return; }
     updatePartialSlot({
       ...slot,
       date: date || slot.date,
@@ -154,11 +157,11 @@ export const PartialSlotDialog = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Date</Label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1" />
+              <Input type="date" value={date} onChange={(e) => { setDate(e.target.value); if (!e.target.value) setTime(''); }} className="mt-1" />
             </div>
             <div>
               <Label className="text-xs">Time</Label>
-              <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="mt-1" />
+              <Input type="time" value={time} disabled={!date} onChange={(e) => setTime(e.target.value)} className="mt-1" />
             </div>
           </div>
           <div>
@@ -196,7 +199,7 @@ export const PartialSlotDialog = ({
 
         <DialogFooter className="gap-2">
           <Button variant="destructive" onClick={remove} className="mr-auto">
-            <Trash2 className="h-4 w-4 mr-1" /> Delete slot
+            Unschedule
           </Button>
           <Button variant="outline" onClick={() => setEditing(false)}>Back</Button>
           <Button onClick={save}>Save</Button>
