@@ -35,6 +35,7 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [selectedSubtaskId, setSelectedSubtaskId] = useState<string | null>(null);
   const [partial, setPartial] = useState(false);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [partialSlots, setPartialSlots] = useState<PartialSlot[]>([]);
   const [form, setForm] = useState({ date: '', time: '', duration: 30 });
 
@@ -183,24 +184,34 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
 
   const itemFormFor = (id: string | null) => {
     const item = id ? subtasks.find(s => s.id === id) : null;
-    const dueDate = item ? item.dueDate : editedTask.dueDate?.slice(0, 10);
+    const dueDate = item ? item.dueDate : editedTask.scheduledDate?.slice(0, 10);
     const date = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : (dueDate || '');
     return { date, time: (item ? item.scheduledTime : editedTask.scheduledTime) || '', duration: (item ? item.estimatedMinutes : editedTask.estimatedMinutes) || 30 };
   };
   const writeSchedule = (id: string | null, f: { date: string; time: string; duration: number }) => {
     if (id) handleScheduleSubtask(id, f.date ? new Date(f.date + 'T12:00:00') : null, f.date ? f.time : '', f.duration);
-    else setEditedTask({ ...editedTask, dueDate: f.date || undefined, scheduledTime: f.date && f.time ? f.time : undefined, estimatedMinutes: f.duration, partial: false } as Task);
+    else setEditedTask({ ...editedTask, scheduledDate: f.date || undefined, scheduledTime: f.date && f.time ? f.time : undefined, estimatedMinutes: f.duration, partial: false } as Task);
   };
   const selectItem = (id: string | null) => {
+    setSelectedSlotId(null);
     setSelectedSubtaskId(id);
+    setPartial(false);
     const f = itemFormFor(id);
     setForm(f);
-    // Picking a day then an item schedules it there straight away (non-partial).
-    if (!partial && selectedDate && id) writeSchedule(id, f);
+
   };
   const applyForm = (f: { date: string; time: string; duration: number }) => {
     setForm(f);
-    if (!partial) writeSchedule(selectedSubtaskId, f);
+    if (selectedSlotId) {
+      const next = f.date ? partialSlots.map(p => p.id === selectedSlotId ? { ...p, date: f.date, time: f.time, duration: f.duration } : p) : partialSlots.filter(p => p.id !== selectedSlotId);
+      setPartialSlots(next); savePartialSlots(next);
+      if (!f.date) setSelectedSlotId(null);
+    } else if (!partial) writeSchedule(selectedSubtaskId, f);
+  };
+  const selectSlot = (slot: PartialSlot) => {
+    setSelectedSlotId(slot.id); setSelectedSubtaskId(slot.itemType === 'subtask' ? slot.itemId : null);
+    setSelectedDate(new Date(slot.date + 'T12:00:00')); setPartial(true);
+    setForm({ date: slot.date, time: slot.time, duration: slot.duration });
   };
   const slotCount = (id: string) => partialSlots.filter(p => p.itemId === id).length;
 
@@ -227,7 +238,7 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent 
-        className="max-w-4xl max-h-[90vh] overflow-y-auto"
+        className="max-w-6xl max-h-[90vh] overflow-y-auto"
         onPointerDownOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
@@ -237,14 +248,15 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-w-0">
+          <div className="space-y-4 min-w-0">
           {/* Calendar Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={navigatePrev}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="font-semibold min-w-[200px] text-center">
+              <span className="font-semibold text-center text-sm">
                 {format(currentDate, viewMode === 'month' ? 'MMMM yyyy' : "'Week of' MMM d, yyyy")}
               </span>
               <Button variant="outline" size="sm" onClick={navigateNext}>
@@ -308,7 +320,7 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
                         } ${selectedSubtaskId === subtask.id ? 'ring-1 ring-primary' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedSubtaskId(subtask.id);
+                          setSelectedDate(day); selectItem(subtask.id);
                         }}
                       >
                         {subtask.scheduledTime && <span className="mr-1">{subtask.scheduledTime}</span>}
@@ -326,6 +338,8 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
             })}
           </div>
 
+          </div>
+          <div className="space-y-4 min-w-0">
           {/* Day Schedule View */}
           {selectedDate && (
             <div className="h-[350px]">
@@ -335,6 +349,8 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
                 onDateChange={(d) => setSelectedDate(d)}
                 showCard={false}
                 onSubtaskClick={(subtask) => selectItem(subtask.id)}
+                onTaskClick={() => selectItem(null)}
+                onPartialSlotClick={selectSlot}
               />
             </div>
           )}
@@ -384,9 +400,9 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
                   </div>
                 ))}
                 {partialSlots.filter(p => p.date === format(selectedDate, 'yyyy-MM-dd') && (p.itemId === task.id || subtasks.some(s => s.id === p.itemId))).map(slot => (
-                  <div key={slot.id} className="flex items-center justify-between p-2 bg-muted rounded text-sm">
+                  <div key={slot.id} className="flex items-center justify-between p-2 bg-muted rounded text-sm cursor-pointer" onClick={() => selectSlot(slot)}>
                     <span>{slot.itemTitle} <span className="text-muted-foreground ml-1">{slot.time} · {slot.duration}m · partial</span></span>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => removePartialSlot(slot.id)}>Unschedule</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={e => { e.stopPropagation(); removePartialSlot(slot.id); if (selectedSlotId === slot.id) setSelectedSlotId(null); }}>Unschedule</Button>
                   </div>
                 ))}
               </div>
@@ -397,14 +413,15 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
           <div className="border-t pt-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className="font-medium flex items-center gap-2"><Clock className="h-4 w-4" />Schedule: {targetItemTitle}</h4>
-              <Label className="flex items-center gap-2"><Switch checked={partial} onCheckedChange={setPartial} />Partial</Label>
+              <Label className="flex items-center gap-2"><Switch checked={partial} disabled={Boolean(selectedSlotId)} onCheckedChange={setPartial} />Partial</Label>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <Label className="space-y-1">Date<Input type="date" value={form.date} onChange={e => applyForm({ ...form, date: e.target.value, time: e.target.value ? form.time : '' })} /></Label>
               <Label className="space-y-1">Time<Input type="time" value={form.time} disabled={!form.date} onChange={e => applyForm({ ...form, time: e.target.value })} /></Label>
               <Label className="space-y-1">Duration (min)<Input type="number" min={0} value={form.duration} onChange={e => applyForm({ ...form, duration: Number(e.target.value) || 0 })} /></Label>
             </div>
-            {partial ? (
+            <Button type="button" size="sm" variant="outline" onClick={() => { if (selectedSlotId) removePartialSlot(selectedSlotId); else writeSchedule(selectedSubtaskId, { ...form, date: '', time: '' }); setSelectedSlotId(null); setForm(f => ({ ...f, date: '', time: '' })); }}>Unschedule</Button>
+            {partial && !selectedSlotId ? (
               <Button type="button" size="sm" disabled={!form.date || !form.time} onClick={addPartialSlot}>Add partial session</Button>
             ) : (
               <p className="text-xs text-muted-foreground">Changes apply straight away. Turn on Partial to add a session that keeps this item in the bank.</p>
@@ -413,13 +430,14 @@ export const TaskScheduleDialog = ({ task, open, onClose, onSave, events = [] }:
               <div className="space-y-1">
                 <p className="text-sm font-medium">Partial sessions</p>
                 {itemSlots.map(slot => (
-                  <div key={slot.id} className="flex justify-between items-center text-sm bg-muted/50 rounded px-2">
+                  <div key={slot.id} className="flex justify-between items-center text-sm bg-muted/50 rounded px-2 cursor-pointer" onClick={() => selectSlot(slot)}>
                     <span>{slot.date} · {slot.time} · {slot.duration}m</span>
-                    <Button type="button" size="sm" variant="ghost" onClick={() => removePartialSlot(slot.id)}>Unschedule</Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={e => { e.stopPropagation(); removePartialSlot(slot.id); if (selectedSlotId === slot.id) setSelectedSlotId(null); }}>Unschedule</Button>
                   </div>
                 ))}
               </div>
             )}
+          </div>
           </div>
         </div>
 
